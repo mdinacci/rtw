@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<project name="CurveBlazer" company="" manager="Marco Dinacci" phase="" project-start="20081201T000000Z" mrproject-version="2" calendar="1">
+  <properties/>
+  <phases>
+    <phase name="Design"/>
+    <phase name="Prototyping"/>
+    <phase name="Tools development"/>
+    <phase name="Videogame development"/>
+    <phase name="Website development"/>
+    <phase name="Beta testing"/>
+    <phase name="Release"/>
+  </phases>
+  <calendars>
+    <day-types>
+      <day-type id="0" name="Working" description="A default working day"/>
+      <day-type id="1" name="Nonworking" description="A default non working day"/>
+      <day-type id="2" name="Use base" description="Use day from base calendar"/>
+    </day-types>
+    <calendar id="1" name="Default">
+      <default-week mon="0" tue="0" wed="0" thu="0" fri="0" sat="1" sun="1"/>
+      <overridden-day-types>
+        <overridden-day-type id="0">
+          <interval start="0800" end="1200"/>
+          <interval start="1300" end="1700"/>
+        </overridden-day-type>
+      </overridden-day-types>
+      <days/>
+    </calendar>
+  </calendars>
+  <tasks>
+    <task id="1" name="Tools development" note="" work="3456000" start="20090105T000000Z" end="20090619T170000Z" work-start="20090105T080000Z" percent-complete="1" priority="9" type="normal" scheduling="fixed-work">
+      <constraint type="must-start-on" time="20090105T000000Z"/>
+    </task>
+    <task id="2" name="Training with technologies" note="" work="432000" start="20081215T000000Z" end="20090102T170000Z" work-start="20081215T080000Z" percent-complete="0" priority="8" type="normal" scheduling="fixed-work">
+      <constraint type="start-no-earlier-than" time="20081215T000000Z"/>
+    </task>
+    <task id="3" name="Game Design Document" note="" work="288000" start="20081202T000000Z" end="20081215T170000Z" work-start="20081202T080000Z" percent-complete="0" priority="10" type="normal" scheduling="fixed-work">
+      <constraint type="must-start-on" time="20081202T000000Z"/>
+    </task>
+    <task id="4" name="Prepare financial sheets" note="" work="28800" start="20081201T000000Z" end="20081201T170000Z" work-start="20081201T080000Z" percent-complete="10" priority="7" type="normal" scheduling="fixed-work">
+      <constraint type="must-start-on" time="20081201T000000Z"/>
+    </task>
+  </tasks>
+  <resource-groups/>
+  <resources>
+    <resource id="1" name="Marco Dinacci" short-name="Marco" type="1" units="0" email="" note="" std-rate="0"/>
+  </resources>
+  <allocations>
+    <allocation task-id="3" resource-id="1" units="100"/>
+    <allocation task-id="4" resource-id="1" units="100"/>
+    <allocation task-id="2" resource-id="1" units="100"/>
+    <allocation task-id="1" resource-id="1" units="100"/>
+  </allocations>
+</project>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
+<!--Generated with glade3 3.4.5 on Tue Nov  4 16:51:59 2008 -->
+<glade-interface>
+  <widget class="GtkWindow" id="MainWindow">
+    <child>
+      <widget class="GtkVBox" id="vbox1">
+        <property name="visible">True</property>
+        <child>
+          <widget class="GtkButton" id="btn">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="label" translatable="yes">button</property>
+            <property name="response_id">0</property>
+            <signal name="clicked" handler="printHello"/>
+          </widget>
+        </child>
+        <child>
+          <widget class="GtkDrawingArea" id="da">
+            <property name="width_request">400</property>
+            <property name="height_request">300</property>
+            <property name="visible">True</property>
+            <signal name="button_press_event" handler="handlePandaEvent"/>
+          </widget>
+          <packing>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </widget>
+    </child>
+  </widget>
+</glade-interface>

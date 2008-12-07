@@ -1,0 +1,6 @@
+- private Mercurial repository (bitbucket or assembla)
+- at least 100MB space (bitbucket or assembla)
+- bug tracker  (bitbucket or assembla)
+- space to host releases (gkc). For final releases see bookmarks->biz->portals
+- blog (gkc)
+- forum working with SQLite (gkc installed by hand on same db as wordpress)
