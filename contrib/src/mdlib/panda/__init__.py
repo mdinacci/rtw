@@ -12,8 +12,10 @@ a Panda3D program
 import os
 
 # TODO check for model existance, if not raise ModelNotFoundException
-def loadModel(loader, path, parentNode):
+def loadModel(loader, path, parentNode, scale, pos):
     model = loader.loadModel(path)
+    model.setScale(scale)
+    model.setPos(pos)
     model.reparentTo(parentNode)
     return model
     
