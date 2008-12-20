@@ -8,8 +8,13 @@ This module is a collection of utilities to use while developing
 a Panda3D program
 
 """
-
 import os
+
+from direct.showbase.DirectObject import DirectObject
+
+class SafeDirectObject(DirectObject):
+    def destroy(self):
+        self.ignoreAll() 
 
 # TODO check for model existance, if not raise ModelNotFoundException
 def loadModel(loader, path, parentNode, scale, pos):
@@ -26,6 +31,15 @@ def groupNodes(render, groupName, *nodes):
     
     return groupNode
 
+def pandaCallback(fn):
+    """ 
+    A decorator which does absolutely nothing but document
+    that a function is a callback called from Panda3D  
+    """
+    def new(*args):
+        # do nothing for the moment
+        return fn(*args)
+    return new
 
 class ModelNotFoundException(Exception):
     def __init__(self, modelPath):
