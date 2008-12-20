@@ -1,3 +1,23 @@
+def displayLinesAroundObject():
+            lines = LineNodePath(parent = masterNode, thickness = 5.0, colorVec = Vec4(1, 0, 0, 1))
+            lines.reset()
+            
+            np = cell.getNodePath()
+            halfLen = Cell.LENGTH/2
+            halfHeight = Cell.HEIGHT/2
+            lines.drawLines([((np.getX()-halfLen, np.getY()-halfLen, np.getZ()-halfHeight),
+                              (np.getX()+halfLen, np.getY()-halfLen, np.getZ()-halfHeight),
+                              (np.getX()+halfLen, np.getY()+halfLen, np.getZ()-halfHeight),
+                              (np.getX()-halfLen, np.getY()+halfLen, np.getZ()-halfHeight),
+                              (np.getX()-halfLen, np.getY()-halfLen, np.getZ()-halfHeight))])
+            lines.drawLines([((np.getX()-halfLen, np.getY()-halfLen, np.getZ()+halfHeight),
+                              (np.getX()+halfLen, np.getY()-halfLen, np.getZ()+halfHeight),
+                              (np.getX()+halfLen, np.getY()+halfLen, np.getZ()+halfHeight),
+                              (np.getX()-halfLen, np.getY()+halfLen, np.getZ()+halfHeight),
+                              (np.getX()-halfLen, np.getY()-halfLen, np.getZ()+halfHeight))])
+            
+            lines.create()
+            
 class A():
     a = "1"
     b = "2"
