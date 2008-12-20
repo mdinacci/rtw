@@ -6,11 +6,12 @@ Author: Marco Dinacci <dev@dinointeractive.com>
 This module contains a collection of different cameras
 """
 
-__all__  = ["FreeCamera","FixedCamera"]
+__all__  = ["RoamingCamera","FixedCamera"]
 
 import direct.directbase.DirectStart
 from direct.showbase.DirectObject import DirectObject
 from pandac.PandaModules import Vec3, NodePath, WindowProperties, Camera
+
 
 class AbstractCamera(Camera):
     FORWARD = Vec3(0,2,0)
@@ -21,12 +22,15 @@ class AbstractCamera(Camera):
     DOWN = Vec3(0,0,-1)
     STOP = Vec3(0)
     
+    moveTaskName = "move_task"
+    
     def __init__(self, name):
         super(AbstractCamera, self).__init__(name)
         
         self.walk = self.STOP
         self.strafe = self.STOP
         self.linearSpeed = 50
+        self.isActive = False
         
         # accept input and configure controls
         self.ins = DirectObject()
@@ -36,10 +40,7 @@ class AbstractCamera(Camera):
         base.camera.attachNewNode(self)
         
         # camera specific initialisation
-        self.initialise()
-        
-        # animate the camera
-        taskMgr.add(self.moveTask, 'move-task')
+        self._initialise()
     
     def _attachControls(self):
         self.ins.accept( "s" , self.__setattr__,["walk",self.STOP] )
@@ -56,8 +57,12 @@ class AbstractCamera(Camera):
         self.ins.accept( "e" , self.__setattr__,["strafe",self.DOWN] )
         self.ins.accept( "e-up" , self.__setattr__,["strafe",self.STOP] )
         
-    def initialise(self):
-        """ Initialise camera properties like position and hpr """
+    def _initialise(self):
+        """ 
+        Initialise camera properties like position and hpr 
+        This method is supposed to be called only once.
+        To disable and enable the camera, use self.disable and self.enable
+        """
         raise NotImplementedError()
         
     def getPos(self):
@@ -74,6 +79,14 @@ class AbstractCamera(Camera):
         props = WindowProperties()
         props.setCursorHidden(not show)
         base.win.requestProperties(props)
+
+    def disable(self):
+        taskMgr.remove(self.moveTaskName)
+        self.setActive(False)
+        
+    def enable(self):
+        taskMgr.add(self.moveTask, self.moveTaskName)
+        self.setActive(True)
 
     def destroy(self):
         """ 
@@ -98,37 +111,48 @@ class FixedCamera(AbstractCamera):
     """
     This camera is suited to select objects in the scene.
     It can be moved using the "wasd" key's combination and doesn't 
-    allow any rotation YET.
+    allow any rotation (yet...)
     
     TODO implement rotation
     """
-    def __init__(self, pos):
+    def __init__(self, setActive = True):
         super(FixedCamera, self).__init__("fixed")
     
-    def initialise(self):
+    def enable(self):
+        super(FixedCamera, self).enable()
         base.disableMouse()
         self.showCursor(True)
-        self.setActive(True)
+    
+    def _initialise(self):
+        self.enable()
+    
+    
         
-        
-class FreeCamera(AbstractCamera):
+class RoamingCamera(AbstractCamera):
     """
     FPS-like camera, moving the mouse around will update the position of the camera.
     """
-    def __init__(self):
-        super(FreeCamera, self).__init__("free")
-        self.linearSpeed = 65
+    
+    mouseTask= "mouse-task"
+    
+    def __init__(self, setActive = True):
+        super(RoamingCamera, self).__init__("roam")
+        self.linearSpeed = 55
         self.angularSpeed = 5
-        taskMgr.add(self.mouseUpdate, 'mouse-task')
 
-    def initialise(self):
-        base.disableMouse()
-        #camera.setPos( 0, -40, 20)
-        #camera.lookAt(0,0,0)
+    def _initialise(self):
         pl = self.getLens()
         pl.setFov(70)
         self.setLens(pl)
-        self.setActive(True)
+        
+    def disable(self):
+        super(RoamingCamera, self).disable()
+        taskMgr.remove('mouseTask')
+        
+    def enable(self):
+        super(RoamingCamera, self).enable()
+        taskMgr.add(self.mouseUpdate, 'mouseTask')
+        base.disableMouse()
         self.showCursor(False)
     
     def mouseUpdate(self,task):
