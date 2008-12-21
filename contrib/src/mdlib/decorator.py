@@ -2,9 +2,18 @@
 
 """
 Author: Marco Dinacci <marco.dinacci@gmail.com>
+
+They work better with Python2.5 as we can avoid writing:
+newf.__name__ = f.__name__
+newf.__dict__.update(f.__dict__)
+newf.__doc__ = f.__doc__
+newf.__module__ = f.__module__
 """
 
 import time
+
+def Property(func):
+    return property(**func())
 
 def timer(func):
     """ Time the application of func to arguments. Return seconds. """
@@ -13,9 +22,6 @@ def timer(func):
         start = time.clock()
         func(*args)
         print "It took: %d" % (time.clock() - start)
-    new.__name__ = func.__name__
-    new.__doc__ = func.__doc__
-    new.__dict__.update(func.__dict__)
     return new
 
 
@@ -25,9 +31,6 @@ def traceMethod(func):
         print "Entering %s " % func.__name__
         func(*args, **kwds)
         print "Exiting %s " % func.__name__
-    new.__name__ = func.__name__
-    new.__doc__ = func.__doc__
-    new.__dict__.update(func.__dict__)
     return new
 
 import warnings
@@ -41,9 +44,6 @@ def deprecated(func):
         warnings.warn("Call to deprecated function %s." % func.__name__,
                       category=DeprecationWarning)
         return func(*args, **kwargs)
-    new.__name__ = func.__name__
-    new.__doc__ = func.__doc__
-    new.__dict__.update(func.__dict__)
     return new
 
 
@@ -59,9 +59,6 @@ def dumpArgs(func):
             '%s=%r' % entry
             for entry in zip(argnames,args) + kwargs.items())
         return func(*args, **kwargs)
-    echo.__name__ = func.__name__
-    echo.__doc__ = func.__doc__
-    echo.__dict__.update(func.__dict__)
     return echo
 
 import sys
