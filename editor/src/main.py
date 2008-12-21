@@ -5,198 +5,67 @@ Author: Marco Dinacci <dev@dinointeractive.com>
 License: BSD
 
 World Editor for SpeedBlazer
+
+
+TODO
+
+- delete cell (send event)
+- change cell specific settings:
+    - model
+    - color
+    - surface properties
+- create multiple surfaces in ODE and bind them to cells
+- implement scene save/load
+- better ball physics (fix the fact that it never stops)
+- entity manager
+- input manager, the situation is getting out of control, who binds which key?
+- better camera for the ball, must have constant X position and 
+  constant Y distance
+- new cell models to implement elevation
+- curves :O
+- fix the logger
+- improve button location, now depends on the window' size
+- Configuration manager
 """
 
+# useful for debugging
 from mdlib.decorator import traceMethod, accepts, trace, dumpArgs
-from mdlib.log import ConsoleLogger, DEBUG
-logger = ConsoleLogger("editor", DEBUG)
 
-from pandac.PandaModules import loadPrcFileData
-loadPrcFileData("", "show-frame-rate-meter 1")
+# logging
+from mdlib.log import ConsoleLogger, DEBUG,WARNING
+logger = ConsoleLogger("editor", WARNING)
 
+# load configuration
+from pandac.PandaModules import loadPrcFile, ConfigVariableString, ConfigVariableBool
+loadPrcFile("../res/Config.prc")
+loadPrcFile("../res/Editor.prc")
+
+# panda 3d stuff
 import direct.directbase.DirectStart
 from direct.showbase.DirectObject import DirectObject
 from direct.directtools.DirectGeometry import LineNodePath
 from pandac.PandaModules import Point3, Vec4, Vec3, NodePath, Quat
 from pandac.PandaModules import LightAttrib, AmbientLight, DirectionalLight
+
+# collision to pick cell with mouse
 from pandac.PandaModules import CollisionNode, CollisionHandlerQueue, CollisionTraverser, CollisionRay, GeomNode
+
+# ode imports
 from pandac.PandaModules import OdeWorld, OdeSimpleSpace, OdeJointGroup
 from pandac.PandaModules import OdeBody, OdeMass, OdeBoxGeom, OdeSphereGeom, BitMask32
 
+from direct.gui.DirectGui import *
+
 from sys import exit 
 
-# to randomly choose a color
-from random import randint, seed
-seed()
-
-from mdlib.panda import loadModel, pandaCallback, SafeDirectObject
+# panda utilities and actors
+from mdlib.panda import pandaCallback, SafeDirectObject
 from mdlib.panda.camera import *
-
-# some colors
-BLACK = Vec4(0,0,0,1)
-WHITE = Vec4(1,1,1,1)
-RED = Vec4(1,0,0,1)
-GREEN = Vec4(0,1,0,1)
-BLUE = Vec4(0,0,1,1)
-HIGHLIGHT = Vec4(1,1,0.3,0.5)
-colors = [BLACK,WHITE,RED,GREEN,BLUE]
+from mdlib.panda.entity import *
 
 # All the objects are attached to the master node
-masterNode = render.attachNewNode("master")
+masterNode = render.attachNewNode("editorNode")
 
-class GameEntity(object):
-    """ 
-    Basic entity of the game 
-    TODO: pos, quat and density must be properties
-    """
-    def __init__(self, path, parent, scale, pos):
-        self._nodePath = loadModel(loader, path, parent, scale, pos)
-        self._nodePath.showTightBounds()
-
-    def __repr__(self):
-        return self.__class__.__name__
-        
-    def getNodePath(self):
-        return self._nodePath
-       
-    def getPos(self):
-        return self._nodePath.getPos()
-    
-    def getQuat(self):
-        return self._nodePath.getQuat()
-    
-    
-class GameActor(GameEntity):
-    """  
-    A game actor is different from a GameEntity in the sense that
-    it can physically interact with the world.
-    It is usually represented by a 3D model and has physical properties. 
-    """
-    
-    BOX_GEOM_TYPE = "box"
-    SPHERE_GEOM_TYPE = "sphere"
-    
-    def __init__(self, path, parent, scale, pos):
-        super(GameActor, self).__init__(path, parent, scale, pos)
-        self._density = 400
-        self._body = None
-        self._geomType = None
-    
-    def hasBody(self):
-        """ 
-        An actor can have a physical geometry but no body, 
-        which basically means that it can be used for collision
-        detection but it is not affected by physical properties
-        """
-        return True
-    
-    def getBody(self):
-        """ Returns the physical representation of this actor """
-        return self._body
-    
-    def setBody(self, body):
-        self._body = body
-    
-    def getGeometryType(self):
-        return self._geomType
-    
-    def getDensity(self):
-        # FIXME to integrate in the "physic body"
-        return self._density
-    
-    def getCollisionBitMask(self):
-        return self._collisionBitMask
-    
-    def getCategoryBitMask(self):
-        return self._categoryBitMask
-    
-    def update(self, pos, quat):
-        self.getNodePath().setPosQuat(pos,quat)
-
-
-class Cell(GameActor):
-    LENGTH = 2
-    HEIGHT = .2
-
-    def __init__(self, parent, pos):
-        super(Cell, self).__init__("../res/cell", parent, 1, pos)
-        self.getNodePath().setColor(colors[randint(0,len(colors)-1)])
-        self._setupPhysics()
-     
-    def hasBody(self):
-        return False
-     
-    def getBody(self):
-        return None
-        
-    def _setupPhysics(self): 
-        self._density = 400
-        self._collisionBitMask = BitMask32.bit(1)#(0x00000001)
-        self._categoryBitMask = BitMask32.allOff()#(0x00000001) #2
-        self._geomType = GameActor.BOX_GEOM_TYPE 
-        
-class Track(GameEntity):
-    _cells = []
-    ROW_LENGTH = 5
-    
-    def __init__(self):
-        self._nodePath = masterNode.attachNewNode("track")
-    
-    def getCellAtIndex(self, idx):
-        if idx < len(self._cells):
-            return self._cells[idx]
-        else:
-            logger.error("Cell %d doesn't exists !" % idx)
-    
-    def addRow(self):
-        for i in range(0, self.ROW_LENGTH):
-            self.addCell()
-    
-    def addCell(self):
-        cell = self._createCell()
-        self._cells.append(cell)
-        messenger.send("entity-new", [cell])
-        
-    def _createCell(self):
-        # by default put a new cell close to the latest added
-        if len(self._cells) > 0:
-            prevPos = self._cells[-1].getPos()
-            if len(self._cells) % self.ROW_LENGTH == 0: 
-                incX = - (self.ROW_LENGTH-1) * Cell.LENGTH
-                incY = Cell.LENGTH
-            else:
-                incX = Cell.LENGTH
-                incY = 0
-            pos = Point3(prevPos.getX() + incX, prevPos.getY()+ incY, prevPos.getZ())
-        else:
-            pos = Point3(0,0,1)
-        
-        cell = Cell(self._nodePath, pos)
-        
-        # set row, column tag; it makes easy to identify the cell after
-        cellNP = cell.getNodePath()
-        row = (len(self._cells)) / (self.ROW_LENGTH)
-        col = (len(self._cells)) % (self.ROW_LENGTH)
-        cellNP.setTag("pos", "%d %d" % (row,col))
-        logger.debug("Adding cell at row,col (%d,%d)" % (row,col))
-        
-        return cell
-        
-class TheBall(GameActor):
-    RADIUS = 1
-    
-    _isMoving = False
-    
-    def __init__(self, parent, pos):
-        super(TheBall, self).__init__("models/smiley", parent, 1, pos)
-        self._setupPhysics()
-        
-    def _setupPhysics(self): 
-        self._density = 100
-        self._collisionBitMask = BitMask32.allOff()#(0x00000002) #2
-        self._categoryBitMask = BitMask32.bit(1)#(0x00000001)
-        self._geomType = GameActor.SPHERE_GEOM_TYPE
-    
     
 class PhysicSimulation(object):
     # Create an accumulator to track the time since the sim has been running
@@ -205,11 +74,12 @@ class PhysicSimulation(object):
     def __init__(self, visualWorld):
         self.visualWorld = visualWorld
         self.physWorld = OdeWorld()
-        self.physWorld.setGravity(0, 0, -5.81)
+        self.physWorld.setGravity(0, 0, -9.81)
         #self.physWorld.setGravity(0, 0, 0)
         self.physWorld.initSurfaceTable(1)
         # surfID1, surfID2, friction coeff, bouncy, bounce_vel, erp, cfm, slip, dampen (oscillation reduction) 
-        self.physWorld.setSurfaceEntry(0, 0, 150, 1.0, 9.1, 0.9, 0.00001, 0.0, 0.002)
+        #self.physWorld.setSurfaceEntry(0, 0, 150, 0.1, 1, 0.9, 0.000001, 0.0, 0.002)
+        self.physWorld.setSurfaceEntry(0, 0, 150, 0.3, 9.1, 0.9, 0.00001, 0.0, 0.002)
         
         self.space = OdeSimpleSpace()
         self.space.setAutoCollideWorld(self.physWorld)
@@ -218,38 +88,37 @@ class PhysicSimulation(object):
  
         taskMgr.doMethodLater(0.5, self._simulationTask, "Physics Simulation")
  
-    @dumpArgs
     def createBodyForEntity(self, entity):
         """ Create a physical body and geometry for a game entity (actor) """
         
         body = OdeBody(self.physWorld)
         M = OdeMass()
+        np = entity.getNodePath()
 
         geometry = None
         geomType = entity.getGeometryType()
         if geomType == GameActor.SPHERE_GEOM_TYPE:
-            geometry = OdeSphereGeom(self.space, 1)
-            M.setSphere(entity.getDensity(), 1)
+            geometry = OdeSphereGeom(self.space, entity.radius)
+            M.setSphere(entity.getDensity(), entity.radius)
+            geometry.setPosition(entity.getPos())
         elif geomType == GameActor.BOX_GEOM_TYPE:
-            geometry = OdeBoxGeom(self.space, 1, 1, 0.2)
-            M.setBox(entity.getDensity(), 1, 1, 0.2)
+            geometry = OdeBoxGeom(self.space, entity.length, entity.width, entity.height)
+            M.setBox(entity.getDensity(), entity.length, entity.width, entity.height)
+            geometry.setPosition(np.getX(), np.getY(), np.getZ()-entity.height)
         else:
             logger.error("Invalid geometry type for entity: %s" % entity)
             return None
         
-        geometry.setPosition(entity.getPos())
         geometry.setQuaternion(entity.getQuat())
-        
         geometry.setCollideBits(entity.getCollisionBitMask())
         geometry.setCategoryBits(entity.getCategoryBitMask())
 
         if entity.hasBody():
             geometry.setBody(body)
-    
-            body.setMass(M)
             body.setPosition(entity.getPos())
             body.setQuaternion(entity.getQuat())
-    
+            body.setMass(M)
+        
         return body
     
     @pandaCallback
@@ -280,25 +149,35 @@ class World(object):
     The world contains and manage (by delegating) everything is in the 3D world
     """
     def __init__(self):
+        self._entities = []
         # setup the environment and the lights
+        self.physWorld = PhysicSimulation(self)
         self._prepareWorld()
         
-        self._entities = []
-        self._track = Track()
+        self._track = Track(masterNode)
         self.addEntity(self._track)
         
-        self.physWorld = PhysicSimulation(self)
+        self._ball = TheBall(masterNode, Point3(4,2,5))
+        self.addEntity(self._ball)
+        self._ball.getNodePath().hide()
+        # just in case there is no track yet, otherwise the ball would fall
+        # forever 
+        self._ball.getBody().setGravityMode(False)
         
     def addEntity(self, entity):
         self._entities.append(entity)
         if isinstance(entity, GameActor):
             # TODO should be splitted in createGeometry and setBody, and the latter
             # must be called only if entity.hasBody returns True !!
+            # FIXME shouldn't the Actor create the body itself ?
             entity.setBody(self.physWorld.createBodyForEntity(entity))
         logger.debug("Added new entity in the world %s" % entity)
         
     def getTrack(self):
         return self._track
+    
+    def getBall(self):
+        return self._ball
     
     def getActors(self):
         # TODO this loop can be computed only if we add a new entity
@@ -327,19 +206,19 @@ class World(object):
         render.node().setAttrib( lAttrib )
         
     def _prepareWorld(self):
-        env = GameEntity("../res/environment", masterNode, 0.25, Point3(-8,42,-5))
-        #self._entities.append(env)    
+        env = Environment(masterNode, Point3(-8,42,-5))
+        self._entities.append(env)    
         self._setupLights()
         
 class EditorMode(object):
     def __init__(self, world):
         self.world = world
-        self._setupInput()
         self._setupCamera()
-        self._setupCollisionDetection()
+        self._setupInput()
     
     def enable(self):
         self.camera.enable()
+        self._setupInput()
         
     def disable(self):
         self.camera.disable()
@@ -350,68 +229,131 @@ class EditorMode(object):
     
     def _setupInput(self):
         raise NotImplementedError
+
     
-    def _setupCollisionDetection(self):
-        self.picker = CollisionTraverser()
-        self.pq = CollisionHandlerQueue();
-        self.pickerNode = CollisionNode("cellPickRay")
-        self.pickerNP = camera.attachNewNode(self.pickerNode)
-        self.pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
-        self.pickerRay = CollisionRay()
-        self.pickerNode.addSolid(self.pickerRay)
-        self.picker.addCollider(self.pickerNP, self.pq)
-        
 class RoamMode(EditorMode):
     def __init__(self, world):
         super(RoamMode, self).__init__(world)
     
     def _setupCamera(self):
-        self.camera = RoamingCamera(setActive = False)
-        self.camera.setPos(0,-40,13)
+        self.camera = RoamingCamera()
+        self.camera.setPos(0,-40,10)
         self.camera.lookAt(0,0,0)
     
     def _setupInput(self):
         self.input = DirectObject()
+        self.input.accept("0", self.camera.lookAtOrigin)
+
 
 class DriveMode(EditorMode):
     """ This mode is used to simulate the game """
     def __init__(self, world):
         super(DriveMode, self).__init__(world)
-        self._setupCollisionDetection()
+    
+    def enable(self):
+        super(DriveMode, self).enable()
+        self.world.getBall().getNodePath().show()
+        self.world.getBall().getBody().setGravityMode(True)
+    
+    def disable(self):
+        super(DriveMode, self).disable()
+        self.world.getBall().getNodePath().hide()
+        # TODO
+        #self.world.getBall().stop()
+    
+    def _setupCamera(self):
+        # 3,3,-0.5 is the perfect setup to check the collision of the ball 
+        # against the track
+        self.camera = TheBallCamera(self.world.getBall(), 8, 10, 6)
+        
+    def _setupInput(self):
+        self.input = DirectObject()
+        self.__setupInput()
+        
+    def __setupInput(self):
+        ball = self.world.getBall()
+        self.input.accept("i", ball._setForce, [0,1.5,0])
+        self.input.accept("j", ball._setForce, [-2,0,0])
+        self.input.accept("k", ball._setForce, [0,-0.5,0])
+        self.input.accept("l", ball._setForce, [2,0,0])
+        self.input.accept("i-up", ball._setForce, [0,0,0])
+        self.input.accept("j-up", ball._setForce, [0,0,0])
+        self.input.accept("k-up", ball._setForce, [0,0,0])
+        self.input.accept("l-up", ball._setForce, [0,0,0])
+
+
+class DebugMode(EditorMode):
+    def __init__(self, world):
+        super(DebugMode, self).__init__(world)
+    
+    def _setupCamera(self):
+        self.camera = DebugCamera()
+    
+    def _setupInput(self):
+        pass
+    
+    def enable(self):
+        pass
+        
+    def disable(self):
+        pass
+
 
 class EditMode(EditorMode):
     class PickedObjectState(object):
         color = BLACK = Vec4(0,0,0,1)
         index = -1
     
+    class GUIControllerDelegate(object):
+        def __init__(self, editMode):
+            # Inner classes don't have access to the outer
+            # class attributes like in Java :(
+            self._editMode = editMode
+        
+        def __getattr__(self,attr):
+            try:
+                return self.__dict__[attr]
+            except KeyError, e:
+               return self._editMode.__dict__[attr]
+        
+        def onDeleteButtonClick(self):
+            logger.debug("sending message delete-entity")
+            messenger.send("delete-entity", [self._selectedCell])
+    
     def __init__(self, world):
         super(EditMode, self).__init__(world)
         self._setupCollisionDetection()
+        self._selectedCell = None
+        self._gui = EditModeGUI(self.GUIControllerDelegate(self))
         self.disable()
         
     def enable(self):
         super(EditMode, self).enable()
-        self.__setupInput()
+        self._gui.enable()
+        
+    def disable(self):
+        super(EditMode, self).disable()
+        self._gui.disable()
+        if self._selectedCell is not None:
+            self._selectedCell.getNodePath().hideBounds()
     
     def __hasSelection(self):
         return hasattr(self, "pickedObjectState")
     
+    #pandaCallback
+    def _deleteCell(self, cell):
+        logger.debug("Deleting cell: %s", cell)
+    
     @pandaCallback
     def _addRow(self):
+        logger.debug("Adding row to track")
         self.world.getTrack().addRow()
         
     @pandaCallback
     def _addCell(self):
+        logger.debug("Adding cell to track")
         self.world.getTrack().addCell()
         
-    @pandaCallback
-    def _addBall(self):
-        # FIXME get position from mouse pointer,
-        # cast a ray to the track and the intersection point
-        # is the spawning position.
-        ball = TheBall(masterNode, Point3(4,2,10))
-        messenger.send("entity-new", [ball])
-    
     @pandaCallback
     def _onMousePress(self):
         track = self.world.getTrack()
@@ -425,9 +367,7 @@ class EditMode(EditorMode):
                 
                 if self.__hasSelection():
                     previousIndex = self.pickedObjectState.index
-                    #previousColor = self.pickedObjectState.color
                     cell = track.getCellAtIndex(previousIndex).getNodePath()
-                    #cell.setColor(previousColor)
                     cell.hideBounds()
                     cell.setRenderModeFilled()
                 else:
@@ -438,18 +378,28 @@ class EditMode(EditorMode):
                 idx = row*Track.ROW_LENGTH+col
                 logger.debug("Selected object: %s at row,col: %d,%d (idx: %d)" % (pickedObject, row, col, idx ))
                 
-                currentCell = track.getCellAtIndex(idx).getNodePath()
-                self.pickedObjectState.color = currentCell.getColor()
+                self._selectedCell = track.getCellAtIndex(idx)
+                np = self._selectedCell.getNodePath()
+                self.pickedObjectState.color = np.getColor()
                 self.pickedObjectState.index = idx
                 
-                #currentCell.setColor(HIGHLIGHT)
-                currentCell.showBounds()
-                currentCell.setRenderModeWireframe()
+                np.showBounds()
+                #currentCell.setRenderModeWireframe()
             else:
                 logger.debug("No collisions at: %s" % mousePos)
     
+    def _setupCollisionDetection(self):
+        self.picker = CollisionTraverser()
+        self.pq = CollisionHandlerQueue();
+        self.pickerNode = CollisionNode("cellPickRay")
+        self.pickerNP = camera.attachNewNode(self.pickerNode)
+        self.pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
+        self.pickerRay = CollisionRay()
+        self.pickerNode.addSolid(self.pickerRay)
+        self.picker.addCollider(self.pickerNP, self.pq)
+        
     def _setupCamera(self):
-        self.camera = FixedCamera(setActive = False)
+        self.camera = FixedCamera()
         self.camera.setPos(0,-40,15)
         self.camera.lookAt(0,0,0)
 
@@ -462,32 +412,83 @@ class EditMode(EditorMode):
         self.input.accept("shift-space", self._addRow)
         self.input.accept("mouse1", self._onMousePress)
         self.input.accept("entity-new", self.world.addEntity)
-        self.input.accept("b", self._addBall)
+
+
+class EditModeGUI(object):
+    def __init__(self, controller):
+        self.controller = controller
+        maps = loader.loadModel('delete_btn/delete_btn.egg')
+        ra = base.camLens.getAspectRatio()
+        deleteBtn = DirectButton(geom = (maps.find('**/delete'),
+                         maps.find('**/delete'),
+                         maps.find('**/delete_over'),
+                         maps.find('**/delete')),
+                         borderWidth=(0,0),
+                         frameColor=(0,0,0,0),
+                         scale = .2,
+                         pos = (-.8*ra,0,.6*ra),
+                         command=self.controller.onDeleteButtonClick)
         
+        deleteBtn.hide()
+        self._widgets = [deleteBtn]
+        
+    @pandaCallback
+    def _deleteButtonClick(self):
+        messenger.send("delete-cell-button-click")
+        
+    
+    def enable(self):
+        for widget in self._widgets:
+            widget.show()
+    
+    def disable(self):
+        for widget in self._widgets:
+            widget.hide()
+    
+
 class Editor(object):
-    FPS = 1.0/80.0
+    FPS = 1.0/90.0
     
     def __init__(self):
         self.world = World()
 
         self.ins = DirectObject()
-        self._attachControls()
+        self._setupInput()
         
-        self.modes = {"roam": RoamMode(self.world), 
-                      "edit": EditMode(self.world)}
-        self.mode = self.modes["roam"]
+        # if want-directtols is true, don't activate all the modes
+        if wantsDirectTools():
+            self.modes = {"debug": DebugMode(self.world)}
+            self.mode = self.modes["debug"]
+        else:
+            self.modes = {"roam": RoamMode(self.world), 
+                          "edit": EditMode(self.world),
+                          "drive":DriveMode(self.world)}
+            self.mode = self.modes["roam"]
+            
         self.mode.enable()
         
         self.isRunning = True
         
-        if False:
-            taskMgr.popupControls()
-            messenger.toggleVerbose()
+        # create automatically some geometry to speed up work
+        track = self.world.getTrack()
+        for i in range(0,15):
+            track.addRow()
+            
+        for cell in track.getCells():
+            self.world.addEntity(cell)
     
-    def _attachControls(self):
+    def _dumpNodes(self):
+        render.ls()
+        self.isRunning = False
+    
+    def _setupInput(self):
         self.ins.accept("escape", self.quit)
-        self.ins.accept("1", self._switchMode, ["roam"])
-        self.ins.accept("2", self._switchMode, ["edit"])
+        if not wantsDirectTools():
+            self.ins.accept("1", self._switchMode, ["roam"])
+            self.ins.accept("2", self._switchMode, ["edit"])
+            self.ins.accept("3", self._switchMode, ["drive"])
+            self.ins.accept("4", self._switchMode, ["debug"])
+            self.ins.accept("9", self._dumpNodes)
         
     @pandaCallback
     def _switchMode(self, mode):
@@ -506,12 +507,16 @@ class Editor(object):
     def run(self):
         from time import sleep
         while self.isRunning:
-            sleep(self.FPS)
             taskMgr.step()
+            sleep(self.FPS)
         else:
             render.analyze()
             # TODO do cleanup
             logger.info("Quitting application, have fun")
+
+
+def wantsDirectTools():
+    return ConfigVariableBool("want-directtools") is "t"
 
 if __name__ == "__main__":
     e = Editor()
