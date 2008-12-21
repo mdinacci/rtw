@@ -1,8 +1,7 @@
 # -*- coding: utf-8-*-
 
 """
-Author: Marco Dinacci <marco.dinacci@gmail.com>
-License: BSD
+Author: Marco Dinacci <dev@dinointeractive.com>
 
 This module is
 """
