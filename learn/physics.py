@@ -4,7 +4,7 @@ from direct.directbase import DirectStart
 from direct.showbase.DirectObject import DirectObject
 from pandac.PandaModules import OdeWorld, OdeSimpleSpace, OdeJointGroup
 from pandac.PandaModules import OdeBody, OdeMass, OdeBoxGeom, OdePlaneGeom
-from pandac.PandaModules import BitMask32, CardMaker, Vec4, Quat, Point3
+from pandac.PandaModules import BitMask32, CardMaker, Vec4, Quat, Point3, NodePath, PandaNode
 
 import sys
 from random import randint 
@@ -21,12 +21,12 @@ colors = [BLACK,WHITE,RED,GREEN,BLUE]
 class DaMan(Actor.Actor):
     _STEP = 0.03
     _isMoving = False
-    _cmdMap = {"forward":0, "left":0, "backward":0, "right":0}
+    _cmdMap = {"forward":0, "left":0, "backward":0, "right":0, "force":0}
     density = 950
     
     def __init__(self):
-        super(DaMan, self).__init__('models/panda-model',{'walk':'models/panda-walk4'}) 
-        self.setScale(0.005)
+        super(DaMan, self).__init__('models/panda',{'walk':'models/panda-walk'}) 
+        self.setScale(0.2)
         self.setPosHpr(0, 5, 10, 0, 0, 2)
         #self.setPosHpr(10, 1, 21, 0, 0, 2)
         self.reparentTo(render)
@@ -39,6 +39,7 @@ class DaMan(Actor.Actor):
         self.accept("j-up", self._setCmd, ["left", False])
         self.accept("k-up", self._setCmd, ["backward", False])
         self.accept("l-up", self._setCmd, ["right", False])
+        self.accept("1", self._setCmd, ["force", False])
 
         taskMgr.add(self._moveTask, "move")
         
@@ -68,6 +69,8 @@ class DaMan(Actor.Actor):
                 self.setH(-180)
                 self.loop("walk", restart=0)
                 self.setY(self.getY() - self._STEP)
+            elif self._cmdMap["force"]:
+                self.applyForce = True
                 
             self.pbody.setPosition(self.getPos())
             self.pbody.setQuaternion(self.getQuat())
@@ -106,7 +109,37 @@ class Camera(DirectObject):
     def moveEast(self):
         p = camera.getPos()
         camera.setPos(Point3(p.getX()+2, p.getY(), p.getZ()))
+
+class ThirdPersonCamera(DirectObject):
+    def __init__(self, target):
+        self.target = target
+        self.floater = NodePath(PandaNode("floater"))
+        self.floater.reparentTo(render)
+        base.camera.setPos(target.getX(),target.getY()-20, 7) 
+        base.disableMouse()
+        taskMgr.add(self.cameraFollow,"cameraFollow") 
+
+    def cameraFollow(self, task):
+        base.camera.lookAt(self.target)
+        camvec = self.target.getPos() - base.camera.getPos()
+        camvec.setZ(0)
+        camdist = camvec.length()
+        camvec.normalize()
+        if (camdist > 10.0):
+            base.camera.setPos(base.camera.getPos() + camvec*(camdist-10))
+            camdist = 10.0
+        if (camdist < 5.0):
+            base.camera.setPos(base.camera.getPos() - camvec*(5-camdist))
+            camdist = 5.0
         
+        self.floater.setPos(self.target.getPos())
+        self.floater.setZ(self.target.getZ() + 2.0)
+        self.floater.setY(self.target.getY() - 1.0)
+        base.camera.lookAt(self.floater) 
+        
+        return Task.cont 
+
+
 class World(DirectObject):
     # Create an accumulator to track the time since the sim
     # has been running
@@ -120,8 +153,9 @@ class World(DirectObject):
         
         self._setupPhysics()
 
+        panda = self._createPanda()
+        #self.cam = ThirdPersonCamera(panda)
         self.cam = Camera()
-        self._createPanda()
         #self._createPlane()
         self._createSquarePlane()
         #self._createTrack()
@@ -205,6 +239,7 @@ class World(DirectObject):
         daMan.setPhysicBody(body)
 
         self.objs.append((daMan, body))
+        return daMan
         
         
     # The task for our simulation
@@ -221,6 +256,7 @@ class World(DirectObject):
             
         # set the new positions
         for obj,body in self.objs:
+            body.addForce(0,30000,0)
             obj.setPosQuat(render, body.getPosition(), Quat(body.getQuaternion()))
             
         self.contactgroup.empty()
