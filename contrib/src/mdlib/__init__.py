@@ -2,10 +2,4 @@
 
 """
 Author: Marco Dinacci <marco.dinacci@gmail.com>
-License: BSD
-
-This module...
 """
-
-def Property(func):
-    return property(**func())
