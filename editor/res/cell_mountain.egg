@@ -1,0 +1,44 @@
+<CoordinateSystem> { Z-up }
+
+<Comment> { "Egg laid by Chicken for Blender vR44" }
+
+<Material> snow {
+  <Scalar> diffr {0.800000011921}
+  <Scalar> diffg {0.800000011921}
+  <Scalar> diffb {0.800000011921}
+  <Scalar> specr {0.25}
+  <Scalar> specg {0.25}
+  <Scalar> specb {0.25}
+  <Scalar> shininess {12.5}
+}
+<Texture> snow.jpg {
+  "snow.jpg"
+  <Scalar> uv-name { UVTex }
+  <Scalar> envtype { modulate }
+}
+<Group> Plane {
+  <VertexPool> Plane {
+    <Vertex> 0 {
+      1.0 0.999999940395 0.0
+      <UV> UVTex { 0.000000 0.000000 }
+    }
+    <Vertex> 1 {
+      -0.999999642372 1.00000035763 0.0
+      <UV> UVTex { 1.000000 0.000000 }
+    }
+    <Vertex> 2 {
+      -1.00000011921 -0.999999821186 0.0
+      <UV> UVTex { 1.000000 1.000000 }
+    }
+    <Vertex> 3 {
+      1.0 -1.0 0.0
+      <UV> UVTex { 0.000000 1.000000 }
+    }
+  }
+  <Polygon> {
+    <TRef> { snow.jpg }
+    <MRef> { snow }
+    <Normal> { 0.000000 -0.000000 1.000000 }
+    <VertexRef> { 0 1 2 3 <Ref> { Plane } }
+  }
+}
