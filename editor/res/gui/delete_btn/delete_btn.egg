@@ -1,5 +1,5 @@
 <Comment> {
-  "egg-texture-cards -o delete_btn.egg -p 100,40 delete.png delete.png delete_over.png delete.png"
+  "egg-texture-cards -p 66.5,24.5 -o delbtn.egg delete.png delete.png delete_over.png delete.png"
 }
 <Texture> delete_over {
   delete_over.png
@@ -12,67 +12,67 @@
   <Scalar> fps { 2 }
   <VertexPool> vpool {
     <Vertex> 0 {
-      -0.545 0.6125 0
+      -1 1 0
       <UV> { 0 1 }
     }
     <Vertex> 1 {
-      -0.545 -0.6125 0
+      -1 -1 0
       <UV> { 0 0 }
     }
     <Vertex> 2 {
-      0.545 -0.6125 0
+      1 -1 0
       <UV> { 1 0 }
     }
     <Vertex> 3 {
-      0.545 0.6125 0
+      1 1 0
       <UV> { 1 1 }
     }
     <Vertex> 4 {
-      -0.545 0.6125 0
+      -1 1 0
       <UV> { 0 1 }
     }
     <Vertex> 5 {
-      -0.545 -0.6125 0
+      -1 -1 0
       <UV> { 0 0 }
     }
     <Vertex> 6 {
-      0.545 -0.6125 0
+      1 -1 0
       <UV> { 1 0 }
     }
     <Vertex> 7 {
-      0.545 0.6125 0
+      1 1 0
       <UV> { 1 1 }
     }
     <Vertex> 8 {
-      -0.545 0.6125 0
+      -1 1 0
       <UV> { 0 1 }
     }
     <Vertex> 9 {
-      -0.545 -0.6125 0
+      -1 -1 0
       <UV> { 0 0 }
     }
     <Vertex> 10 {
-      0.545 -0.6125 0
+      1 -1 0
       <UV> { 1 0 }
     }
     <Vertex> 11 {
-      0.545 0.6125 0
+      1 1 0
       <UV> { 1 1 }
     }
     <Vertex> 12 {
-      -0.545 0.6125 0
+      -1 1 0
       <UV> { 0 1 }
     }
     <Vertex> 13 {
-      -0.545 -0.6125 0
+      -1 -1 0
       <UV> { 0 0 }
     }
     <Vertex> 14 {
-      0.545 -0.6125 0
+      1 -1 0
       <UV> { 1 0 }
     }
     <Vertex> 15 {
-      0.545 0.6125 0
+      1 1 0
       <UV> { 1 1 }
     }
   }
