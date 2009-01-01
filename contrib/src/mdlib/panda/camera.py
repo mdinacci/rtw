@@ -21,6 +21,10 @@ from mdlib.decorator import traceMethod
 __all__  = ["RoamingCamera","FixedCamera", "TheBallCamera", "DebugCamera"]
 
 class AbstractCamera(Camera):
+    """
+    Base class for all the cameras
+    """
+    
     FORWARD = Vec3(0,2,0)
     BACK = Vec3(0,-1,0)
     LEFT = Vec3(-1,0,0)
@@ -108,6 +112,11 @@ class AbstractCamera(Camera):
 
 
 class DebugCamera(AbstractCamera):
+    """
+    This camera is used during debugging phases with directtools in order to
+    do not influence or disturb the panda main's camera like the other
+    camera will likely do. It does nothing but to abilitate the OOBE mode.
+    """
     def __init__(self):
         super(DebugCamera, self).__init__("debug")
     
@@ -118,6 +127,11 @@ class DebugCamera(AbstractCamera):
         pass
 
 class WASDCamera(AbstractCamera):
+    """
+    This ABSTRACT class implements a camera which can be moved by using
+    the classical WASD keys combination.
+    You can also strafe up and down by using q and e.
+    """
     def __init__(self, name="wasd"):
         super(WASDCamera, self).__init__(name)
     
@@ -140,7 +154,10 @@ class WASDCamera(AbstractCamera):
 class TheBallCamera(AbstractCamera):
     """ 
     This camera constantly target an actor from a certain distance,
-    following its movements.
+    following its movements. It doesn't move around the X axis and
+    keep a distance between minDistance and maxDistance in the yz space.
+    
+    FIXME it moves around the X axis 
     """
     def __init__(self, target, minDistance = 5.0, maxDistance = 15.0, height= 5):
         super(TheBallCamera, self).__init__("third_person")
@@ -160,7 +177,7 @@ class TheBallCamera(AbstractCamera):
         super(TheBallCamera, self).enable()
         base.disableMouse()
         #self._updatePosition(None)
-        np = self._target.getNodePath()
+        np = self._target.nodepath
         taskMgr.add(self._updatePosition, 'updatePositionTask')
         
     def disable(self):
@@ -169,7 +186,7 @@ class TheBallCamera(AbstractCamera):
     
     @pandaCallback
     def _updatePosition(self, task):
-        target = self._target.getNodePath()
+        target = self._target.nodepath
         camvec = target.getPos() - base.camera.getPos()
         #camvec.setZ(0)
         camdist = camvec.length()
@@ -227,7 +244,8 @@ class FixedCamera(WASDCamera):
            
 class RoamingCamera(WASDCamera):
     """
-    FPS-like camera, moving the mouse around will update the position of the camera.
+    FPS-like camera, implement the WASD combination and add 
+    mouse motion to rotate the camera.
     """
     
     mouseTask= "mouse-task"
@@ -269,7 +287,6 @@ class RoamingCamera(WASDCamera):
             base.camera.setP(base.camera.getP() - (y - base.win.getYSize()/2) *
                              globalClock.getDt() * self.angularSpeed)
         else:
-            logger.debug("Failed to move pointer at origins")
             base.camera.lookAt(0,0,0)
               
         return task.cont
