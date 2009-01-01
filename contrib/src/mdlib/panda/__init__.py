@@ -31,6 +31,20 @@ def groupNodes(render, groupName, *nodes):
     
     return groupNode
 
+def editorOnly(fn):
+    """ 
+    A decorator which does absolutely nothing but document
+    that a function is used only in the editor  
+    """
+    def new(*args):
+        # do nothing for the moment
+        return fn(*args)
+    return new
+
+class ModelNotFoundException(Exception):
+    def __init__(self, modelPath):
+        super(ModelNotFoundException, self).__init__("Model %s not found" % modelPath)
+
 def pandaCallback(fn):
     """ 
     A decorator which does absolutely nothing but document
