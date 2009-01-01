@@ -15,6 +15,13 @@ import time
 def Property(func):
     return property(**func())
 
+def deprecated(func):
+    """ Decorator to trace method execution """
+    def new(*args, **kwds):
+        print "The function %s is deprecated" % func.__name__
+        func(*args, **kwds)
+    return new
+
 def timer(func):
     """ Time the application of func to arguments. Return seconds. """
     def new(*args, **kwds):
