@@ -3,6 +3,10 @@
 """
 Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
+
+TODO 
+
+use FSM to switch between the various entity states
 """
 
 from mdlib.log import ConsoleLogger, DEBUG
@@ -11,10 +15,11 @@ logger = ConsoleLogger("entity", DEBUG)
 from direct.showbase.DirectObject import DirectObject
 from direct.task.Task import Task
 
-from mdlib.panda import loadModel, pandaCallback
-from mdlib.decorator import Property
+from mdlib.panda import loadModel, pandaCallback, editorOnly
+from mdlib.decorator import Property, deprecated
 
-from pandac.PandaModules import Point3, Vec4, BitMask32
+from pandac.PandaModules import Point3, Vec4, BitMask32, Quat
+from pandac.PandaModules import AntialiasAttrib
 
 # to randomly choose a color
 from random import randint, seed
@@ -27,7 +32,9 @@ RED = Vec4(1,0,0,1)
 GREEN = Vec4(0,1,0,1)
 BLUE = Vec4(0,0,1,1)
 HIGHLIGHT = Vec4(1,1,0.3,0.5)
-colors = [BLACK,WHITE,RED,GREEN,BLUE]
+
+COLOR_IDX = 0
+colors = [BLACK,WHITE]#,RED,GREEN,BLUE]
 
 previous_id = -1
 def id_generator():
@@ -39,7 +46,6 @@ def id_generator():
 class GameEntity(object):
     """ 
     Basic entity of the game 
-    TODO: pos, quat and density must be properties
     """
     def __init__(self):
         self._id = id_generator()
@@ -47,16 +53,17 @@ class GameEntity(object):
     def __repr__(self):
         return "%s ID: %s" % (self.__class__.__name__, self._id)
         
-    def getNodePath(self):
-        return self._nodePath
-       
-    def getPos(self):
-        return self._nodePath.getPos()
-    
-    def getQuat(self):
-        return self._nodePath.getQuat()
+    def erase(self):
+        """ 
+        This method erase the entity from the game by:
+        - removing the nodePath
+         """
+        self._nodePath.removeNode()
     
     ID = property(fget=lambda self: self._id, fset=None)
+    nodepath = property(fget=lambda self: self._nodePath, fset=None)
+    position = property(fget=lambda self: self._nodePath.getPos(), fset=None)
+    quat = property(fget=lambda self: self._nodePath.getQuat(), fset=None)
     
     
 class GameActor(GameEntity):
@@ -76,23 +83,17 @@ class GameActor(GameEntity):
 
     def _setupPhysics(self):
         self._density = 400
-        self._body = None
+        self._geom = None
         self._geomType = None
     
     def hasBody(self):
         """ 
         An actor can have a physical geometry but no body, 
         which basically means that it can be used for collision
-        detection but it is not affected by physical properties
+        detection (since it has a geometry) but it is not affected 
+        by physical properties
         """
         return True
-    
-    def getBody(self):
-        """ Returns the physical representation of this actor """
-        return self._body
-    
-    def setBody(self, body):
-        self._body = body
     
     def getGeometryType(self):
         return self._geomType
@@ -107,24 +108,48 @@ class GameActor(GameEntity):
     def getCategoryBitMask(self):
         return self._categoryBitMask
     
-    def update(self, pos, quat):
-        self.getNodePath().setPosQuat(pos,quat)
+    def update(self):
+        if self.hasBody():
+            body = self.geom.getBody()
+            self.nodepath.setPosQuat(body.getPosition(), Quat(body.getQuaternion()))
+        
+    geom = property(fget=lambda self: self._geom, 
+                    fset=lambda self,geom: setattr(self, '_geom', geom))
 
-
+# TODO have a cell factory that automatically assign the correct color
+# to the newly created cell
 class Cell(GameActor):
     length = 2.0
     width = 2.0
     height = 0.2
 
-    def __init__(self, parent, pos):
-        super(Cell, self).__init__("cell", parent, 1, pos)
-        self.getNodePath().setColor(colors[randint(0,len(colors)-1)])
+    def __init__(self, parent, pos, type="normal"):
+        global COLOR_IDX
+        super(Cell, self).__init__("cell_%s" % type, parent, 1, pos)
+        #self.nodepath.setColor(colors[randint(0,len(colors)-1)])
+        self.nodepath.setColor(colors[COLOR_IDX % len(colors)])
+        COLOR_IDX+=1
      
     def hasBody(self):
         return False
-     
-    def getBody(self):
-        return None
+    
+    @editorOnly
+    def changeNature(self, nature):
+        newCell = loader.loadModel("cell_%s" % nature.lower())
+        if newCell is not None:
+            logger.info("Changing cell nature to: %s" % nature)
+            newCell.setScale(self._nodePath.getScale())
+            newCell.setPos(self._nodePath.position)
+            parent = self._nodePath.getParent()
+            newCell.setTag("pos",self._nodePath.getNetTag("pos"))
+            newCell.setColor(self._nodePath.getColor())
+            self._nodePath.removeNode()
+            
+            newCell.reparentTo(parent)
+            self._nodePath = newCell
+        else:
+            logger.error("Cannot change nature cell to: %s. Model does not \
+            exist." % nature )
         
     def _setupPhysics(self): 
         self._collisionBitMask = BitMask32.bit(1)#(0x00000001)
@@ -140,18 +165,53 @@ class Environment(GameActor):
     def hasBody(self):
         return False
      
-    def getBody(self):
+    def getGeom(self):
         return None
 
 class Track(GameEntity):
+    """ 
+    A Track is made of a list of cells, it has a start point and an end point 
+    Entities do not collide directly with the Track but with the cells that made
+    the track. The track nodes are organized in rows:
+    
+    track_node
+            |___row1
+            |     |__cell1
+            |     |__cell2
+            |     |__cell3
+            |     |__cell4
+            |     |__cell5
+            |
+            |___row2
+                  |__cell1
+            etc...
+            
+    Once a row has been surpassed, for performance reasons it should be removed
+    from the track, as it is forbidden to drive backward. 
+    
+    TODO implement the separation of cells into rows
+    TODO verify if it is really necessary to store another reference
+    of the cells or we can just use the scenegraph.
+    TODO squeeze the track after working with it as deleted cells will 
+    make the list longer ?.
+    """
     _cells = []
     ROW_LENGTH = 5
     
     def __init__(self, parent):
         super(Track, self).__init__()
         self._nodePath = parent.attachNewNode("track")
+        self.input = DirectObject()
+        self.input.accept("change-nature", self.changeNature)
+        #self.nodepath.setAntialias(AntialiasAttrib.MMultisample)
+    
+    @pandaCallback
+    def changeNature(self, nature):
+        for cell in self._cells:
+            cell.changeNature(nature)
     
     def getCellAtIndex(self, idx):
+        logger.debug("Selecting cell at idx: %s" % idx)
         if idx < len(self._cells):
             return self._cells[idx]
         else:
@@ -172,7 +232,7 @@ class Track(GameEntity):
     def _createCell(self):
         # by default put a new cell close to the latest added
         if len(self._cells) > 0:
-            prevPos = self._cells[-1].getPos()
+            prevPos = self._cells[-1].position
             if len(self._cells) % self.ROW_LENGTH == 0: 
                 incX = - (self.ROW_LENGTH-1) * Cell.length
                 incY = Cell.length
@@ -186,7 +246,7 @@ class Track(GameEntity):
         cell = Cell(self._nodePath, pos)
         
         # set row, column tag; it makes easy to identify the cell after
-        cellNP = cell.getNodePath()
+        cellNP = cell.nodepath
         row = (len(self._cells)) / (self.ROW_LENGTH)
         col = (len(self._cells)) % (self.ROW_LENGTH)
         cellNP.setTag("pos", "%d %d" % (row,col))
@@ -195,6 +255,13 @@ class Track(GameEntity):
         return cell
         
 class TheBall(GameActor):
+    """ 
+    TheBall is, essentially, a ball.
+    It can move left and right, it can rotate forward and decelerate in order
+    to stop, but can't *accelerate* backward. It can move backward if a force
+    pushes it in that direction.
+    """
+    
     radius = 0.56
     
     def __init__(self, parent, pos):
@@ -207,7 +274,7 @@ class TheBall(GameActor):
         # TODO just apply a force now, later we have to 
         # check that the user doesn't go backward and that
         # we don't go to fast !
-        body = self.getBody()
+        body = self.geom.getBody()
         body.addForce(self._xForce, self._yForce, self._zForce)
 
         return Task.cont
@@ -228,7 +295,3 @@ class TheBall(GameActor):
         self._zForce = 0
         self._torque = 0
     
-    def update(self, pos, quat):
-        np = self.getNodePath()
-        np.setPosQuat(pos, quat)
-        
