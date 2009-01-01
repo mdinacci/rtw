@@ -11,6 +11,10 @@ In this module:
 
 """
 
+from pandac.PandaModules import loadPrcFileData
+loadPrcFileData("", "want-directtools 1")
+loadPrcFileData("", "want-tk 1")
+
 import direct.directbase.DirectStart
 from direct.task import Task
 from direct.actor import Actor
@@ -26,11 +30,32 @@ from mdlib.panda import loadModel
 class World(DirectObject):
     
     def __init__(self):
-        environ = loadModel(loader,"models/environment",render)
-        environ.setScale(0.25,0.25,0.25)
-        environ.setPos(-8,42,0)
+        pos = Point3(-8,42,0)
+        self.environ = loadModel(loader,"models/environment",render, 0.25, pos)
         taskMgr.add(self.SpinCameraTask, "SpinCameraTask")
         self.accept("escape", sys.exit)
+        self.accept("m", self.dumpStuff)
+        self.accept("shift-m", self.dumpStuff2)
+        
+    def dumpStuff(self):
+        node = render.find("**/environment.egg")
+        print node
+        node.ls()
+        node.removeNode()
+        
+    def dumpStuff2(self):
+        print "in dumpstuff2"
+        node = render.find("**/environment.egg")
+        print "node is none: ", node is None
+        print "---------------------"
+        print "node ls: "
+        node.ls()
+        print "---------------------"
+        
+        print "---------------------"
+        print "environ ls: "
+        self.environ.ls()
+        print "---------------------"
         
     def SpinCameraTask(self,task):
         angledegrees = task.time * 6.0
