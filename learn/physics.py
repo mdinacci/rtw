@@ -160,7 +160,7 @@ class World(DirectObject):
         self._createSquarePlane()
         #self._createTrack()
         
-        taskMgr.doMethodLater(1.0, self._simulationTask, "Physics Simulation")
+        taskMgr.doMethodLater(.5, self._simulationTask, "Physics Simulation")
 
     def _setupPhysics(self):
         self.world = OdeWorld()
@@ -256,7 +256,7 @@ class World(DirectObject):
             
         # set the new positions
         for obj,body in self.objs:
-            body.addForce(0,30000,0)
+            body.addForce(0,300,0)
             obj.setPosQuat(render, body.getPosition(), Quat(body.getQuaternion()))
             
         self.contactgroup.empty()
