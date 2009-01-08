@@ -4,6 +4,25 @@
 Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
 
+An entity exists only in a Scene and it has a node that bind it into the
+scenegraph.
+If this entity is animated and has physical properties then a corresponding
+object called Actor is created and managed in the game logic.
+
+The parameters needed for the creation of the two objects are shared in 
+another object of the type Params
+
+Ex. 
+- BallEntity -> 3D representation, model, light, materials, textures etc..  
+- BallActor  -> logic and physical representation: radius, density, lifes etc.
+- BallParams -> contains shared parameters: id and what else ?
+
+The parameters are created in the logic, then an event is sent in order for 
+the entity object to be properly initialised. The entity is then inserted into
+the scene. Parameters are read from disk, in order to change more easily the
+properties of the objects.
+
+
 TODO 
 
 use FSM to switch between the various entity states
@@ -12,11 +31,11 @@ use FSM to switch between the various entity states
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("entity", DEBUG)
 
-from direct.showbase.DirectObject import DirectObject
 from direct.task.Task import Task
 
-from mdlib.panda import loadModel, pandaCallback, editorOnly
+from mdlib.panda import loadModel, pandaCallback, SafeDirectObject
 from mdlib.decorator import Property, deprecated
+from mdlib.panda import math
 
 from pandac.PandaModules import Point3, Vec4, BitMask32, Quat
 from pandac.PandaModules import AntialiasAttrib
@@ -25,123 +44,67 @@ from pandac.PandaModules import AntialiasAttrib
 from random import randint, seed
 seed()
 
-# some colors
-BLACK = Vec4(0,0,0,1)
-WHITE = Vec4(1,1,1,1)
-RED = Vec4(1,0,0,1)
-GREEN = Vec4(0,1,0,1)
-BLUE = Vec4(0,0,1,1)
-HIGHLIGHT = Vec4(1,1,0.3,0.5)
 
-COLOR_IDX = 0
-colors = [BLACK,WHITE]#,RED,GREEN,BLUE]
+__all__=["EnvironmentEntity", "CellEntity", "TheBallEntity"]
 
-previous_id = -1
-def id_generator():
-    global previous_id
-    id = previous_id
-    previous_id += 1
-    return id
 
 class GameEntity(object):
-    """ 
-    Basic entity of the game 
-    """
-    def __init__(self):
-        self._id = id_generator()
-
+    """ Base entity class """
+    def __init__(self, params):
+        self._id = params._id
+        self._nodePath = loadModel(loader, params.modelPath, params.parentNode, 
+                                   params.scale, Point3(params.position) )
+        
+        self._nodePath.setTag("ID", str(self._id))
+        self.params = params
+        
+        self.isDirty = False
+    
+    def _setPosition(self, position):
+        self.params.position = position
+        self._nodePath.setPos(position)
+    
+    def _setRotation(self, rotation):
+        self.params.rotation = rotation
+        self._nodePath.setPos(rotation)
+        
+    def serialise(self):
+        pass
+    
+    def unserialise(self):
+        pass
+    
+    def update(self):
+        """ Update this actor position in the world """
+        self._nodePath.setPosQuat(Point3(self.params.position), 
+                                  math.vec4ToQuat(self.params.rotation))
+    
     def __repr__(self):
         return "%s ID: %s" % (self.__class__.__name__, self._id)
         
-    def erase(self):
-        """ 
-        This method erase the entity from the game by:
-        - removing the nodePath
-         """
-        self._nodePath.removeNode()
-    
     ID = property(fget=lambda self: self._id, fset=None)
-    nodepath = property(fget=lambda self: self._nodePath, fset=None)
-    position = property(fget=lambda self: self._nodePath.getPos(), fset=None)
-    quat = property(fget=lambda self: self._nodePath.getQuat(), fset=None)
-    
-    
-class GameActor(GameEntity):
-    """  
-    A game actor is different from a GameEntity in the sense that
-    it can physically interact with the world.
-    It is usually represented by a 3D model and has physical properties. 
-    """
-    
-    BOX_GEOM_TYPE = "box"
-    SPHERE_GEOM_TYPE = "sphere"
-    
-    def __init__(self, path, parent, scale, pos):
-        super(GameActor, self).__init__()
-        self._nodePath = loadModel(loader, path, parent, scale, pos)
-        self._setupPhysics()
-
-    def _setupPhysics(self):
-        self._density = 400
-        self._geom = None
-        self._geomType = None
-    
-    def hasBody(self):
-        """ 
-        An actor can have a physical geometry but no body, 
-        which basically means that it can be used for collision
-        detection (since it has a geometry) but it is not affected 
-        by physical properties
-        """
-        return True
-    
-    def getGeometryType(self):
-        return self._geomType
-    
-    def getDensity(self):
-        # FIXME to integrate in the "physic body"
-        return self._density
-    
-    def getCollisionBitMask(self):
-        return self._collisionBitMask
-    
-    def getCategoryBitMask(self):
-        return self._categoryBitMask
-    
-    def update(self):
-        if self.hasBody():
-            body = self.geom.getBody()
-            self.nodepath.setPosQuat(body.getPosition(), Quat(body.getQuaternion()))
+    nodePath = property(fget=lambda self: self._nodePath, fset=None)
         
-    geom = property(fget=lambda self: self._geom, 
-                    fset=lambda self,geom: setattr(self, '_geom', geom))
 
-# TODO have a cell factory that automatically assign the correct color
-# to the newly created cell
-class Cell(GameActor):
-    length = 2.0
-    width = 2.0
-    height = 0.2
-
-    def __init__(self, parent, pos, type="normal"):
-        global COLOR_IDX
-        super(Cell, self).__init__("cell_%s" % type, parent, 1, pos)
-        #self.nodepath.setColor(colors[randint(0,len(colors)-1)])
-        self.nodepath.setColor(colors[COLOR_IDX % len(colors)])
-        COLOR_IDX+=1
-     
-    def hasBody(self):
-        return False
+class CellEntity(GameEntity):
+    """ This entity represents a 3D cell in a track """
     
-    @editorOnly
+    def __init__(self, params):
+        super(CellEntity, self).__init__(params)
+        self._nodePath.setColor(params.color)
+        self._nodePath.setTag("pos", params.posTag) # XXX :/
+        
+    def __repr__(self):
+        return "Cell #%s at %s" % (self._id, self._nodePath.getTag("pos"))
+    
     def changeNature(self, nature):
         newCell = loader.loadModel("cell_%s" % nature.lower())
         if newCell is not None:
             logger.info("Changing cell nature to: %s" % nature)
             newCell.setScale(self._nodePath.getScale())
-            newCell.setPos(self._nodePath.position)
+            newCell.setPos(self._nodePath.getPos())
             parent = self._nodePath.getParent()
-            newCell.setTag("pos",self._nodePath.getNetTag("pos"))
+            newCell.setTag("pos",self._nodePath.getTag("pos"))
             newCell.setColor(self._nodePath.getColor())
             self._nodePath.removeNode()
             
@@ -150,148 +113,48 @@ class Cell(GameActor):
         else:
             logger.error("Cannot change nature cell to: %s. Model does not \
             exist." % nature )
-        
-    def _setupPhysics(self): 
-        self._collisionBitMask = BitMask32.bit(1)#(0x00000001)
-        self._categoryBitMask = BitMask32.allOff()#(0x00000001) #2
-        self._geomType = GameActor.BOX_GEOM_TYPE 
-        self._density = -1 # a Cell has no body so density doesn't matter
 
 
-class Environment(GameActor):
-    def __init__(self, parent, pos):
-        super(Environment, self).__init__("environment", parent, 0.25, pos)
-     
-    def hasBody(self):
-        return False
-     
-    def getGeom(self):
-        return None
+class EnvironmentEntity(GameEntity): 
+    """ This entity represents the background elements """
+    
+    def update(self):
+        pass
 
-class Track(GameEntity):
+
+class TheBallEntity(GameEntity):
+    """ This entity represents the player character. """
+    
+    pass
+
+    
+class EntityManager(object):
     """ 
-    A Track is made of a list of cells, it has a start point and an end point 
-    Entities do not collide directly with the Track but with the cells that made
-    the track. The track nodes are organized in rows:
-    
-    track_node
-            |___row1
-            |     |__cell1
-            |     |__cell2
-            |     |__cell3
-            |     |__cell4
-            |     |__cell5
-            |
-            |___row2
-                  |__cell1
-            etc...
-            
-    Once a row has been surpassed, for performance reasons it should be removed
-    from the track, as it is forbidden to drive backward. 
-    
-    TODO implement the separation of cells into rows
-    TODO verify if it is really necessary to store another reference
-    of the cells or we can just use the scenegraph.
-    TODO squeeze the track after working with it as deleted cells will 
-    make the list longer ?.
+    The entity manager provide a safe and easy way to load, save and
+    delete entities from the application. Entities can be loaded from a 
+    directory, from a file or from a Panda3D Multifile. 
     """
-    _cells = []
-    ROW_LENGTH = 5
+    previous_id = -1
     
-    def __init__(self, parent):
-        super(Track, self).__init__()
-        self._nodePath = parent.attachNewNode("track")
-        self.input = DirectObject()
-        self.input.accept("change-nature", self.changeNature)
-        #self.nodepath.setAntialias(AntialiasAttrib.MMultisample)
+    @staticmethod
+    def id_generator():
+        global previous_id
+        id = previous_id
+        previous_id += 1
+        return id
     
-    @pandaCallback
-    def changeNature(self, nature):
-        for cell in self._cells:
-            cell.changeNature(nature)
-    
-    def getCellAtIndex(self, idx):
-        logger.debug("Selecting cell at idx: %s" % idx)
-        if idx < len(self._cells):
-            return self._cells[idx]
-        else:
-            logger.error("Cell %d doesn't exists !" % idx)
-    
-    def getCells(self):
-        return self._cells
-    
-    def addRow(self):
-        for i in range(0, self.ROW_LENGTH):
-            self.addCell()
-    
-    def addCell(self):
-        cell = self._createCell()
-        self._cells.append(cell)
-        messenger.send("entity-new", [cell])
+    def __init__(self):
+        self.input = SafeDirectObject()
+        self.input.accept("delete-entity", self.deleteEntity)
         
-    def _createCell(self):
-        # by default put a new cell close to the latest added
-        if len(self._cells) > 0:
-            prevPos = self._cells[-1].position
-            if len(self._cells) % self.ROW_LENGTH == 0: 
-                incX = - (self.ROW_LENGTH-1) * Cell.length
-                incY = Cell.length
-            else:
-                incX = Cell.length
-                incY = 0
-            pos = Point3(prevPos.getX() + incX, prevPos.getY()+ incY, prevPos.getZ())
-        else:
-            pos = Point3(0,0,1)
-        
-        cell = Cell(self._nodePath, pos)
-        
-        # set row, column tag; it makes easy to identify the cell after
-        cellNP = cell.nodepath
-        row = (len(self._cells)) / (self.ROW_LENGTH)
-        col = (len(self._cells)) % (self.ROW_LENGTH)
-        cellNP.setTag("pos", "%d %d" % (row,col))
-        logger.debug("Adding cell at row,col (%d,%d)" % (row,col))
-        
-        return cell
-        
-class TheBall(GameActor):
-    """ 
-    TheBall is, essentially, a ball.
-    It can move left and right, it can rotate forward and decelerate in order
-    to stop, but can't *accelerate* backward. It can move backward if a force
-    pushes it in that direction.
-    """
+    def deleteEntity(self, entity):
+        logger.debug("deleting entity %s in EntityManager" % entity)
     
-    radius = 0.56
+    def loadEntityFromDir(self, dir):
+        pass
     
-    def __init__(self, parent, pos):
-        super(TheBall, self).__init__("golf-ball", parent, 1, pos)
-        self._setupPhysics()
-        taskMgr.add(self._move, "Move Ball")
+    def loadEntityFromMultifile(self, dir):
+        pass 
     
-    @pandaCallback    
-    def _move(self, task):
-        # TODO just apply a force now, later we have to 
-        # check that the user doesn't go backward and that
-        # we don't go to fast !
-        body = self.geom.getBody()
-        body.addForce(self._xForce, self._yForce, self._zForce)
-
-        return Task.cont
-    
-    def _setForce(self, xForce, yForce, zForce):
-        self._xForce = xForce * self._linearSpeed
-        self._yForce = yForce * self._linearSpeed
-        self._zForce = zForce * self._linearSpeed
-            
-    def _setupPhysics(self): 
-        self._density = 600
-        self._linearSpeed = 8000
-        self._collisionBitMask = BitMask32.bit(1)#allOff()
-        self._categoryBitMask = BitMask32.bit(1)#(0x00000001)
-        self._geomType = GameActor.SPHERE_GEOM_TYPE
-        self._xForce = 0
-        self._yForce = 0
-        self._zForce = 0
-        self._torque = 0
-    
+    def loadEntityFromFile(self, filename): 
+        id = EntityManager.id_generator()
