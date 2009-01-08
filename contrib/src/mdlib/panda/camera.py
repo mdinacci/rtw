@@ -3,70 +3,77 @@
 """
 Author: Marco Dinacci <dev@dinointeractive.com>
 
+TODO rename to scene.py
+
 This module contains a collection of different cameras
+
+TODO:
+- add wheel mouse support for some cameras
+- add a refresh rate for the mouse (1/30):
+    curTime = globalClock.getFrameTime()
+    if (curTime - MOUSE_REFRESH_RATE > self.lastTaskTime):
+      self.lastTaskTime = curTime
+      # cache the mouse position
+      self.mousePosX, self.mousePosY = self._getCurrentMousePos()
+
+      # if the mouse is fixed to the center of the window, reset the mousepos
+      if self.mouseFixed and (self.mousePosX != 0.0 or self.mousePosY != 0.0):
+        self.setMouseCentered()
 """
 
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("camera", DEBUG)
 
 import direct.directbase.DirectStart
-from direct.showbase.DirectObject import DirectObject
 from direct.task.Task import Task
 
 from pandac.PandaModules import Vec3, NodePath, PandaNode, WindowProperties, Camera
 
-from mdlib.panda import pandaCallback
+from mdlib.panda import pandaCallback, SafeDirectObject
 from mdlib.decorator import traceMethod
 
-__all__  = ["RoamingCamera","FixedCamera", "TheBallCamera", "DebugCamera"]
+__all__  = ["RoamingCamera","FixedCamera", "TheBallCamera", "DebugCamera",
+            "FORWARD","BACK","LEFT","RIGHT","UP","DOWN","STOP"]
 
-class AbstractCamera(Camera):
-    """
-    Base class for all the cameras
-    """
-    
-    FORWARD = Vec3(0,2,0)
-    BACK = Vec3(0,-1,0)
-    LEFT = Vec3(-1,0,0)
-    RIGHT = Vec3(1,0,0)
-    UP = Vec3(0,0,1)
-    DOWN = Vec3(0,0,-1)
-    STOP = Vec3(0)
-    
-    moveTaskName = "move_task"
-    
-    
-    def __init__(self, name):
-        super(AbstractCamera, self).__init__(name)
+FORWARD = Vec3(0,2,0)
+BACK = Vec3(0,-1,0)
+LEFT = Vec3(-1,0,0)
+RIGHT = Vec3(1,0,0)
+UP = Vec3(0,0,1)
+DOWN = Vec3(0,0,-1)
+STOP = Vec3(0)
+
+
+class WASDCamera(Camera):
+    """ A camera that supports navigation through WASD keys """
+    def __init__(self, name, inputMgr):
+        super(WASDCamera, self).__init__(name)
         
-        self.walk = self.STOP
-        self.strafe = self.STOP
+        self.walk = STOP
+        self.strafe = STOP
         self.linearSpeed = 40
+        self.angularSpeed = 4
+        base.disableMouse()
         
         # cameras must be enabled by calling enable()
         self.isActive = False
         
-        # accept input and configure controls
-        self.ins = DirectObject()
-        self._setupInput()
-        
         # attach to the base.camera node
         base.camera.attachNewNode(self)
         
-        # camera specific initialisation
-        self._initialise()
+        inputMgr.bindCallback( "w" , self.__setattr__,["walk",FORWARD], scheme="base")
+        inputMgr.bindCallback( "s" , self.__setattr__,["walk",BACK], scheme="base")
+        inputMgr.bindCallback( "a" , self.__setattr__,["strafe",LEFT], scheme="base")
+        inputMgr.bindCallback( "d" , self.__setattr__,["strafe",RIGHT], scheme="base")
+        inputMgr.bindCallback( "w-up" , self.__setattr__,["walk",STOP], scheme="base")
+        inputMgr.bindCallback( "s-up" , self.__setattr__,["walk",STOP], scheme="base")
+        inputMgr.bindCallback( "a-up" , self.__setattr__,["strafe",STOP], scheme="base")
+        inputMgr.bindCallback( "d-up" , self.__setattr__,["strafe",STOP], scheme="base")
+        inputMgr.bindCallback( "q" , self.__setattr__,["strafe",UP], scheme="base")
+        inputMgr.bindCallback( "e" , self.__setattr__,["strafe",DOWN], scheme="base")
+        inputMgr.bindCallback( "q-up" , self.__setattr__,["strafe",STOP], scheme="base")
+        inputMgr.bindCallback( "e-up" , self.__setattr__,["strafe",STOP], scheme="base")
     
-    def _setupInput(self):
-        raise NotImplementedError()
-        
-    def _initialise(self):
-        """ 
-        Initialise camera properties like position and hpr 
-        This method is supposed to be called only once.
-        To disable and enable the camera, use self.disable and self.enable
-        """
-        raise NotImplementedError()
-        
     def getPos(self):
         return base.camera.getPos()
 
@@ -75,43 +82,60 @@ class AbstractCamera(Camera):
         
     def lookAt(self, x, y, z):
         base.camera.lookAt(x, y, z)
-
+    
+    def lookAtOrigin(self):
+        base.camera.lookAt(0,0,0)
+        
     def showCursor(self, show = True):
         """ Hide the mouse cursor """
         props = WindowProperties()
         props.setCursorHidden(not show)
         base.win.requestProperties(props)
-
-    def disable(self):
-        taskMgr.remove(self.moveTaskName)
-        self.setActive(False)
-      
-      
-    def enable(self):
-        taskMgr.add(self.moveTask, self.moveTaskName)
-        self.setActive(True)
-
-    def destroy(self):
-        """ 
-        Very important, it detaches the camera completely from its parent nodepath
-        and stop receving events 
         
-        TODO check for correctness
-        """
-        self.setActive(False)
-        self.ignoreAll() 
-        base.camera.removeNode(self)
-
-    def moveTask(self,task):
-        """ this task makes the vcam move """
+    def move(self):
         # move where the keys set it
         base.camera.setPos(base.camera,self.walk*globalClock.getDt()*self.linearSpeed)
         base.camera.setPos(base.camera,self.strafe*globalClock.getDt()*self.linearSpeed)
+ 
+       
+class FixedCamera(WASDCamera):
+    """ A WASD camera that can't rotate using the mouse """
+    def __init__(self, inputMgr):
+        super(FixedCamera, self).__init__("fixed-camera", inputMgr)
+        self.showCursor(True)
+    
+    def update(self): 
+        self.move()
         
-        return task.cont
+
+class RoamingCamera(WASDCamera):
+    """ 
+    A WASD camera that can also rotate using the mouse. 
+    Very similar to a FPS camera
+    """
+    def __init__(self, inputMgr):
+        print "CREATING ROAMING CAMERA"
+        super(RoamingCamera, self).__init__("free-camera", inputMgr)
+        pl = self.getLens()
+        pl.setFov(70)
+        self.setLens(pl)
+        self.showCursor(False)
+        
+    def update(self):
+        self.move()
+        md = base.win.getPointer(0)
+        x = md.getX()
+        y = md.getY()
+        if base.win.movePointer(0, base.win.getXSize()/2, base.win.getYSize()/2):
+            base.camera.setH(base.camera.getH() -  (x - base.win.getXSize()/2) * 
+                             globalClock.getDt() * self.angularSpeed)
+            base.camera.setP(base.camera.getP() - (y - base.win.getYSize()/2) *
+                             globalClock.getDt() * self.angularSpeed)
+        else:
+            base.camera.lookAt(0,0,0)
 
 
-class DebugCamera(AbstractCamera):
+class DebugCamera(Camera):
     """
     This camera is used during debugging phases with directtools in order to
     do not influence or disturb the panda main's camera like the other
@@ -119,39 +143,11 @@ class DebugCamera(AbstractCamera):
     """
     def __init__(self):
         super(DebugCamera, self).__init__("debug")
-    
-    def _initialise(self):
+        base.disableMouse()
         base.oobe()
-        
-    def _setupInput(self):
-        pass
-
-class WASDCamera(AbstractCamera):
-    """
-    This ABSTRACT class implements a camera which can be moved by using
-    the classical WASD keys combination.
-    You can also strafe up and down by using q and e.
-    """
-    def __init__(self, name="wasd"):
-        super(WASDCamera, self).__init__(name)
-    
-    def _setupInput(self):
-        self.ins.accept( "s" , self.__setattr__,["walk",self.STOP] )
-        self.ins.accept( "w" , self.__setattr__,["walk",self.FORWARD])
-        self.ins.accept( "s" , self.__setattr__,["walk",self.BACK] )
-        self.ins.accept( "s-up" , self.__setattr__,["walk",self.STOP] )
-        self.ins.accept( "w-up" , self.__setattr__,["walk",self.STOP] )
-        self.ins.accept( "a" , self.__setattr__,["strafe",self.LEFT])
-        self.ins.accept( "d" , self.__setattr__,["strafe",self.RIGHT] )
-        self.ins.accept( "a-up" , self.__setattr__,["strafe",self.STOP] )
-        self.ins.accept( "d-up" , self.__setattr__,["strafe",self.STOP] )
-        self.ins.accept( "q" , self.__setattr__,["strafe",self.UP] )
-        self.ins.accept( "q-up" , self.__setattr__,["strafe",self.STOP] )
-        self.ins.accept( "e" , self.__setattr__,["strafe",self.DOWN] )
-        self.ins.accept( "e-up" , self.__setattr__,["strafe",self.STOP] )
 
 
-class TheBallCamera(AbstractCamera):
+class TheBallCamera(WASDCamera):
     """ 
     This camera constantly target an actor from a certain distance,
     following its movements. It doesn't move around the X axis and
@@ -159,34 +155,29 @@ class TheBallCamera(AbstractCamera):
     
     FIXME it moves around the X axis 
     """
-    def __init__(self, target, minDistance = 5.0, maxDistance = 15.0, height= 5):
-        super(TheBallCamera, self).__init__("third_person")
+    def __init__(self, inputMgr, target=None, parent=None, minDistance = 5.0, 
+                 maxDistance = 15.0, height= 5):
+        super(TheBallCamera, self).__init__("ball-camera", inputMgr)
         self._target = target
         self._virtualTarget = NodePath(PandaNode("virtual_target"))
-        # FIXME I don't like that is reparented to render
-        self._virtualTarget.reparentTo(render)
+        if parent == None:
+            parent = render
+        self._virtualTarget.reparentTo(parent)
         self._minDistance = minDistance
         self._maxDistance = maxDistance
         self._height = height
+        self.showCursor(False)
     
-    def _setupInput(self):
-        # this camera has no controls
-        return None 
+    def setTarget(self, target):
+        self._target = target
     
     def enable(self):
         super(TheBallCamera, self).enable()
         base.disableMouse()
-        #self._updatePosition(None)
-        np = self._target.nodepath
-        taskMgr.add(self._updatePosition, 'updatePositionTask')
         
-    def disable(self):
-        super(TheBallCamera, self).disable()
-        taskMgr.remove('updatePositionTask') 
-    
-    @pandaCallback
-    def _updatePosition(self, task):
-        target = self._target.nodepath
+    def update(self):
+        self.move()
+        target = self._target
         camvec = target.getPos() - base.camera.getPos()
         #camvec.setZ(0)
         camdist = camvec.length()
@@ -211,82 +202,4 @@ class TheBallCamera(AbstractCamera):
         self._virtualTarget.setPos(target.getPos())
         self._virtualTarget.setZ(target.getZ() +2)#+ self._height/2)
         base.camera.lookAt(self._virtualTarget) 
-        
-        return Task.cont 
     
-    def _initialise(self):
-        base.disableMouse()
-        
-
-class FixedCamera(WASDCamera):
-    """
-    This camera is suited to select objects in the scene.
-    It can be moved using the "wasd" key's combination and doesn't 
-    allow any rotation (yet...)
-    
-    TODO implement rotation
-    """
-    def __init__(self):
-        super(FixedCamera, self).__init__("fixed")
-    
-    def enable(self):
-        super(FixedCamera, self).enable()
-        base.disableMouse()
-        self.showCursor(True)
-        
-    def disable(self):
-        super(FixedCamera, self).disable()
-        self.showCursor(False)
-    
-    def _initialise(self):
-        self.enable()
-    
-           
-class RoamingCamera(WASDCamera):
-    """
-    FPS-like camera, implement the WASD combination and add 
-    mouse motion to rotate the camera.
-    """
-    
-    mouseTask= "mouse-task"
-    
-    
-    def __init__(self):
-        super(RoamingCamera, self).__init__("roam")
-        self.linearSpeed = 20
-        self.angularSpeed = 4
-    
-    def _initialise(self):
-        base.disableMouse()
-        pl = self.getLens()
-        pl.setFov(70)
-        self.setLens(pl)
-        
-    def lookAtOrigin(self):
-        base.camera.lookAt(0,0,0)
-        
-    def disable(self):
-        super(RoamingCamera, self).disable()
-        taskMgr.remove('Roam_Camera')
-    
-    def enable(self):
-        super(RoamingCamera, self).enable()
-        base.disableMouse()
-        self.showCursor(False)
-        taskMgr.add(self.mouseUpdate, 'Roam_Camera')
-    
-    @pandaCallback
-    def mouseUpdate(self,task):
-        """ this task updates the mouse """
-        md = base.win.getPointer(0)
-        x = md.getX()
-        y = md.getY()
-        if base.win.movePointer(0, base.win.getXSize()/2, base.win.getYSize()/2):
-            base.camera.setH(base.camera.getH() -  (x - base.win.getXSize()/2) * 
-                             globalClock.getDt() * self.angularSpeed)
-            base.camera.setP(base.camera.getP() - (y - base.win.getYSize()/2) *
-                             globalClock.getDt() * self.angularSpeed)
-        else:
-            base.camera.lookAt(0,0,0)
-              
-        return task.cont
