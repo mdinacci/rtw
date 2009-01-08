@@ -11,6 +11,7 @@ standard Python logging module.
 import logging
 # insert into this module namespace the logging levels
 from logging import CRITICAL,FATAL,ERROR,WARNING,INFO,DEBUG
+SPAM = DEBUG / 2
 
 class Logger(object):
 	"""
@@ -25,6 +26,9 @@ class Logger(object):
 		self._logger = logging.getLogger(loggerName)
 		self._logger.addHandler(handler)
 		self._logger.setLevel(logLevel)
+
+	def spam(self, msg, *args, **kwds):
+		self._logger.log(SPAM, msg, args, kwds)
 
 	def __getattribute__(self, key):
 		attr = None
