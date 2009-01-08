@@ -40,8 +40,8 @@ multisamples 0
 # one (or define a new one for the particular category you wish to
 # change) to control this output.
 
-notify-level info
-default-directnotify-level info
+notify-level warning
+default-directnotify-level warning
 
 # These specify where model files may be loaded from.  You probably
 # want to set this to a sensible path for yourself.  $THIS_PRC_DIR is
@@ -53,6 +53,7 @@ model-path    /usr/share/panda3d
 model-path    /usr/share/panda3d/models
 model-path    $THIS_PRC_DIR
 model-path    $THIS_PRC_DIR/gui
+model-path    $THIS_PRC_DIR/models/cell_normal
 sound-path    $MAIN_DIR
 sound-path    /usr/share/panda3d
 sound-path    /usr/share/panda3d/models
@@ -61,6 +62,8 @@ texture-path  /usr/share/panda3d
 texture-path  /usr/share/panda3d/models
 texture-path    $THIS_PRC_DIR
 texture-path    $THIS_PRC_DIR/gui
+texture-path    $THIS_PRC_DIR/models
+texture-path    $THIS_PRC_DIR/models/cell_normal
 
 # This enable the automatic creation of a TK window when running
 # Direct.
@@ -94,3 +97,6 @@ hardware-animated-vertices 0
 # Currently, advanced profiles are not reliable under Cg.
 
 basic-shaders-only #t
+
+# forget about v-sync
+sync-video 0
