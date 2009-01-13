@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<resource xmlns="http://www.wxwindows.org/wxxrc" version="2.3.0.1">
+    <object class="wxFrame" name="mainFrame">
+        <style>wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL</style>
+        <size>1024,768</size>
+        <title>Editor</title>
+        <centered>1</centered>
+        <object class="wxMenuBar" name="MenuBar">
+            <label>MyMenuBar</label>
+            <object class="wxMenu" name="FileMenu">
+                <label>File</label>
+                <object class="wxMenuItem" name="NewMenuItem">
+                    <label>New\tctrl+n</label>
+                    <help></help>
+                </object>
+                <object class="wxMenuItem" name="OpenMenuItem">
+                    <label>Open\tctrl+o</label>
+                    <help></help>
+                </object>
+                <object class="wxMenuItem" name="SaveMenuItem">
+                    <label>Save\tctrl+s</label>
+                    <help></help>
+                </object>
+                <object class="separator" />
+                <object class="wxMenuItem" name="QuitMenuItem">
+                    <label>Quit\tctrl+q</label>
+                    <help></help>
+                </object>
+            </object>
+            <object class="wxMenu" name="EditMenu">
+                <label>Edit</label>
+            </object>
+            <object class="wxMenu" name="ToolsMenu">
+                <label>Tools</label>
+            </object>
+            <object class="wxMenu" name="ViewMenu">
+                <label>View</label>
+            </object>
+        </object>
+        <object class="wxSplitterWindow" name="MainSplitterWindow">
+            <style>wxSP_3D</style>
+            <sashpos>200</sashpos>
+            <gravity>0</gravity>
+            <minsize>0</minsize>
+            <orientation>horizontal</orientation>
+            <object class="wxPanel" name="PandaContainerPanel">
+                <style>wxTAB_TRAVERSAL</style>
+                <object class="wxBoxSizer">
+                    <orient>wxVERTICAL</orient>
+                    <object class="sizeritem">
+                        <option>1</option>
+                        <flag>wxEXPAND</flag>
+                        <border>5</border>
+                        <object class="wxSplitterWindow" name="PandaSplitterWindow">
+                            <style>wxSP_3D</style>
+                            <sashpos>350</sashpos>
+                            <gravity>0</gravity>
+                            <minsize>0</minsize>
+                            <orientation>vertical</orientation>
+                            <object class="wxPanel" name="PandaPanel">
+                                <style>wxDOUBLE_BORDER|wxFULL_REPAINT_ON_RESIZE|wxSUNKEN_BORDER|wxTAB_TRAVERSAL</style>
+                            </object>
+                            <object class="wxPanel" name="PandaPropsPanel">
+                                <style>wxTAB_TRAVERSAL</style>
+                                <object class="wxBoxSizer">
+                                    <orient>wxVERTICAL</orient>
+                                    <object class="sizeritem">
+                                        <option>1</option>
+                                        <flag>wxEXPAND | wxALL</flag>
+                                        <border>5</border>
+                                        <object class="wxNotebook" name="PandaPropsNotebook">
+                                            <object class="notebookpage">
+                                                <label>SceneGraph</label>
+                                                <selected>0</selected>
+                                                <object class="wxPanel" name="SceneGraphPage">
+                                                    <style>wxTAB_TRAVERSAL</style>
+                                                </object>
+                                            </object>
+                                            <object class="notebookpage">
+                                                <label>Entity Props</label>
+                                                <selected>0</selected>
+                                                <object class="wxPanel" name="PropertiesPage">
+                                                    <style>wxTAB_TRAVERSAL</style>
+                                                </object>
+                                            </object>
+                                        </object>
+                                    </object>
+                                    <object class="sizeritem">
+                                        <option>0</option>
+                                        <flag>wxEXPAND | wxALL</flag>
+                                        <border>5</border>
+                                        <object class="wxPanel" name="EntityChoicePanel">
+                                            <style>wxTAB_TRAVERSAL</style>
+                                            <object class="wxBoxSizer">
+                                                <orient>wxVERTICAL</orient>
+                                                <object class="sizeritem">
+                                                    <option>0</option>
+                                                    <flag>wxALL</flag>
+                                                    <border>5</border>
+                                                    <object class="wxStaticText" name="m_staticText1">
+                                                        <label>Entity Selection: </label>
+                                                    </object>
+                                                </object>
+                                            </object>
+                                        </object>
+                                    </object>
+                                </object>
+                            </object>
+                        </object>
+                    </object>
+                </object>
+            </object>
+            <object class="wxPanel" name="ToolsPanel">
+                <style>wxTAB_TRAVERSAL</style>
+                <object class="wxBoxSizer">
+                    <orient>wxVERTICAL</orient>
+                    <object class="sizeritem">
+                        <option>1</option>
+                        <flag>wxEXPAND | wxALL</flag>
+                        <border>5</border>
+                        <object class="wxNotebook" name="DebugNotebook">
+                            <object class="notebookpage">
+                                <label>Log</label>
+                                <selected>0</selected>
+                                <object class="wxPanel" name="LogPage">
+                                    <style>wxTAB_TRAVERSAL</style>
+                                    <object class="wxBoxSizer">
+                                        <orient>wxVERTICAL</orient>
+                                        <object class="sizeritem">
+                                            <option>0</option>
+                                            <flag>wxALL|wxEXPAND</flag>
+                                            <border>5</border>
+                                            <object class="wxTextCtrl" name="LogText">
+                                                <style>wxTE_MULTILINE|wxTE_READONLY|wxTE_RICH2</style>
+                                                <value></value>
+                                                <maxlength>0</maxlength>
+                                            </object>
+                                        </object>
+                                    </object>
+                                </object>
+                            </object>
+                            <object class="notebookpage">
+                                <label>Python</label>
+                                <selected>0</selected>
+                                <object class="wxPanel" name="PythonPage">
+                                    <style>wxTAB_TRAVERSAL</style>
+                                </object>
+                            </object>
+                        </object>
+                    </object>
+                </object>
+            </object>
+        </object>
+        <object class="wxStatusBar" name="statusBar">
+            <style>wxST_SIZEGRIP</style>
+            <fields>1</fields>
+        </object>
+        <object class="wxToolBar" name="toolBar">
+            <style>wxTB_HORIZONTAL</style>
+            <bitmapsize></bitmapsize>
+            <margins></margins>
+            <packing>1</packing>
+            <separation>5</separation>
+            <object class="tool" name="NewButton">
+                <label>New</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/document-new.png</bitmap>
+            </object>
+            <object class="tool" name="OpenButton">
+                <label>Open</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/document-open.png</bitmap>
+            </object>
+            <object class="tool" name="SaveButton">
+                <label>Save</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/document-save.png</bitmap>
+            </object>
+            <object class="separator" />
+            <object class="tool" name="CopyButton">
+                <label>Copy</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/edit-copy.png</bitmap>
+            </object>
+            <object class="tool" name="PasteButton">
+                <label>Paste</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/edit-paste.png</bitmap>
+            </object>
+            <object class="tool" name="DeleteButton">
+                <label>Delete</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/delete.png</bitmap>
+            </object>
+            <object class="tool" name="UndoButton">
+                <label>Undo</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/edit-undo.png</bitmap>
+            </object>
+            <object class="tool" name="RedoButton">
+                <label>Redo</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/edit-redo.png</bitmap>
+            </object>
+            <object class="separator" />
+            <object class="tool" name="RoamingButton">
+                <label>Roaming</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/applications-internet.png</bitmap>
+                <toggle>1</toggle>
+            </object>
+            <object class="tool" name="EditingButton">
+                <label>Editing</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/applications-engineering.png</bitmap>
+                <toggle>1</toggle>
+            </object>
+            <object class="tool" name="SimulatingButton">
+                <label>Simulating</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../../../res/gui/applications-games.png</bitmap>
+                <toggle>1</toggle>
+            </object>
+            <object class="separator" />
+            <object class="tool" name="scenegraphButton">
+                <label>tool</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap />
+                <toggle>1</toggle>
+            </object>
+            <object class="tool" name="propertiesButton">
+                <label>tool</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap />
+                <toggle>1</toggle>
+            </object>
+        </object>
+    </object>
+</resource>
