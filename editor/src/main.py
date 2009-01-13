@@ -49,115 +49,51 @@ loadPrcFile("../res/Config.prc")
 loadPrcFile("../res/Editor.prc")
 
 # panda 3d stuff
-import direct.directbase.DirectStart
+from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from direct.directtools.DirectGeometry import LineNodePath
 from pandac.PandaModules import Point3, Vec4, Vec3, NodePath, Quat
 from pandac.PandaModules import LightAttrib, AmbientLight, DirectionalLight
 from pandac.PandaModules import EggData, Filename
+from pandac.PandaModules import WindowProperties
 
 # collision to pick entities with mouse
 from pandac.PandaModules import CollisionNode, CollisionHandlerQueue, CollisionTraverser, CollisionRay, GeomNode
 
-# to draw the GUI
-from direct.gui.DirectGui import *
-from direct.gui.OnscreenText import OnscreenText
-
 # panda utilities and actors
-from mdlib.panda import pandaCallback, eventCallback, inputCallback, SafeDirectObject, Color
+from mdlib.panda import eventCallback, inputCallback, Color, MouseWatcher
 from mdlib.panda.core import *
 from mdlib.panda.camera import *
 from mdlib.panda.entity import *
 from mdlib.panda.actor import *
+from mdlib.panda.input import *
 from mdlib.panda.physics import PhysicManager
-from mdlib.panda.input import InputManager, Command, BASE_SCHEME
 from mdlib.panda import event
 
 # logging
 from mdlib.log import ConsoleLogger, DEBUG,WARNING
 logger = ConsoleLogger("editor", DEBUG)
 
+# for debugging
+import echo
+
+# editor imports
+from gui.wx import EditorGUI
+from gui import GUIPresenter
+#echo.echo_class(EditorGUI)
+
 from sys import exit 
 
+masterNode =  NodePath('editorNode')
 
 def wantsDirectTools():
     return ConfigVariableBool("want-directtools") is "t"
 
 
-class EditViewGUI(object):
-    """
-    This GUI is used while editing the world in EditMode.
-    It contains widgets that allow adding and modifying properties
-    of the world. 
-    
-    TODO create the gui separately and use it here
-    """
-    def __init__(self, controller):
-        self.controller = controller
-        maps = loader.loadModel('delete_btn/delete_btn.egg')
-        ra = base.camLens.getAspectRatio()
-        
-        self.leftMenu = DirectFrame(parent=aspect2d,
-                                    frameColor=(0,0,1,.3), 
-                                    frameSize=(-1.5,0.7,-1.5,0.7),
-                                    pos = (-.8*ra,0,.6*ra))
-        
-        self._widgets = [self.leftMenu]
-        
-        deleteBtn = DirectButton(geom = (maps.find('**/delete'),
-                         maps.find('**/delete'),
-                         maps.find('**/delete_over'),
-                         maps.find('**/delete')),
-                         borderWidth=(0,0),
-                         frameColor=(0,0,0,0),
-                         scale = .1,
-                         pos = (-.1,0,-.4),
-                         command=self.controller.onDeleteButtonClick)
-        deleteBtn.hide()
-        self._widgets.append(deleteBtn)
-        
-        worldMenu = DirectOptionMenu(text="World Type", scale=0.1,
-                                        items=["Mountain","Space","Forest"],
-                                        initialitem=0, 
-                                        borderWidth=(0,0),
-                                        highlightColor=(0.65,0.65,0.65,1),
-                                        pos = (-.2,0,0),
-                                        command=self.controller.onWorldButtonClick)
-        worldMenu.hide()
-        self._widgets.append(worldMenu)
-
-        cellTypeMenu = DirectOptionMenu(text="Cell Type", scale=0.1,
-                                        items=["Normal","Speed","Jump","Teleport",
-                                               "Invert","Bounce Back"],
-                                        initialitem=0, 
-                                        borderWidth=(0,0),
-                                        highlightColor=(0.65,0.65,0.65,1),
-                                        pos = (-.2,0,-.2),
-                                        command=self.controller.onCellNatureClick)
-        cellTypeMenu.hide()
-        self._widgets.append(cellTypeMenu)
-        
-        for widget in self._widgets[1:]:
-            widget.reparentTo(self.leftMenu)
-        
-    @eventCallback
-    def editNode(self, nodepath):
-        # show properties editor
-        pass
-        
-    def enable(self):
-        for widget in self._widgets:
-            widget.show()
-    
-    def disable(self):
-        for widget in self._widgets:
-            widget.hide()
-
-
 class EditorScene(AbstractScene):
-    def __init__(self, parentNode):
+    def __init__(self, rootNode):
         super(EditorScene, self).__init__()
-        self._parentNode = parentNode
+        self._rootNode = rootNode
         
         self._camera = None
         
@@ -169,16 +105,15 @@ class EditorScene(AbstractScene):
         
         # create some background entities to populate a bit the space 
         envPar = EnvironmentParams()
-        envPar.parentNode = self._parentNode
+        envPar.parentNode = self._rootNode
         env = EnvironmentEntity(envPar)
         self.addEntity(env)    
     
     def _subscribeToEvents(self):
-        self.listener = SafeDirectObject()
-        self.listener.accept(event.DELETE_ENTITY_GUI, 
-                             self.deleteEntityFromNodePath)
+        pass
     
     def _setupLights(self):
+        global masterNode
         #Create some lights and add them to the scene. By setting the lights on
         #render they affect the entire scene
         #Check out the lighting tutorial for more information on lights
@@ -190,9 +125,9 @@ class EditorScene(AbstractScene):
         directionalLight.setDirection( Vec3( 0, 8, -2.5 ) )
         directionalLight.setColor( Vec4( 0.9, 0.8, 0.9, 1 ) )
         lAttrib = lAttrib.addLight( directionalLight )
-        render.attachNewNode( directionalLight.upcastToPandaNode() )
-        render.attachNewNode( ambientLight.upcastToPandaNode() )
-        render.node().setAttrib( lAttrib )
+        masterNode.attachNewNode( directionalLight.upcastToPandaNode() )
+        masterNode.attachNewNode( ambientLight.upcastToPandaNode() )
+        masterNode.node().setAttrib( lAttrib )
     
     @eventCallback
     def deleteEntityFromNodePath(self, nodePath):   
@@ -213,13 +148,45 @@ class EditorView(AbstractView):
     INPUT_REFRESH_RATE = 1.0/60.0
     _dta = 0
     
-    # All the objects are attached to the master node
-    masterNode = render.attachNewNode("editorNode")
     _scene = EditorScene(masterNode)
     
-    def __init__(self):
-        super(EditorView, self).__init__()
-        #self._scene = EditorScene(self.masterNode)
+    def __init__(self, inputMgr):
+        global masterNode
+        super(EditorView, self).__init__(inputMgr)
+        self.masterNode = masterNode
+
+    def enable(self):
+        # reenable camera controller
+        self.camera.setActive(True)
+        self.scene.camera = self.camera
+        self._inputMgr.switchSchemeTo(self.INPUT_SCHEME)
+    
+    def disable(self):
+        # disable camera controller
+        self.camera.setActive(False)
+        self._inputMgr.switchSchemeTo(BASE_SCHEME)
+    
+    def update(self, task):
+        # entity position is updated automatically by the physic manager by 
+        # setting parameters for position and rotation in params.
+        # TODO
+        # update GUI
+        for entity in self.scene.getEntities():
+            #if entity.isDirty:
+            #logger.debug("Entity %s is dirty" % entity)
+            if entity.ID == 51:
+                entity.update()
+            entity.isDirty = False
+        
+        self._inputMgr.update()
+        self.scene.camera.update()
+        
+        return task.cont
+    
+    def render(self, task):
+        self._scene.render()
+        
+        return task.cont
 
     def addEntityFromActor(self, actor):
         logger.debug("Adding new entity from actor: %s" % actor)
@@ -240,39 +207,9 @@ class EditorView(AbstractView):
         self._inputMgr.bindEvent("4", event.SWITCH_VIEW, ["debugging"], 
                                  scheme="base")
         self._inputMgr.bindCallback("0", self.scene.camera.lookAtOrigin)
-     
+        
     def _subscribeToEvents(self):
         pass
-     
-    def enable(self):
-        # reenable camera controller
-        #self.scene.camera.enable()
-        self.camera.setActive(True)
-        self.scene.camera = self.camera
-        self._inputMgr.switchSchemeTo(self.INPUT_SCHEME)
-    
-    def disable(self):
-        # disable camera controller
-        #self.scene.camera.disable()
-        self.camera.setActive(False)
-        self._inputMgr.switchSchemeTo(BASE_SCHEME)
-    
-    def update(self):
-        # update GUI
-        # update input
-        for entity in self.scene.getEntities():
-            #if entity.isDirty:
-            #logger.debug("Entity %s is dirty" % entity)
-            if entity.ID == 51:
-                entity.update()
-            entity.isDirty = False
-        
-        self._inputMgr.update()
-        # TODO update entities position !
-        self.scene.camera.update()
-    
-    def render(self):
-        self._scene.render()
 
     scene = property(fget = lambda self: self._scene, fset=None)
 
@@ -305,71 +242,46 @@ class EditingView(EditorView):
     It transform the editor in a world editor allowing to insert
     and to position objects.
     
+    Messages sent here are received by the WxWindows GUI
+    
     Accepted inputs:
     - space -> add a new row
     - mouse1 press -> select a node
     """
     
-    class GUIControllerDelegate(object):
-        def __init__(self, editView):
-            # Inner classes don't have access to the outer
-            # class attributes like in Java :(
-            self._view = editView
-        
-        def __getattr__(self,attr):
-            try:
-                return self.__dict__[attr]
-            except KeyError, e:
-               return self._view.__dict__[attr]
-           
-        @pandaCallback
-        def onDeleteButtonClick(self):
-            if self._selectedObj is not None:
-                logger.debug("Deleting selected entity %s: " % self._selectedObj)
-                messenger.send(event.DELETE_ENTITY_GUI, [self._selectedObj])
-                self._view._selectedObj = None
-            else:
-                logger.info("Nothing selected, can't delete")
-            
-        @pandaCallback
-        def onWorldButtonClick(self, selection):
-            logger.debug("Selected %s" % selection)
-            messenger.send(event.CHANGE_NATURE, [selection])
-        
-        @pandaCallback
-        def onCellNatureClick(self, selection):
-            logger.debug("Selected %s" % selection)
-            if self._selectedObj is not None:
-                self._selectedObj.changeNature(selection)
-            #messenger.send("change-cell-nature", [selection])
-    
     INPUT_SCHEME = "editing"
           
-    def __init__(self):
-        # the GUI must be created first in order to bind its methods
-        self._gui = EditViewGUI(self.GUIControllerDelegate(self))
-        self._gui.disable()
-
-        super(EditingView, self).__init__()
+    def __init__(self, inputMgr):
+        super(EditingView, self).__init__(inputMgr)
         
         self._setupCollisionDetection()
         self._selectedObj = None
 
+    def deleteSelectedObject(self):
+        if self._selectedObj is not None:
+            logger.debug("Deleting selected entity: %s " % self._selectedObj)
+            #ID = self._selectedObj.ID
+            #self.scene.deleteEntityByID(ID)
+            ID = self._selectedObj.getNetTag("ID")
+            self.scene.deleteEntityFromNodePath(self._selectedObj)
+            self._selectedObj = None
+        else:
+            logger.info("Nothing selected, can't delete")
+
     def enable(self):
         self.camera.showCursor(True)
         super(EditingView, self).enable()
-        self._gui.enable()
         
     def disable(self):
         super(EditingView, self).disable()
-        self._gui.disable()
     
     @inputCallback
     def _onMousePress(self):
+        global masterNode
         mousePos = base.mouseWatcherNode.getMouse()
         self.pickerRay.setFromLens(self.scene.camera, mousePos.getX(), 
                                    mousePos.getY())
-        self.picker.traverse(self.masterNode)
+        self.picker.traverse(masterNode)
 
         entries = self.pq.getNumEntries()
         logger.debug("Ray collided with %d entries" % entries)
@@ -386,8 +298,11 @@ class EditingView(EditorView):
             pickedObject.showTightBounds()
             
             # set it current and send a msg that a new entity has been selected
+            #self._selectedObj = self.scene.getEntityByID(pickedObject.getNetTag("ID"))
             self._selectedObj = pickedObject
-            messenger.send(event.SELECT_ENTITY, [self._selectedObj])
+            entity = self.scene.getEntityByID(pickedObject.getNetTag("ID"))
+            logger.debug("Set selected object to: %s"  % entity)
+            messenger.send(event.SELECT_ENTITY, [entity])
         else:
             logger.debug("No collisions at: %s" % mousePos)
     
@@ -407,10 +322,6 @@ class EditingView(EditorView):
         self.camera.lookAt(0,0,0)
         self.scene.camera = self.camera
 
-    def _subscribeToEvents(self):
-        self.listener = SafeDirectObject()
-        self.listener.accept(event.SELECT_ENTITY, self._gui.editNode)
-    
     def _registerToCommands(self):
         super(EditingView, self)._registerToCommands()
         self._inputMgr.createSchemeAndSwitch(self.INPUT_SCHEME)
@@ -431,8 +342,8 @@ class SimulatingView(EditorView):
     
     INPUT_SCHEME = "simulating"
 
-    def __init__(self):
-        super(SimulatingView, self).__init__()
+    def __init__(self, inputMgr):
+        super(SimulatingView, self).__init__(inputMgr)
         self._isPlayerSet = False
 
     def _setupCamera(self):
@@ -460,10 +371,12 @@ class SimulatingView(EditorView):
         logger.debug("Player set to: %s" % entity)
         
     def enable(self):
+        global masterNode
         self.camera.showCursor(False)
         super(SimulatingView, self).enable()
         if not self._isPlayerSet:
-            self.scene.camera.setTarget(self.masterNode)
+            self.scene.camera.setTarget(masterNode)
+            #self.scene.camera.setTarget(self.masterNode)
     
     
 class Track(object):
@@ -548,7 +461,7 @@ class Track(object):
         row = (len(self._cells)) / (self.ROW_LENGTH)
         col = (len(self._cells)) % (self.ROW_LENGTH)
         
-        params.parentNode = self._nodePath
+        params.parentNode = parent
         params.position = pos
         params.color = Color.b_n_w[len(self._cells) % 2]
         params.posTag = "%d %d" % (row, col)
@@ -573,6 +486,7 @@ class EditorLogic(AbstractLogic):
         self.physicMgr = PhysicManager()
         self._actors = []
         self._track = Track(self._view.masterNode)
+        
         for i in range(0,10):
             self.addRow()
         
@@ -581,7 +495,6 @@ class EditorLogic(AbstractLogic):
         ballParams.parentNode = self._view.masterNode
         self._player = TheBallActor(ballParams)
         self._addActor(self._player)
-        #self.hidePlayer()
         
     def _subscribeToEvents(self):
         self.listener = SafeDirectObject()
@@ -600,9 +513,7 @@ class EditorLogic(AbstractLogic):
         entity.isDirty = True
         
     @eventCallback
-    def _deleteActor(self, actor):
-        actorID = actor.getNetTag("ID")
-        print actorID
+    def _deleteActor(self, actorID):
         if actorID is not "" or actorID is not None:
             for _actor in self._actors:
                 if _actor.ID == int(actorID):
@@ -627,11 +538,11 @@ class EditorLogic(AbstractLogic):
         logger.debug("Hiding player")
         self._view.scene.hideEntityByID(self._player.ID)
     
-    def update(self):
+    def update(self, task):
         # TODO add state management
-        self._view.update()
         self.physicMgr.update(self._actors)
-        taskMgr.step()
+        
+        return task.cont
         
     def _addActor(self, actor) :
         logger.debug("Adding new actor: %s" % actor)
@@ -647,40 +558,7 @@ class EditorApplication(AbstractApplication):
     def __init__(self):
         super(EditorApplication, self).__init__()
         self._isRunning = True
-        
-    @eventCallback
-    def _switchView(self, view):
-        if view in self._views.keys():
-            # don't switch to the same view
-            if self._view != self._views[view]:
-                logger.debug("Switching to %s view" % view)
-                # TODO consider sending event 
-                self._view.disable()
-                self._view = self._views[view]
-                self._logic.view = self._view
-                # TODO consider sending event 
-                self._view.enable()
-                
-                if view is "simulating":
-                    self._logic.showPlayer()
-                else:
-                    self._logic.hidePlayer()
-                    
-        else:
-            logger.error("View %s doesn't exists" % view)
-  
-    def _subscribeToEvents(self):
-        self.listener = SafeDirectObject()
-        self.listener.accept(event.SWITCH_VIEW, self._switchView)
-        self.listener.accept(event.REQUEST_SHUTDOWN, self.shutdown)
-  
-    def _createLogicAndView(self):
-        self._views = {"editing": EditingView(),
-                       "roaming": RoamingView(),
-                       "simulating": SimulatingView()}
-        self._view = self._views["roaming"]
-        self._view.enable()
-        self._logic = EditorLogic(self._view)
+        self._isPaused = False
         
     def shutdown(self):
         logger.info("Shutdown requested")
@@ -692,22 +570,118 @@ class EditorApplication(AbstractApplication):
         taskMgr.step()
         self.run()
     
+    def _onMouseEnterPanda(self, args):
+        self._isPaused = False
+    
+    def _onMouseLeavePanda(self, args):
+        self._isPaused = True
+    
     def run(self):
+        """ 
+        Main loop of the application 
+        First step, create the processes that will be constantly updated
+        Second, run them.
+        Third, destroy them
+        """
+        
+        # Create processes
+        self._createProcesses()
+        
+        # Run processes
         import time
         while self._isRunning:
-            self.dta += globalClock.getDt()
-            while self.dta > self.REFRESH_RATE:
-                self.dta -= self.REFRESH_RATE
-                self._logic.update()
-                self._view.render()
-            time.sleep(0.01)
+            if not self._isPaused:
+                taskMgr.step()
+            #self._gui.MainLoop()
+            #self._mouseWatcher.update()
+            time.sleep(0.001)
         else:
-            taskMgr.stop()
-            #render.analyze()
+            self._shutDownProcesses()
             # TODO do cleanup
             logger.info("Quitting application, have fun")  
             
-a = EditorApplication
+    def _createProcesses(self):
+        # Start processes in the correct order
+        # - logic update
+        #    - physic update, logic takes care
+        # - view update
+        #    - input update view does it
+        #    - scene update view does it
+        #    - gui update   view does it
+        # - view render
+        #     - scene render view does it
+        #     - gui render   view does it
+        taskMgr.add(self._logic.update, "logic-update")
+        taskMgr.add(self._view.update, "view-update")
+        taskMgr.add(self._view.render, "view-render")
+        taskMgr.add(self._gui.MainLoop, "wx-mainloop")
+        taskMgr.add(self._mouseWatcher.update, "mw-update")
+    
+    def _shutDownProcesses(self):
+        taskMgr.stop()
+        self.nbase.userExit()
+                
+    @eventCallback
+    def _switchView(self, view):
+        if view in self._views.keys():
+            # don't switch to the same view
+            if self._view != self._views[view]:
+                logger.debug("Switching to %s view" % view)
+                self._view.disable()
+                self._view = self._views[view]
+                self._logic.view = self._view
+                self._view.enable()
+                
+                #if view is "simulating":
+                #    self._logic.showPlayer()
+                #else:
+                #    self._logic.hidePlayer()
+                    
+        else:
+            logger.error("View %s doesn't exists" % view)
+  
+    def _subscribeToEvents(self):
+        self.listener = SafeDirectObject()
+        self.listener.accept(event.SWITCH_VIEW, self._switchView)
+        self.listener.accept(event.REQUEST_SHUTDOWN, self.shutdown)
+        #self.listener.accept(event.MOUSE_ENTER_PANDA, self._onMouseEnterPanda)
+        #self.listener.accept(event.MOUSE_LEAVE_PANDA, self._onMouseLeavePanda)
+  
+    def _createLogicAndView(self):
+        # TODO override ShowBase in order to use only what we really need
+        self.nbase = ShowBase()
+        self.nbase.windowType = "onscreen"
+        masterNode.reparentTo(self.nbase.render)
+        
+        self._mouseWatcher = MouseWatcher(self.nbase)
+        
+        self._guiPresenter = GUIPresenter()
+        self._gui = EditorGUI("gui/wx/gui.xrc", self._guiPresenter)
+        
+        h = self._gui.frame.GetHandle()
+        wp = WindowProperties().getDefault()
+        wp.setOrigin(0,0)
+        wp.setSize(self._gui.frame.ClientSize.GetWidth(), self._gui.frame.ClientSize.GetHeight())
+        wp.setParentWindow(h)
+        self.nbase.openDefaultWindow(startDirect=False, props=wp)
+        self._gui.setPandaWindow(self.nbase.win)
+        
+        inp = InputManager(self.nbase)
+        
+        self._views = {"editing": EditingView(inp),
+                       "roaming": RoamingView(inp),
+                       "simulating": SimulatingView(inp)}
+        self._view = self._views["roaming"]
+        self._view.enable()
+        self._logic = EditorLogic(self._view)
+        
+        # don't change the order
+        self._guiPresenter.setPandaController(self._views["editing"])
+        self._guiPresenter.setView(self._gui)
+        self._guiPresenter.setModel(self._views["editing"].scene)
+        
+
+a = echo.echo_class(EditorApplication)
 if __name__ == "__main__":
     edApp = EditorApplication()
     edApp.run()
