@@ -7,14 +7,14 @@ Copyright © 2008-2009
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("physics", DEBUG)
 
-import direct.directbase.DirectStart
-from direct.showbase.DirectObject import DirectObject
-
 from pandac.PandaModules import OdeWorld, OdeSimpleSpace, OdeJointGroup
 from pandac.PandaModules import OdeBody, OdeMass, OdeBoxGeom, OdeSphereGeom, BitMask32
 from pandac.PandaModules import Quat
 
-from mdlib.panda import pandaCallback, SafeDirectObject
+from direct.task.TaskManagerGlobal import taskMgr
+from direct.task.Task import Task
+
+from mdlib.panda.input import SafeDirectObject
 from mdlib.panda import event
 from mdlib.panda import math
 
@@ -45,6 +45,7 @@ class PhysicManager(object):
         self.space.setAutoCollideWorld(self.physWorld)
         self.contactgroup = OdeJointGroup()
         self.space.setAutoCollideJointGroup(self.contactgroup)
+        
         
     def disableActor(self, actor):
         logger.debug("Disabling physic for actor %s" % actor)

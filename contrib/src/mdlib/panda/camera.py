@@ -24,12 +24,11 @@ TODO:
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("camera", DEBUG)
 
-import direct.directbase.DirectStart
 from direct.task.Task import Task
 
 from pandac.PandaModules import Vec3, NodePath, PandaNode, WindowProperties, Camera
 
-from mdlib.panda import pandaCallback, SafeDirectObject
+from mdlib.panda.input import SafeDirectObject
 from mdlib.decorator import traceMethod
 
 __all__  = ["RoamingCamera","FixedCamera", "TheBallCamera", "DebugCamera",
@@ -114,7 +113,6 @@ class RoamingCamera(WASDCamera):
     Very similar to a FPS camera
     """
     def __init__(self, inputMgr):
-        print "CREATING ROAMING CAMERA"
         super(RoamingCamera, self).__init__("free-camera", inputMgr)
         pl = self.getLens()
         pl.setFov(70)

@@ -1,3 +1,32 @@
+"""
+il = wx.ImageList(isz[0], isz[1])
+        fldridx     = il.Add(wx.ArtProvider_GetBitmap(wx.ART_FOLDER,      wx.ART_OTHER, isz))
+        fldropenidx = il.Add(wx.ArtProvider_GetBitmap(wx.ART_FILE_OPEN,   wx.ART_OTHER, isz))
+        fileidx     = il.Add(wx.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER, isz))
+        smileidx    = il.Add(images.Smiles.GetBitmap())
+
+        self.tree.SetImageList(il)
+"""
+        
+#from pandac.PandaModules import ClockObject
+#FPS = 30
+#globalClock = ClockObject.getGlobalClock()
+#globalClock.setMode(ClockObject.MLimited)
+#globalClock.setFrameRate(FPS)
+
+#if not base.mouseWatcher.node().hasMouse(): return Task.cont
+#      m=base.mouseWatcher.node().getMouse() 
+#self.dta += globalClock.getDt()
+            #while self.dta > self.REFRESH_RATE:
+            #    self.dta -= self.REFRESH_RATE
+                # run all processes
+                
+def zoomOut(self):
+    self.camera.setY(self.camera, -MOUSE_ZOOM_SPEED)
+
+def zoomIn(self):
+    self.camera.setY(self.camera,  MOUSE_ZOOM_SPEED)
+    
 def displayLinesAroundObject():
             lines = LineNodePath(parent = masterNode, thickness = 5.0, colorVec = Vec4(1, 0, 0, 1))
             lines.reset()
@@ -541,7 +570,7 @@ class EditMode(AbstractEditorMode):
         color = BLACK = Vec4(0,0,0,1)
         index = -1
     
-    class GUIControllerDelegate(object):
+    class GUIPresenterDelegate(object):
         def __init__(self, editMode):
             # Inner classes don't have access to the outer
             # class attributes like in Java :(
@@ -582,7 +611,7 @@ class EditMode(AbstractEditorMode):
         super(EditMode, self).__init__(world)
         self._setupCollisionDetection()
         self._selectedObj = None
-        self._gui = EditViewGUI(self.GUIControllerDelegate(self))
+        self._gui = EditViewGUI(self.GUIPresenterDelegate(self))
         self.disable()
         
     def enable(self):

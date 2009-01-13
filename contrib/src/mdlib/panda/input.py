@@ -10,11 +10,19 @@ Code to deal with user input, via mouse, keyboard and joysticks
 from mdlib.log import ConsoleLogger, DEBUG, SPAM
 logger = ConsoleLogger("input", DEBUG)
 
-from direct.task.Task import Task
+from direct.showbase.DirectObject import DirectObject
 
-from mdlib.panda import SafeDirectObject, pandaCallback
+import event
 
 BASE_SCHEME = "base"
+
+__all__ = ["SafeDirectObject", "Command", "InputScheme", "InputManager", 
+           "BASE_SCHEME"]
+
+
+class SafeDirectObject(DirectObject):
+    def destroy(self):
+        self.ignoreAll() 
 
 class Command(object):
     """
@@ -72,10 +80,11 @@ class InputManager(SafeDirectObject):
     Each key can be bound to an unlimited number of commands.
     """
     
-    def __init__(self):
+    def __init__(self, base):
         base.buttonThrowers[0].node().setButtonDownEvent('button')
         base.buttonThrowers[0].node().setButtonUpEvent('buttonUp')
         base.buttonThrowers[0].node().setButtonRepeatEvent('buttonRepeat')
+        
         self.accept("button", self._onButtonDown)
         self.accept("buttonRepeat", self._onButtonRepeat)
         self.accept("buttonUp", self._onButtonUp)

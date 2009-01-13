@@ -19,6 +19,9 @@ an Actor may exists but not be attached (yet) to a scene.
 All the properties of the Actor are created during the instantiation of the
 object EXCEPT the geometry which is set once the PhysicManager is done
 calculating it. 
+
+TODO: add Antialiasing and Transparency attributes
+
 """
 
 from mdlib.panda.physics import BOX_GEOM_TYPE, SPHERE_GEOM_TYPE

@@ -33,9 +33,10 @@ logger = ConsoleLogger("entity", DEBUG)
 
 from direct.task.Task import Task
 
-from mdlib.panda import loadModel, pandaCallback, SafeDirectObject
+from mdlib.panda.input import SafeDirectObject
 from mdlib.decorator import Property, deprecated
 from mdlib.panda import math
+from mdlib.panda.data import ResourceLoader
 
 from pandac.PandaModules import Point3, Vec4, BitMask32, Quat
 from pandac.PandaModules import AntialiasAttrib
@@ -44,15 +45,24 @@ from pandac.PandaModules import AntialiasAttrib
 from random import randint, seed
 seed()
 
+__all__=["EnvironmentEntity", "CellEntity", "TheBallEntity", "RenderPass"]
 
-__all__=["EnvironmentEntity", "CellEntity", "TheBallEntity"]
+resMgr = ResourceLoader()
+
+
+class RenderPass:
+    STATIC = 0x1 # environments and level geometry
+    ACTOR = 0x2  # things that can move
+    SKY = 0x3    # the background "behind" everything
 
 
 class GameEntity(object):
     """ Base entity class """
+    
     def __init__(self, params):
         self._id = params._id
-        self._nodePath = loadModel(loader, params.modelPath, params.parentNode, 
+        #self._nodePath = loadModel(loader, params.modelPath, params.parentNode, 
+        self._nodePath = resMgr.loadModel(params.modelPath, params.parentNode, 
                                    params.scale, Point3(params.position) )
         
         self._nodePath.setTag("ID", str(self._id))
@@ -60,14 +70,6 @@ class GameEntity(object):
         
         self.isDirty = False
     
-    def _setPosition(self, position):
-        self.params.position = position
-        self._nodePath.setPos(position)
-    
-    def _setRotation(self, rotation):
-        self.params.rotation = rotation
-        self._nodePath.setPos(rotation)
-        
     def serialise(self):
         pass
     
@@ -81,6 +83,7 @@ class GameEntity(object):
     
     def __repr__(self):
         return "%s ID: %s" % (self.__class__.__name__, self._id)
+    
         
     ID = property(fget=lambda self: self._id, fset=None)
     nodePath = property(fget=lambda self: self._nodePath, fset=None)
@@ -117,44 +120,11 @@ class CellEntity(GameEntity):
 
 class EnvironmentEntity(GameEntity): 
     """ This entity represents the background elements """
-    
     def update(self):
         pass
 
 
 class TheBallEntity(GameEntity):
     """ This entity represents the player character. """
-    
     pass
 
-    
-class EntityManager(object):
-    """ 
-    The entity manager provide a safe and easy way to load, save and
-    delete entities from the application. Entities can be loaded from a 
-    directory, from a file or from a Panda3D Multifile. 
-    """
-    previous_id = -1
-    
-    @staticmethod
-    def id_generator():
-        global previous_id
-        id = previous_id
-        previous_id += 1
-        return id
-    
-    def __init__(self):
-        self.input = SafeDirectObject()
-        self.input.accept("delete-entity", self.deleteEntity)
-        
-    def deleteEntity(self, entity):
-        logger.debug("deleting entity %s in EntityManager" % entity)
-    
-    def loadEntityFromDir(self, dir):
-        pass
-    
-    def loadEntityFromMultifile(self, dir):
-        pass 
-    
-    def loadEntityFromFile(self, filename): 
-        id = EntityManager.id_generator()

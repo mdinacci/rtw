@@ -1,5 +1,5 @@
-# debug mode
-debug = t
+window-type none
+want-wx 1
 
-# spam mode, this is for desperate cases
-spam = f
+#clock-mode limited
+#clock-frame-rate 60 

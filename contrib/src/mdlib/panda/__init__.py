@@ -4,7 +4,7 @@
 Author: Marco Dinacci <marco.dinacci@gmail.com>
 License: BSD
 
-This module is a collection of utilities to use while developing
+This module is a collection of utilities useful when developing
 a Panda3D program
 
 """
@@ -13,7 +13,34 @@ import os
 from direct.showbase.DirectObject import DirectObject
 from pandac.PandaModules import Vec4
 
+class MouseWatcher(object):
+    """ 
+    This class monitors whether the mouse is inside the panda window or not. 
+    Useful when embedding a Panda3D window in a GUI container.
+    """
+    def __init__(self, myBase):
+        self._myBase = myBase
+        self._mouseIsOut = False
+        self._outMessageSent = False
+        
+    def update(self, task=None):
+        if not self._myBase.mouseWatcher.node().hasMouse(): 
+            self._mouseIsOut = True
+            # send the event only once
+            if not self._outMessageSent:
+                self._myBase.messenger.send(event.MOUSE_LEAVE_PANDA, [None])
+                self._outMessageSent = True
+        else:
+            if self._mouseIsOut:
+                self._myBase.messenger.send(event.MOUSE_ENTER_PANDA, [None])
+                self._mouseIsOut = False
+                self._outMessageSent = False
+         
+        return task.cont #if task != None: return task.cont
+
+
 class Color(object):
+    """ Some color constants """
     # some colors
     BLACK = Vec4(0,0,0,1)
     WHITE = Vec4(1,1,1,1)
@@ -25,28 +52,8 @@ class Color(object):
     COLOR_IDX = 0
     b_n_w = [BLACK,WHITE]
 
-# TODO move to input
-class SafeDirectObject(DirectObject):
-    def destroy(self):
-        self.ignoreAll() 
-
-# TODO check for model existance, if not raise ModelNotFoundException
-def loadModel(loader, path, parentNode, scale, pos):
-    model = loader.loadModel(path)
-    model.setScale(scale)
-    model.setPos(pos)
-    model.reparentTo(parentNode)
-    return model
     
-def groupNodes(render, groupName, *nodes):
-    groupNode = render.attachNewNode(groupName)
-    for node in nodes:
-        node.reparentTo(groupNode)
-    
-    return groupNode
-
-
-# DECORATORS
+# DECORATORS ===================================================================
 
 def guiCallback(func):
     """ 
@@ -81,9 +88,3 @@ def pandaCallback(func):
         # do nothing for the moment
         return func(*args)
     return new
-
-class ModelNotFoundException(Exception):
-    def __init__(self, modelPath):
-        super(ModelNotFoundException, self).__init__("Model %s not found" % modelPath)
-        
-    

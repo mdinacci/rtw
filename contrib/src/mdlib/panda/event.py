@@ -15,8 +15,10 @@ MOVE_PLAYER="move-player"
 CHANGE_NATURE="change-nature"
 SWITCH_VIEW="switch-view"
 NEW_ROW="new-row"
-
-# sent by GUI. Received by Logic and Scene
+EDIT_NODE="edit-node"
+MOUSE_ENTER_PANDA="mouse-enter-panda"
+MOUSE_LEAVE_PANDA="mouse-leave-panda"
+# sent by Scene that act as a model for the GUI. Received by Logic
 DELETE_ENTITY_GUI="delete-entity-gui"
 
 DELETE_NODE="delete-node"

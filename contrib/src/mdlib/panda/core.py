@@ -14,6 +14,8 @@ __all__= ["AbstractApplication", "ApplicationState", "AbstractView",
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("core", DEBUG)
 
+from mdlib.panda import event
+
 from input import InputManager
 
 class AbstractApplication(object):
@@ -80,9 +82,10 @@ class AbstractView(object):
     reads input from the keyboard and mouse and translates input into commands
     that are sent to the game logic.
     """
-    _inputMgr = InputManager()
+    #_inputMgr = InputManager()
     
-    def __init__(self):
+    def __init__(self, inputManager):
+        self._inputMgr = inputManager
         self._setupCamera()
         self._registerToCommands()
         self._subscribeToEvents()
@@ -179,6 +182,7 @@ class AbstractScene(object):
         if entity is not None:
             logger.debug("Removing entity %s from scene" % entity)
             self._entities.remove(entity)
+            messenger.send(event.DELETE_ENTITY_GUI, [entityID])
         else:
             s = "Cannot delete entity (maybe it's inside a model?) %s"
             logger.warning(s % entity)
@@ -186,6 +190,10 @@ class AbstractScene(object):
     def getEntityByID(self, entityID):
         """ Returns an entity given its ID """
         
+        # entity ID is stored as an int in entity params but as a string
+        # in the nodepath tag
+        if type(entityID) is str:
+            entityID = int(entityID)
         # simple linear search
         for entity in self._entities:
             if entity.ID == entityID:
@@ -219,6 +227,3 @@ class AbstractScene(object):
             logger.debug("Entity: %s" % entity)
         logger.debug("Listing finished")
 
-    
-class ResourceManager(object): pass
-class ResourceCache(object): pass
