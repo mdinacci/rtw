@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<resource xmlns="http://www.wxwindows.org/wxxrc" version="2.3.0.1">
+    <object class="wxFrame" name="mainFrame">
+        <style>wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL</style>
+        <size>640,480</size>
+        <title>Editor</title>
+        <centered>1</centered>
+        <object class="wxMenuBar" name="menuBar">
+            <label>MyMenuBar</label>
+            <object class="wxMenu" name="fileMenu">
+                <label>File</label>
+                <object class="wxMenuItem" name="newMenuItem">
+                    <label>New\tctrl+n</label>
+                    <help></help>
+                </object>
+                <object class="wxMenuItem" name="openMenuItem">
+                    <label>Open\tctrl+o</label>
+                    <help></help>
+                </object>
+                <object class="wxMenuItem" name="saveMenuItem">
+                    <label>Save\tctrl+s</label>
+                    <help></help>
+                </object>
+                <object class="separator" />
+                <object class="wxMenuItem" name="quitMenuItem">
+                    <label>Quit\tctrl+q</label>
+                    <help></help>
+                </object>
+            </object>
+            <object class="wxMenu" name="editMenu">
+                <label>Edit</label>
+            </object>
+            <object class="wxMenu" name="viewMenu">
+                <label>View</label>
+            </object>
+        </object>
+        <object class="wxStatusBar" name="statusBar">
+            <style>wxST_SIZEGRIP</style>
+            <fields>1</fields>
+        </object>
+        <object class="wxToolBar" name="toolBar">
+            <style>wxTB_HORIZONTAL</style>
+            <bitmapsize></bitmapsize>
+            <margins></margins>
+            <packing>1</packing>
+            <separation>5</separation>
+            <object class="tool" name="newButton">
+                <label>New</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/document-new.png</bitmap>
+            </object>
+            <object class="tool" name="openButton">
+                <label>Open</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/document-open.png</bitmap>
+            </object>
+            <object class="tool" name="saveButton">
+                <label>Save</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/document-save.png</bitmap>
+            </object>
+            <object class="separator" />
+            <object class="tool" name="copyButton">
+                <label>Copy</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/edit-copy.png</bitmap>
+            </object>
+            <object class="tool" name="pasteButton">
+                <label>Paste</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/edit-paste.png</bitmap>
+            </object>
+            <object class="tool" name="deleteButton">
+                <label>Delete</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/delete.png</bitmap>
+            </object>
+            <object class="tool" name="undoButton">
+                <label>Undo</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/edit-undo.png</bitmap>
+            </object>
+            <object class="tool" name="redoButton">
+                <label>Redo</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/edit-redo.png</bitmap>
+            </object>
+            <object class="separator" />
+            <object class="tool" name="roamingButton">
+                <label>Roaming</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/applications-internet.png</bitmap>
+                <toggle>1</toggle>
+            </object>
+            <object class="tool" name="editingButton">
+                <label>Editing</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/applications-engineering.png</bitmap>
+                <toggle>1</toggle>
+            </object>
+            <object class="tool" name="simulatingButton">
+                <label>Simulating</label>
+                <tooltip></tooltip>
+                <longhelp></longhelp>
+                <bitmap>../editor/res/gui/applications-games.png</bitmap>
+                <toggle>1</toggle>
+            </object>
+        </object>
+    </object>
+</resource>
