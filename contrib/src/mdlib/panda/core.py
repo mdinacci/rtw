@@ -14,9 +14,13 @@ __all__= ["AbstractApplication", "ApplicationState", "AbstractView",
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("core", DEBUG)
 
+from pandac.PandaModules import NodePath
+
 from mdlib.panda import event
+from mdlib.panda.data import EntityType
 
 from input import InputManager
+
 
 class AbstractApplication(object):
     """
@@ -82,7 +86,6 @@ class AbstractView(object):
     reads input from the keyboard and mouse and translates input into commands
     that are sent to the game logic.
     """
-    #_inputMgr = InputManager()
     
     def __init__(self, inputManager):
         self._inputMgr = inputManager
@@ -166,41 +169,79 @@ class AbstractScene(object):
     A Scene contains all the 3D objects that make up the game
     """
     def __init__(self):
-        self._entities = []
+        self._rootNode = NodePath("Scene")
+        self._noneNode = self._rootNode.attachNewNode("Non-Render")
+        self._staticNode = self._rootNode.attachNewNode("Static")
+        self._actorsNode = self._rootNode.attachNewNode("Actors")
+        self._envNode = self._rootNode.attachNewNode("Background")
+        self._alphasNode = self._rootNode.attachNewNode("Alphas")
+        
+         # data structure for game objects
+        self._entities = {}
+    
+    def getActors(self):
+        return [entity for entity in self._entities.values() \
+                  if entity.render.entityType == EntityType.ACTOR]
         
     def addEntity(self, entity):
         """ Add a new entity to the scene """
         
         logger.debug("Adding entity %s to scene" % entity)
-        self._entities.append(entity)
-        self._entities.sort(key=lambda obj: obj.ID)
-
-    def deleteEntityByID(self, entityID):
-        """ Delete an entity from a scene given its entity ID """
-        
-        entity = self.getEntityByID(entityID)
-        if entity is not None:
-            logger.debug("Removing entity %s from scene" % entity)
-            self._entities.remove(entity)
-            messenger.send(event.DELETE_ENTITY_GUI, [entityID])
+        # setup parent node
+        if not entity.render.has_key("parentNode"):
+            rp = entity.render.entityType
+            destNode = None
+            if rp == EntityType.NONE:
+                entity.render.parentNode = self._noneNode
+                destNode = self._noneNode
+            elif rp == EntityType.ACTOR:
+                entity.render.parentNode = self._actorsNode
+                destNode = self._actorsNode
+            elif rp == EntityType.STATIC:
+                entity.render.parentNode = self._staticNode
+                destNode = self._staticNode
+            elif rp == EntityType.BACKGROUND:
+                entity.render.parentNode = self._envNode
+                destNode = self._envNode
+            elif rp == EntityType.ALPHAS:
+                entity.render.parentNode = self._alphasNode
+                destNode = self._alphasNode
+            else:
+                logger.error("Unknown render pass, adding node to root node")
+                destNode = self._noneNode
+                entity.render.parentNode = self._rootNode
         else:
-            s = "Cannot delete entity (maybe it's inside a model?) %s"
-            logger.warning(s % entity)
-    
+            if type(entity.render.parentNode) is NodePath: # a nodepath
+                destNode = entity.render.parentNode
+            else: # an ID
+                print entity.render.__dict__
+                destNode = self.getEntityByID(entity.render.parentNode).render.nodepath
+        
+        self._entities[entity.UID] = entity
+        entity.render.nodepath.reparentTo(destNode)
+        
     def getEntityByID(self, entityID):
-        """ Returns an entity given its ID """
-        
-        # entity ID is stored as an int in entity params but as a string
-        # in the nodepath tag
-        if type(entityID) is str:
-            entityID = int(entityID)
-        # simple linear search
-        for entity in self._entities:
-            if entity.ID == entityID:
-                return entity
-        else:
-            logger.warning("No entity returned for ID: %s" % entityID)
-        
+        eid = int(entityID)
+        if self._entities.has_key(eid):
+            return self._entities[eid]
+
+        return None
+    
+    def deleteEntity(self, entity):
+        logger.debug("Deleting entity %d", entity.UID)
+        # destroy node, should automatically update the scene tree
+        entity.render.nodepath.hideBounds()
+        entity.render.nodepath.removeNode()
+        # remove from map
+        del self._entities[entity.UID]
+    
+    def deleteEntityByID(self, entityID):
+        logger.debug("Deleting entity %d from scene " % entityID)
+        entity = self.getEntityByID(entityID)
+        if entity != None:
+            self.deleteEntity(entity)
+            
+            
     def hideEntityByID(self, entityID):
         """ Hide an entity from the scene. The node is stashed """
         entity = self.getEntityByID(entityID)
@@ -212,13 +253,26 @@ class AbstractScene(object):
         entity = self.getEntityByID(entityID)
         logger.debug("Showing entity %s" % entity)
         entity.nodePath.unstash()
-        
+    
+    def setRootNodeParent(self, node):
+        self._rootNode.reparentTo(node)
+    
+    def getRootNode(self):
+        return self._rootNode
+    
     def getEntities(self):
         return self._entities
+    
+    def update(self):
+        pass
     
     def render(self):
         # TODO raise exception
         pass
+
+    def serialise(self):
+        # no need to serialise the root node as it will be recreated
+        return [entity.serialise() for entity in self._entities.values()]
     
     def ls(self):
         """ Debug function to list all the entities in the scene """
