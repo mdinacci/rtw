@@ -3,128 +3,298 @@
 """
 Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
-
-An entity exists only in a Scene and it has a node that bind it into the
-scenegraph.
-If this entity is animated and has physical properties then a corresponding
-object called Actor is created and managed in the game logic.
-
-The parameters needed for the creation of the two objects are shared in 
-another object of the type Params
-
-Ex. 
-- BallEntity -> 3D representation, model, light, materials, textures etc..  
-- BallActor  -> logic and physical representation: radius, density, lifes etc.
-- BallParams -> contains shared parameters: id and what else ?
-
-The parameters are created in the logic, then an event is sent in order for 
-the entity object to be properly initialised. The entity is then inserted into
-the scene. Parameters are read from disk, in order to change more easily the
-properties of the objects.
-
-
-TODO 
-
-use FSM to switch between the various entity states
 """
 
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("entity", DEBUG)
 
-from direct.task.Task import Task
-
+from mdlib.panda import Color
 from mdlib.panda.input import SafeDirectObject
-from mdlib.decorator import Property, deprecated
-from mdlib.panda import math
-from mdlib.panda.data import ResourceLoader
+from mdlib.panda.data import GOM, Types, GameEntity, EntityType
+from mdlib.panda import event
 
-from pandac.PandaModules import Point3, Vec4, BitMask32, Quat
-from pandac.PandaModules import AntialiasAttrib
+from pandac.PandaModules import NodePath, Point3
 
-# to randomly choose a color
-from random import randint, seed
-seed()
-
-__all__=["EnvironmentEntity", "CellEntity", "TheBallEntity", "RenderPass"]
-
-resMgr = ResourceLoader()
-
-
-class RenderPass:
-    STATIC = 0x1 # environments and level geometry
-    ACTOR = 0x2  # things that can move
-    SKY = 0x3    # the background "behind" everything
-
-
-class GameEntity(object):
-    """ Base entity class """
+class Track(GameEntity):
+    """
+    Track is an utility class used to manage and organise groups of cells.
+    It reorders the cell in order to have a simpler geometry, it changes
+    properties etc.. 
     
-    def __init__(self, params):
-        self._id = params._id
-        #self._nodePath = loadModel(loader, params.modelPath, params.parentNode, 
-        self._nodePath = resMgr.loadModel(params.modelPath, params.parentNode, 
-                                   params.scale, Point3(params.position) )
+    A Track is made of a list of cells, it has a start point and an end point 
+    Entities do not collide directly with the Track but with the cells that made
+    the track. The track nodes are organized in rows:
+    
+    track_node
+            |___row1
+            |     |__cell1
+            |     |__cell2
+            |     |__cell3
+            |     |__cell4
+            |     |__cell5
+            |
+            |___row2
+                  |__cell1
+            etc...
+            
+    Once a row has been surpassed, for performance reasons it should be removed
+    from the track, as it is forbidden to drive backward. 
+    
+    TODO squeeze the track after working with it as deleted cells will 
+    make the list longer ?.
+    """
+    
+    def __init__(self, uid, data):
+        """
+        I need the previous cell and the number of cells, no need to store
+        the cells here, let's delegate it to the GOM
+        """
+        super(Track, self).__init__(uid, data)
         
-        self._nodePath.setTag("ID", str(self._id))
-        self.params = params
+        # keep a list of cells here for easier management
+        self._cells = []
         
-        self.isDirty = False
-    
-    def serialise(self):
-        pass
-    
-    def unserialise(self):
-        pass
-    
-    def update(self):
-        """ Update this actor position in the world """
-        self._nodePath.setPosQuat(Point3(self.params.position), 
-                                  math.vec4ToQuat(self.params.rotation))
-    
-    def __repr__(self):
-        return "%s ID: %s" % (self.__class__.__name__, self._id)
-    
+        self._subscribeToEvents()
         
-    ID = property(fget=lambda self: self._id, fset=None)
-    nodePath = property(fget=lambda self: self._nodePath, fset=None)
         
-
-class CellEntity(GameEntity):
-    """ This entity represents a 3D cell in a track """
-    
-    def __init__(self, params):
-        super(CellEntity, self).__init__(params)
-        self._nodePath.setColor(params.color)
-        self._nodePath.setTag("pos", params.posTag) # XXX :/
+    def createRow(self):
+        rowID = len(self._cells)/self.physics.rowWidth +1
+        logger.debug("Creating row #%d" % rowID)
+        # TODO port row to GameEntity
+        rp = row_params.copy()
+        rp["render"]["parentNode"] = self.render.nodepath
+        row = GOM.createEntity(rp)
+        #rowNode = self.render.nodepath.attachNewNode("row-%d" % rowID)
         
-    def __repr__(self):
-        return "Cell #%s at %s" % (self._id, self._nodePath.getTag("pos"))
+        yield row
+        
+        for i in range(0, row.physics.width):
+            yield self._createCell(row.render.nodepath)
     
     def changeNature(self, nature):
-        newCell = loader.loadModel("cell_%s" % nature.lower())
-        if newCell is not None:
-            logger.info("Changing cell nature to: %s" % nature)
-            newCell.setScale(self._nodePath.getScale())
-            newCell.setPos(self._nodePath.getPos())
-            parent = self._nodePath.getParent()
-            newCell.setTag("pos",self._nodePath.getTag("pos"))
-            newCell.setColor(self._nodePath.getColor())
-            self._nodePath.removeNode()
+        for cell in self._cells:
+            # TODO get entity and then change nature, can't do it on actor
+            #cell.changeNature(nature)
+            pass
             
-            newCell.reparentTo(parent)
-            self._nodePath = newCell
+    def _subscribeToEvents(self):
+        self.listener = SafeDirectObject()
+        self.listener.accept(event.CHANGE_NATURE, self.changeNature)
+    
+    def _createCell(self, parent):
+        # by default put a new cell close to the latest added
+        params = cell_params.copy()
+        
+        # some shortcuts
+        render = params["render"]
+        render["parentNode"] = parent
+        physics = params["physics"]
+        
+        if len(self._cells) > 0:
+            prevPos = self._cells[-1].position
+            if len(self._cells) % self.physics.rowWidth == 0: 
+                incX = - (self.physics.rowWidth-1) * physics["length"]
+                incY = physics["length"]
+            else:
+                incX = physics["length"]
+                incY = 0
+            pos = Point3(prevPos.x + incX, prevPos.y+ incY, prevPos.z)
         else:
-            logger.error("Cannot change nature cell to: %s. Model does not \
-            exist." % nature )
+            pos = Point3(0,0,1)
+        
+        # set row, column tag; it makes easy to identify the cell after
+        row = (len(self._cells)) / (self.physics.rowWidth)
+        col = (len(self._cells)) % (self.physics.rowWidth)
+        
+        params["position"]["x"] = pos.getX()
+        params["position"]["y"] = pos.getY() 
+        params["position"]["z"] = pos.getZ() 
+        
+        render["color"] = Color.b_n_w[len(self._cells) % 2]
+        render["tags"]["pos"] = "%d %d" % (row, col)
+        
+        cell = GOM.createEntity(params)
+        
+        logger.debug("Created cell #%d at row,col,pos (%d,%d,%s)" 
+                     % (len(self._cells),row,col,pos))
+        self._cells.append(cell)
+        
+        return cell
+    
+    def serialise(self):
+        attrs = super(Track, self).serialise()
+        del attrs._cells
+        return attrs
 
+    
+class TrackCell(GameEntity):
+    """ This entity represents a 3D cell in a track """
+    
+    def __init__(self, uid, data):
+        super(TrackCell, self).__init__(uid, data)
+        
+    def __strAAA__(self):
+        return "Cell #%s at %s" % (self.UID, self.render.nodepath.getTag("pos"))
 
-class EnvironmentEntity(GameEntity): 
-    """ This entity represents the background elements """
-    def update(self):
-        pass
+    
+# Property schema: defines the existing properties and their type
+property_list = {
+                 "archetype": str,
+                 "prettyName": str,
+                 "python": 
+                    {
+                     "clazz": object
+                     },
+                 "position":
+                    { 
+                     "x": float,
+                     "y": float,
+                     "z": float,
+                     "rotation": Types.tuple4
+                     },
+                 "physics": 
+                    {
+                     "collisionBitMask": int, # unsigned
+                     "categoryBitMask" : int, # unsigned
+                     "geomType": Types.Geom,
+                     "radius": Types.float2,
+                     "hasBody": bool,
+                     "linearSpeed": int,
+                     "density":int,
+                     "xForce" : Types.float1,
+                     "yForce" : Types.float1,
+                     "zForce" : Types.float1,
+                     "torque" : Types.float1
+                     },
+                 "render": 
+                    {
+                     "entityType": int, # EntityType constant
+                     "color": Color,
+                     "nodepath": NodePath,
+                     "scale": int,
+                     "modelPath": str,
+                     "parentNode": NodePath,
+                     "isDirty": bool,
+                     "tags": {}
+                     }
+                }
 
+ball_params = {
+               "archetype": "Player",
+               "prettyName": "Ball",
+               "position": 
+                    { 
+                     "x": 4,
+                     "y": 2,
+                     "z": 50,
+                     "rotation": (0,0,0,0)
+                     },
+               "physics": 
+                    {
+                     "collisionBitMask": 0x00000001,
+                     "categoryBitMask" : 0x00000001,
+                     "geomType": Types.Geom.SPHERE_GEOM_TYPE,
+                     "radius":  0.56,
+                     "hasBody": True,
+                     "linearSpeed": 3000,
+                     "density":200,
+                     "xForce" : 0,
+                     "yForce" : 0,
+                     "zForce" : 0,
+                     "torque" : 0
+                     },
+               "render": 
+                    {
+                     "entityType": EntityType.ACTOR,
+                     "scale": 1,
+                     "modelPath": "golf-ball",
+                     "isDirty": True,
+                     }
+               }
 
-class TheBallEntity(GameEntity):
-    """ This entity represents the player character. """
-    pass
+# default parameters for the cell objects
+cell_params = {
+               "archetype": "Tracks/Cells",
+               "prettyName": "Cell",
+               "python":
+                    {
+                     "clazz": TrackCell
+                     },
+               "position":
+                    {
+                     "x": 0,
+                     "y": 0,
+                     "z": 1,
+                     "rotation": (0,0,0,0)
+                     },
+               "physics": 
+                    {
+                     "collisionBitMask": 0x00000001,
+                     "categoryBitMask" : 0x00000000,
+                     "geomType": Types.Geom.BOX_GEOM_TYPE,
+                     "length": 2.0,
+                     "width": 2.0,
+                     "height": 0.2,
+                     "hasBody": False
+                     },
+               "render": 
+                    {
+                     "entityType": EntityType.ACTOR,
+                     "scale": 1,
+                     "modelPath": "cell_normal",
+                     "isDirty": True,
+                     "color": None,
+                     "tags" : {"pos":None}
+                     }
+               }
 
+row_params = {
+              "archetype":"Tracks/Rows",
+              "prettyName": "Row",
+              "render": #necessary even if empty in order to create a NodePath
+                {
+                 # HACK should be NONE but row won't be displayed othw
+                 "entityType": EntityType.NONE 
+                },
+              "physics":
+                {
+                 "width":5
+                 }
+              }
+
+track_params = {
+                "archetype": "Tracks",
+                "prettyName": "Track",
+                "python": 
+                    {
+                     "clazz": Track
+                     },
+                "render": #necessary even if empty in order to create a NodePath
+                    {
+                     # HACK should be NONE but TrackCell won't be displayed othw
+                     "entityType": EntityType.ACTOR 
+                     },
+                "physics":
+                    {
+                     "rowWidth": 5
+                     }
+                }
+
+environment_params = {
+                      "archetype": "Background",
+                      "prettyName": "Environment",
+                      "position":
+                            {
+                             "x": -10,
+                             "y": 35,
+                             "z": -5,
+                             "rotation": (0,0,0,0)
+                             },
+                      "render": 
+                            {
+                             "entityType": EntityType.BACKGROUND,
+                             "scale": 0.25,
+                             "modelPath": "environment",
+                             "isDirty": True,
+                             }
+                     }
