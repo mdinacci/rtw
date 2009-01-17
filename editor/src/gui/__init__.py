@@ -98,10 +98,12 @@ class GUIPresenter(object):
         pass
     
     def onOpenButtonClicked(self, wxEvent):
-        pass
+        loadFile = self._view.getLoadedFile()
+        self._pandaController.loadScene(loadFile)
     
     def onSaveButtonClicked(self, wxEvent):
-        pass
+        saveFile = self._view.getSaveFile()
+        self._pandaController.saveScene(saveFile)
     
     def onCopyButtonClicked(self, wxEvent):
         pass
@@ -130,8 +132,8 @@ class GUIPresenter(object):
     def onEntitySelect(self, entity):
         """ Executed when an entity is selected inside the panda window """
         logger.debug("Selecting entity %s " % entity)
-        if hasattr(entity, "params"):
-            props = entity.params.__dict__
+        if hasattr(entity, "__dict__"):
+            props = entity.__dict__
             self._view.showEntityProperties(props)
     
     # END PANDA EVENT CALLBACKS
