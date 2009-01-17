@@ -10,6 +10,7 @@ Code to deal with user input, via mouse, keyboard and joysticks
 from mdlib.log import ConsoleLogger, DEBUG, SPAM
 logger = ConsoleLogger("input", DEBUG)
 
+from pandac.PandaModules import ModifierButtons
 from direct.showbase.DirectObject import DirectObject
 
 import event
@@ -81,6 +82,12 @@ class InputManager(SafeDirectObject):
     """
     
     def __init__(self, base):
+
+        buttons = base.mouseWatcherNode.getModifierButtons()
+        buttons.removeButton(buttons.getButton(2))
+        base.mouseWatcherNode.setModifierButtons(buttons)
+        base.buttonThrowers[0].node().setModifierButtons(buttons)
+        
         base.buttonThrowers[0].node().setButtonDownEvent('button')
         base.buttonThrowers[0].node().setButtonUpEvent('buttonUp')
         base.buttonThrowers[0].node().setButtonRepeatEvent('buttonRepeat')
