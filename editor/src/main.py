@@ -4,7 +4,7 @@
 Author: Marco Dinacci <dev@dinointeractive.com>
 License: BSD
 
-World Editor for SpeedBlazer
+World Editor
 
 
 TODO
@@ -14,26 +14,21 @@ TODO
   It's ok to have multiple references
   but there must be only a single place where to manage them.
 * (re)code everything to use an EventManager (see taskMgr)
-- track must be refactored in order to have an easier to sort geometry 
-  I need a virtual node row to bind each group of five cells.
-- delete entity (send event)
 - change cell specific settings:
     - model (material, lights, texture)
     - color (optional)
 - create multiple surfaces in ODE and bind them to cells ?
 * implement scene save/load
 - better ball physics (fix the fact that it never stops)
-* input manager, the situation is getting out of control, who binds which key?
 - better camera for the ball, must have constant X position and 
   constant Y distance
 - new cell models to implement elevation
 - curves :O
 - fix the logger
-- improve button location, now depends on the window' size
 * Configuration manager, all the parameters must be read from disk
 - use egg-qtess to polygonize a NURBS surface
 - I need a python shell inside the editor !
- use Panda3D multifiles to store entities !
+- use Panda3D multifiles to store entities !
 - search useless imports and remove them
 * implement messaging system
 - optimize scene. Have four nodes: staticobjs, actors, sky, evrthng with alpha
@@ -54,20 +49,22 @@ from direct.showbase.DirectObject import DirectObject
 from direct.directtools.DirectGeometry import LineNodePath
 from pandac.PandaModules import Point3, Vec4, Vec3, NodePath, Quat
 from pandac.PandaModules import LightAttrib, AmbientLight, DirectionalLight
-from pandac.PandaModules import EggData, Filename
+from pandac.PandaModules import EggData, Filename, BamFile
 from pandac.PandaModules import WindowProperties
 
 # collision to pick entities with mouse
 from pandac.PandaModules import CollisionNode, CollisionHandlerQueue, CollisionTraverser, CollisionRay, GeomNode
 
 # panda utilities and actors
-from mdlib.panda import eventCallback, inputCallback, Color, MouseWatcher
+from mdlib.panda import eventCallback, inputCallback, guiCallback, MouseWatcher
 from mdlib.panda.core import *
 from mdlib.panda.camera import *
 from mdlib.panda.entity import *
 from mdlib.panda.actor import *
 from mdlib.panda.input import *
-from mdlib.panda.physics import PhysicManager
+from mdlib.panda.data import *
+from mdlib.panda.entity import *
+from mdlib.panda.physics import POM
 from mdlib.panda import event
 
 # logging
@@ -82,19 +79,13 @@ from gui.wx import EditorGUI
 from gui import GUIPresenter
 #echo.echo_class(EditorGUI)
 
+import cPickle
 from sys import exit 
-
-masterNode =  NodePath('editorNode')
-
-def wantsDirectTools():
-    return ConfigVariableBool("want-directtools") is "t"
 
 
 class EditorScene(AbstractScene):
-    def __init__(self, rootNode):
+    def __init__(self):
         super(EditorScene, self).__init__()
-        self._rootNode = rootNode
-        
         self._camera = None
         
         # subscribe to events ASAP
@@ -103,17 +94,12 @@ class EditorScene(AbstractScene):
         # create initial lights
         self._setupLights()
         
-        # create some background entities to populate a bit the space 
-        envPar = EnvironmentParams()
-        envPar.parentNode = self._rootNode
-        env = EnvironmentEntity(envPar)
-        self.addEntity(env)    
     
     def _subscribeToEvents(self):
+        # must be overridden
         pass
     
     def _setupLights(self):
-        global masterNode
         #Create some lights and add them to the scene. By setting the lights on
         #render they affect the entire scene
         #Check out the lighting tutorial for more information on lights
@@ -125,17 +111,18 @@ class EditorScene(AbstractScene):
         directionalLight.setDirection( Vec3( 0, 8, -2.5 ) )
         directionalLight.setColor( Vec4( 0.9, 0.8, 0.9, 1 ) )
         lAttrib = lAttrib.addLight( directionalLight )
-        masterNode.attachNewNode( directionalLight.upcastToPandaNode() )
-        masterNode.attachNewNode( ambientLight.upcastToPandaNode() )
-        masterNode.node().setAttrib( lAttrib )
+        
+        self._rootNode.attachNewNode( directionalLight.upcastToPandaNode() )
+        self._rootNode.attachNewNode( ambientLight.upcastToPandaNode() )
+        self._rootNode.node().setAttrib( lAttrib )
     
-    @eventCallback
+    """
     def deleteEntityFromNodePath(self, nodePath):   
-        entityID = int(nodePath.getNetTag("ID"))
+        # FIXME must remove entity IF it is an entity (maybe just a tree)
         nodePath.hideBounds()
         nodePath.removeNode()
-        self.deleteEntityByID(entityID)
-        
+    """
+     
     def render(self):
         # FIXME Panda is doing everything now
         pass
@@ -148,12 +135,10 @@ class EditorView(AbstractView):
     INPUT_REFRESH_RATE = 1.0/60.0
     _dta = 0
     
-    _scene = EditorScene(masterNode)
+    _scene = EditorScene()
     
     def __init__(self, inputMgr):
-        global masterNode
         super(EditorView, self).__init__(inputMgr)
-        self.masterNode = masterNode
 
     def enable(self):
         # reenable camera controller
@@ -171,30 +156,23 @@ class EditorView(AbstractView):
         # setting parameters for position and rotation in params.
         # TODO
         # update GUI
-        for entity in self.scene.getEntities():
-            #if entity.isDirty:
-            #logger.debug("Entity %s is dirty" % entity)
-            if entity.ID == 51:
-                entity.update()
-            entity.isDirty = False
-        
         self._inputMgr.update()
         self.scene.camera.update()
+        self.scene.update()
         
         return task.cont
     
     def render(self, task):
-        self._scene.render()
+        self.scene.render()
         
         return task.cont
 
-    def addEntityFromActor(self, actor):
-        logger.debug("Adding new entity from actor: %s" % actor)
-        if type(actor) is CellActor:
-            self._scene.addEntity(CellEntity(actor.params))
-        elif type(actor) is TheBallActor:
-            self._scene.addEntity(TheBallEntity(actor.params))
-    
+    def setSceneRootNode(self, node):
+        self.scene.setRootNodeParent(node)
+
+    def addToScene(self, entity):
+        self._scene.addEntity(entity)
+   
     def _registerToCommands(self):
         self._inputMgr.bindEvent("escape", event.REQUEST_SHUTDOWN, 
                                  scheme="base")
@@ -257,13 +235,20 @@ class EditingView(EditorView):
         self._setupCollisionDetection()
         self._selectedObj = None
 
+    def getSelectedEntity(self):
+        if self._selectedObj is not None:
+            entity = self.scene.getEntityByID(int(self._selectedObj.getNetTag("UID")))
+            return entity
+
+    def deleteFromScene(self, entity):
+        self.scene.deleteEntity(entity)
+
     def deleteSelectedObject(self):
         if self._selectedObj is not None:
             logger.debug("Deleting selected entity: %s " % self._selectedObj)
-            #ID = self._selectedObj.ID
-            #self.scene.deleteEntityByID(ID)
-            ID = self._selectedObj.getNetTag("ID")
-            self.scene.deleteEntityFromNodePath(self._selectedObj)
+            
+            self.scene.deleteEntityByID(int(self._selectedObj.getNetTag("UID")))
+            #self.scene.deleteEntityFromNodePath(self._selectedObj)
             self._selectedObj = None
         else:
             logger.info("Nothing selected, can't delete")
@@ -277,11 +262,10 @@ class EditingView(EditorView):
     
     @inputCallback
     def _onMousePress(self):
-        global masterNode
         mousePos = base.mouseWatcherNode.getMouse()
         self.pickerRay.setFromLens(self.scene.camera, mousePos.getX(), 
                                    mousePos.getY())
-        self.picker.traverse(masterNode)
+        self.picker.traverse(self.scene.getRootNode())
 
         entries = self.pq.getNumEntries()
         logger.debug("Ray collided with %d entries" % entries)
@@ -300,7 +284,7 @@ class EditingView(EditorView):
             # set it current and send a msg that a new entity has been selected
             #self._selectedObj = self.scene.getEntityByID(pickedObject.getNetTag("ID"))
             self._selectedObj = pickedObject
-            entity = self.scene.getEntityByID(pickedObject.getNetTag("ID"))
+            entity = self.scene.getEntityByID(pickedObject.getNetTag("UID"))
             logger.debug("Set selected object to: %s"  % entity)
             messenger.send(event.SELECT_ENTITY, [entity])
         else:
@@ -366,190 +350,126 @@ class SimulatingView(EditorView):
         
     def setPlayer(self, actorID):
         entity = self.scene.getEntityByID(actorID)
-        self.camera.setTarget(entity.nodePath)
+        self.camera.setTarget(entity.render.nodepath)
         self._isPlayerSet = True
         logger.debug("Player set to: %s" % entity)
         
     def enable(self):
-        global masterNode
         self.camera.showCursor(False)
         super(SimulatingView, self).enable()
-        if not self._isPlayerSet:
-            self.scene.camera.setTarget(masterNode)
-            #self.scene.camera.setTarget(self.masterNode)
-    
-    
-class Track(object):
-    """
-    Track is an utility class used to manage and organise groups of cells.
-    It reorders the cell in order to have a simpler geometry, it changes
-    properties etc.. 
-    
-    A Track is made of a list of cells, it has a start point and an end point 
-    Entities do not collide directly with the Track but with the cells that made
-    the track. The track nodes are organized in rows:
-    
-    track_node
-            |___row1
-            |     |__cell1
-            |     |__cell2
-            |     |__cell3
-            |     |__cell4
-            |     |__cell5
-            |
-            |___row2
-                  |__cell1
-            etc...
-            
-    Once a row has been surpassed, for performance reasons it should be removed
-    from the track, as it is forbidden to drive backward. 
-    
-    TODO squeeze the track after working with it as deleted cells will 
-    make the list longer ?.
-    """
-    
-    ROW_LENGTH = 5
-    
-    def __init__(self, parent):
-        self._subscribeToEvents()
-        self._nodePath = parent.attachNewNode("track")
-        self._cells = []
-        
-    def getCellAtIndex(self, idx):
-        logger.debug("Selecting cell at idx: %s" % idx)
-        if idx < len(self._cells):
-            return self._cells[idx]
-        else:
-            logger.error("Cell %d doesn't exists !" % idx)
-            
-    def createRow(self):
-        rowID = len(self._cells)/self.ROW_LENGTH +1
-        logger.debug("Creating row #%d" % rowID)
-        rowNode = self._nodePath.attachNewNode("row-%d" % rowID)
-        for i in range(0, self.ROW_LENGTH):
-            yield self._createCell(rowNode)
-    
-    @eventCallback
-    def changeNature(self, nature):
-        for cell in self._cells:
-            # TODO get entity and then change nature, can't do it on actor
-            #cell.changeNature(nature)
-            pass
-            
-    def _subscribeToEvents(self):
-        self.listener = SafeDirectObject()
-        self.listener.accept(event.CHANGE_NATURE, self.changeNature)
-    
-    def _createCell(self, parent):
-        # by default put a new cell close to the latest added
-        params = CellParams()
-        
-        if len(self._cells) > 0:
-            prevPos = self._cells[-1].position
-            if len(self._cells) % self.ROW_LENGTH == 0: 
-                incX = - (self.ROW_LENGTH-1) * params.length
-                incY = params.length
-            else:
-                incX = params.length
-                incY = 0
-            pos = Point3(prevPos.getX() + incX, prevPos.getY()+ incY, 
-                         prevPos.getZ())
-        else:
-            pos = Point3(0,0,1)
-        
-        # set row, column tag; it makes easy to identify the cell after
-        row = (len(self._cells)) / (self.ROW_LENGTH)
-        col = (len(self._cells)) % (self.ROW_LENGTH)
-        
-        params.parentNode = parent
-        params.position = pos
-        params.color = Color.b_n_w[len(self._cells) % 2]
-        params.posTag = "%d %d" % (row, col)
-        cell = CellActor(params)
-        
-        logger.debug("Created cell #%d at row,col,pos (%d,%d,%s)" 
-                     % (len(self._cells),row,col,pos))
-        self._cells.append(cell)
-        
-        return cell
-    
+
 
 # TODO create actors and create geometry from here using the physic manager
 class EditorLogic(AbstractLogic):
     """
-    The editor is basically a world editor, specialised for the 
-    SpeedBlazer game. It allows to construct the games by managing 3D objects,
+    The editor allows to construct the games by managing 3D objects,
     it allows also to debug and test the game.
     """
     def __init__(self, view):
         super(EditorLogic, self).__init__(view)
-        self.physicMgr = PhysicManager()
-        self._actors = []
-        self._track = Track(self._view.masterNode)
         
-        for i in range(0,10):
+        self.loadScene("/tmp/test.rtw")
+        
+        """
+        # create some background entities to populate a bit the space 
+        self.view.addToScene(GOM.createEntity(environment_params.copy()))    
+        
+        self._track = GOM.createEntity(track_params.copy())
+        self.view.addToScene(self._track)
+        
+        for i in range(0,5):
             self.addRow()
         
-        # create player and hide it
-        ballParams = TheBallParams()
-        ballParams.parentNode = self._view.masterNode
-        self._player = TheBallActor(ballParams)
-        self._addActor(self._player)
+        # create player
+        self._player = GOM.createEntity(ball_params.copy())
+        self.view.addToScene(self._player)
+        #"""
         
     def _subscribeToEvents(self):
         self.listener = SafeDirectObject()
         self.listener.accept(event.NEW_ROW, self.addRow)
-        self.listener.accept(event.DELETE_ENTITY_GUI, self._deleteActor)
         self.listener.accept(event.MOVE_PLAYER, self._movePlayer)
     
     @eventCallback
     def _movePlayer(self, xForce, yForce, zForce):
         logger.info("Moving player with vector force: %d,%d,%d" 
                     % (xForce, yForce, zForce))
-        body = self._player.geom.getBody()
-        speed = self._player.linearSpeed
+        body = self._player.physics.geom.getBody()
+        speed = self._player.physics.linearSpeed
         body.addForce(xForce*speed, yForce*speed, zForce*speed)
-        entity = self.view.scene.getEntityByID(self._player.ID)
+        entity = self.view.scene.getEntityByID(self._player.UID)
         entity.isDirty = True
-        
-    @eventCallback
-    def _deleteActor(self, actorID):
-        if actorID is not "" or actorID is not None:
-            for _actor in self._actors:
-                if _actor.ID == int(actorID):
-                    logger.debug("Removing actor with ID: %s" % actorID)
-                    self.physicMgr.removeGeometryTo(_actor)
-                    self._actors.remove(_actor)
     
     @eventCallback    
     def addRow(self):
-        for actor in self._track.createRow():
-            self._addActor(actor)
+        for entity in self._track.createRow():
+            self.view.addToScene(entity)
+
+    @guiCallback
+    def loadScene(self, sceneFile):
+        fh = open(sceneFile, "rb")
+        
+        # load function
+        load = lambda: cPickle.load(fh)
+        
+        version = load()
+        entitiesNum = load()
+        
+        entities = [self.view.addToScene(GOM.createEntity(load())) 
+                    for idx in range(0, entitiesNum)]
+        
+        # set player and track
+        #self._player = self.view.getEntityByName("Ball")
+        #self._track = self.view.getEntityByName("Track")
+        
+    
+    @guiCallback
+    def saveScene(self, sceneFile):
+        # TODO save to a multifile
+        fh = open('/tmp/test.rtw', "wb")
+        
+        # save function
+        dump = lambda x: cPickle.dump(x, fh, -1)
+        
+        # get the serialised data from the scene
+        entities = self.view.scene.serialise()
+        
+        # store version
+        dump("v0.1")
+        
+        # store the number of entities, useful when unpickling
+        dump(len(entities))
+        
+        # save entities
+        [dump(entity) for entity in entities]
+        
+        fh.close()
+        
+        logger.info("Scene file saved to %s" % sceneFile )
+    
+    @guiCallback
+    def deleteSelectedObject(self):
+        entity = self.view.getSelectedEntity()
+        if entity.has_key("physics") and entity.physics.has_key("geom"):
+            POM.removeGeometryTo(entity)
+        self.view.deleteFromScene(entity)
 
     def showPlayer(self):
         logger.debug("Showing player")
         if hasattr(self._view,"setPlayer"):
-            self._view.setPlayer(self._player.ID)
-        self._view.scene.showEntityByID(self._player.ID)
-        self.physicMgr.enableActor(self._player)
+            self._view.setPlayer(self._player.UID)
     
     def hidePlayer(self):
         """ Hide the ball as we need it only in simulating mode """ 
         logger.debug("Hiding player")
-        self._view.scene.hideEntityByID(self._player.ID)
+        self._view.scene.hideEntityByID(self._player.UID)
     
     def update(self, task):
         # TODO add state management
-        self.physicMgr.update(self._actors)
+        POM.update(self.view.scene.getActors())
         
         return task.cont
         
-    def _addActor(self, actor) :
-        logger.debug("Adding new actor: %s" % actor)
-        actor.geom = self.physicMgr.createGeomForActor(actor)
-        self._actors.append(actor)
-        self._view.addEntityFromActor(actor)
-
 
 class EditorApplication(AbstractApplication):
     REFRESH_RATE = 1.0/90.0
@@ -571,10 +491,12 @@ class EditorApplication(AbstractApplication):
         self.run()
     
     def _onMouseEnterPanda(self, args):
-        self._isPaused = False
+        pass
+        #self._isPaused = False
     
     def _onMouseLeavePanda(self, args):
-        self._isPaused = True
+        pass
+        #self._isPaused = True
     
     def run(self):
         """ 
@@ -592,8 +514,6 @@ class EditorApplication(AbstractApplication):
         while self._isRunning:
             if not self._isPaused:
                 taskMgr.step()
-            #self._gui.MainLoop()
-            #self._mouseWatcher.update()
             time.sleep(0.001)
         else:
             self._shutDownProcesses()
@@ -632,11 +552,8 @@ class EditorApplication(AbstractApplication):
                 self._logic.view = self._view
                 self._view.enable()
                 
-                #if view is "simulating":
-                #    self._logic.showPlayer()
-                #else:
-                #    self._logic.hidePlayer()
-                    
+                if view is "simulating":
+                    self._logic.showPlayer()
         else:
             logger.error("View %s doesn't exists" % view)
   
@@ -644,14 +561,15 @@ class EditorApplication(AbstractApplication):
         self.listener = SafeDirectObject()
         self.listener.accept(event.SWITCH_VIEW, self._switchView)
         self.listener.accept(event.REQUEST_SHUTDOWN, self.shutdown)
-        #self.listener.accept(event.MOUSE_ENTER_PANDA, self._onMouseEnterPanda)
-        #self.listener.accept(event.MOUSE_LEAVE_PANDA, self._onMouseLeavePanda)
+        self.listener.accept(event.MOUSE_ENTER_PANDA, self._onMouseEnterPanda)
+        self.listener.accept(event.MOUSE_LEAVE_PANDA, self._onMouseLeavePanda)
   
     def _createLogicAndView(self):
         # TODO override ShowBase in order to use only what we really need
         self.nbase = ShowBase()
         self.nbase.windowType = "onscreen"
-        masterNode.reparentTo(self.nbase.render)
+        
+        #taskMgr.popupControls()
         
         self._mouseWatcher = MouseWatcher(self.nbase)
         
@@ -673,11 +591,14 @@ class EditorApplication(AbstractApplication):
                        "simulating": SimulatingView(inp)}
         self._view = self._views["roaming"]
         self._view.enable()
+        self._view.setSceneRootNode(self.nbase.render)
         self._logic = EditorLogic(self._view)
         
         # don't change the order
-        self._guiPresenter.setPandaController(self._views["editing"])
+        #self._guiPresenter.setPandaController(self._views["editing"])
+        self._guiPresenter.setPandaController(self._logic)
         self._guiPresenter.setView(self._gui)
+        # FIXME
         self._guiPresenter.setModel(self._views["editing"].scene)
         
 
