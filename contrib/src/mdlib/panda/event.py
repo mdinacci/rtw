@@ -21,6 +21,6 @@ MOUSE_LEAVE_PANDA="mouse-leave-panda"
 # sent by Scene that act as a model for the GUI. Received by Logic
 DELETE_ENTITY_GUI="delete-entity-gui"
 
-DELETE_NODE="delete-node"
+ENTITY_DELETED="entity-deleted"
 SELECT_ENTITY="select-entity"
 # EDITOR ONLY EVENTS END   ===============
