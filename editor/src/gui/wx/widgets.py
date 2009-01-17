@@ -17,8 +17,10 @@ class EntitySelectionChoice(wx.Choice):
         self._controller = controller
         
     def populate(self):
-        self.Clear()
         entities = map(lambda x: str(x), self._controller.getEntities())
+        logger.debug("Populating EntitySelectionChoice with %d entries." 
+                     % len(entities))
+        self.Clear()
         self.AppendItems(entities)
         self.Select(0)
         
@@ -52,19 +54,14 @@ class SceneGraphTree(wx.TreeCtrl):
         def _populateTree(pandaRoot, treeNode):
             children = pandaRoot.getChildren().asList()
             for child in children:
-                print "Processing node: ", child
                 # if child has children recursively add them to the tree
                 if child.getNumChildren() > 0:
-                    print "%d children" % child.getNumChildren()
                     item = self.AppendItem(treeNode, child.getName())
-                    print "item appended"
                     self.SetItemImage(item, self._images["branch"], wx.TreeItemIcon_Normal)
                     self.SetItemImage(item, self._images["branchOpen"], wx.TreeItemIcon_Expanded)
                     self.SetPyData(item, None)
-                    print "calling again populatetree"
                     _populateTree(child, item)
                 else:
-                    print "no children"
                     item = self.AppendItem(treeNode, child.getName())
                     self.SetItemImage(item, self._images["leaf"], wx.TreeItemIcon_Normal)
                     self.SetPyData(item, None)
@@ -185,10 +182,10 @@ class PropertyGrid(Grid):
         self.AppendRows(1, False)
         row = self.GetNumberRows() - 1
         self.SetCellValue(row, 0, propName)
-        #self.SetReadOnly(row, 0, True)
-        #self.SetReadOnly(row, 1, False)
-        #self.SetCellRenderer(row, 1, makeRenderer(propType))
-        #self.SetCellEditor(row, 1, makeEditor(propType))
+        self.SetReadOnly(row, 0, True)
+        self.SetReadOnly(row, 1, False)
+        self.SetCellRenderer(row, 1, makeRenderer(propType))
+        self.SetCellEditor(row, 1, makeEditor(propType))
         self.SetCellValue(row, 1, str(value))
       
     def onCellChange(self, evt):
