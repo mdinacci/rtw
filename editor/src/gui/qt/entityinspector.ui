@@ -1,0 +1,32 @@
+<ui version="4.0" >
+ <class>EntityInspectorDock</class>
+ <widget class="QDockWidget" name="EntityInspectorDock" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>350</width>
+    <height>380</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>DockWidget</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents" >
+   <layout class="QHBoxLayout" name="horizontalLayout" >
+    <item>
+     <widget class="EntityInspector" name="entityInspector" />
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>EntityInspector</class>
+   <extends>QTreeView</extends>
+   <header>entityinspector</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

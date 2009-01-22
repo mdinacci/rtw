@@ -1,0 +1,21 @@
+<RCC>
+  	<qresource> 
+		<file>applications-engineering.png</file>
+		<file>applications-games.png</file>
+		<file>applications-internet.png</file>
+		<file>delete.png</file>
+		<file>document-new.png</file>
+		<file>document-open.png</file>
+		<file>document-save.png</file>
+		<file>edit-copy.png</file>
+		<file>edit-delete.png</file>
+		<file>edit-paste.png</file>
+		<file>edit-redo.png</file>
+		<file>edit-undo.png</file>
+		<file>help-about.png</file>
+		<file>object-flip-horizontal.png</file>
+		<file>object-flip-vertical.png</file>
+		<file>object-rotate-left.png</file>
+		<file>object-rotate-right.png</file>
+	</qresource>
+</RCC>

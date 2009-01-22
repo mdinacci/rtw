@@ -1,0 +1,41 @@
+<ui version="4.0" >
+ <class>sceneGraphDock</class>
+ <widget class="QDockWidget" name="sceneGraphDock" >
+  <property name="windowModality" >
+   <enum>Qt::NonModal</enum>
+  </property>
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>350</width>
+    <height>269</height>
+   </rect>
+  </property>
+  <property name="floating" >
+   <bool>false</bool>
+  </property>
+  <property name="allowedAreas" >
+   <set>Qt::NoDockWidgetArea</set>
+  </property>
+  <property name="windowTitle" >
+   <string>Scene Graph View</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents" >
+   <layout class="QHBoxLayout" name="horizontalLayout" >
+    <item>
+     <widget class="SceneGraphView" name="sceneGraphView" />
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>SceneGraphView</class>
+   <extends>QTreeView</extends>
+   <header>scenegraphview</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

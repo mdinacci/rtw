@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
+<!--Generated with glade3 3.4.5 on Tue Dec 16 13:18:07 2008 -->
+<glade-interface>
+  <widget class="GtkWindow" id="paletteWindow">
+    <property name="width_request">200</property>
+    <property name="height_request">400</property>
+    <property name="visible">True</property>
+    <property name="title" translatable="yes">Palette</property>
+    <child>
+      <widget class="GtkVButtonBox" id="vbuttonbox1">
+        <property name="visible">True</property>
+        <property name="spacing">5</property>
+        <property name="layout_style">GTK_BUTTONBOX_START</property>
+        <child>
+          <widget class="GtkButton" id="addRowBtn">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="label" translatable="yes">Add row</property>
+            <property name="response_id">0</property>
+          </widget>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+      </widget>
+    </child>
+  </widget>
+</glade-interface>
