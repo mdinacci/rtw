@@ -147,7 +147,8 @@ class EditorGUI(wx.App):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sgHost.SetSizer(sizer)
         self._sgTree = SceneGraphTree(sgHost, self._controller)
-        sizer.Add(self._sgTree, 1, wx.EXPAND)
+        sizer.Add(self._sgTree, 1, wx.EXPAND | wx.TR_LINES_AT_ROOT | 
+                  wx.TR_HAS_BUTTONS | wx.TR_DEFAULT_STYLE | wx.SIMPLE_BORDER)
         
         # Install the the property grid
         propGridHost = self.getWidget("PropertiesPage")

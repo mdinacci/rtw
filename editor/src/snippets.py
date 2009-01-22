@@ -1,3 +1,16 @@
+ # Run processes
+"""
+import time
+while self._isRunning:
+    if not self._isPaused:
+        taskMgr.step()
+    time.sleep(0.001)
+else:
+    self._shutDownProcesses()
+    # TODO do cleanup
+    logger.info("Quitting application, have fun")  
+"""
+ 
 # core backup ==============================
 # -*- coding: utf-8-*-
 

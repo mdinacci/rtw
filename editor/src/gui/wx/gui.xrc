@@ -21,6 +21,10 @@
                     <label>Save\tctrl+s</label>
                     <help></help>
                 </object>
+                <object class="wxMenuItem" name="SaveAsMenuItem">
+                    <label>Save As\tCTRL+SHIFT+S</label>
+                    <help></help>
+                </object>
                 <object class="separator" />
                 <object class="wxMenuItem" name="QuitMenuItem">
                     <label>Quit\tctrl+q</label>
@@ -80,6 +84,13 @@
                                                 <label>Entity Props</label>
                                                 <selected>0</selected>
                                                 <object class="wxPanel" name="PropertiesPage">
+                                                    <style>wxTAB_TRAVERSAL</style>
+                                                </object>
+                                            </object>
+                                            <object class="notebookpage">
+                                                <label>Objects</label>
+                                                <selected>0</selected>
+                                                <object class="wxPanel" name="ObjectsPage">
                                                     <style>wxTAB_TRAVERSAL</style>
                                                 </object>
                                             </object>

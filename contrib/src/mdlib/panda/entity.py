@@ -133,7 +133,7 @@ class TrackCell(GameEntity):
     def __init__(self, uid, data):
         super(TrackCell, self).__init__(uid, data)
         
-    def __strAAA__(self):
+    def __str__(self):
         return "Cell #%s at %s" % (self.UID, self.render.nodepath.getTag("pos"))
 
     
@@ -197,7 +197,7 @@ ball_params = {
                      "radius":  0.56,
                      "hasBody": True,
                      "linearSpeed": 3000,
-                     "density":200,
+                     "density":500,
                      "xForce" : 0,
                      "yForce" : 0,
                      "zForce" : 0,

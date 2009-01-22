@@ -214,12 +214,20 @@ class AbstractScene(object):
             if type(entity.render.parentNode) is NodePath: # a nodepath
                 destNode = entity.render.parentNode
             else: # an ID
-                print entity.render.__dict__
-                destNode = self.getEntityByID(entity.render.parentNode).render.nodepath
+                parentEntity = self.getEntityByID(entity.render.parentNode)
+                destNode = parentEntity.render.nodepath
+                entity.render.parentNode = destNode
         
         self._entities[entity.UID] = entity
         entity.render.nodepath.reparentTo(destNode)
         
+        messenger.send(event.ENTITY_ADDED, [entity])
+    
+    def getEntityByName(self, entityName):
+        for entity in self._entities.values():
+            if entity.prettyName == entityName:
+                return entity
+       
     def getEntityByID(self, entityID):
         eid = int(entityID)
         if self._entities.has_key(eid):
@@ -229,6 +237,10 @@ class AbstractScene(object):
     
     def deleteEntity(self, entity):
         logger.debug("Deleting entity %d", entity.UID)
+        
+        # send notification
+        messenger.send(event.ENTITY_DELETED, [entity])
+        
         # destroy node, should automatically update the scene tree
         entity.render.nodepath.hideBounds()
         entity.render.nodepath.removeNode()
@@ -240,7 +252,6 @@ class AbstractScene(object):
         entity = self.getEntityByID(entityID)
         if entity != None:
             self.deleteEntity(entity)
-            
             
     def hideEntityByID(self, entityID):
         """ Hide an entity from the scene. The node is stashed """

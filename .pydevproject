@@ -7,5 +7,6 @@
 <path>/rtw/contrib/src</path>
 <path>/rtw/editor/src</path>
 <path>/rtw/game/src</path>
+<path>/rtw/editor/res/gui</path>
 </pydev_pathproperty>
 </pydev_project>

@@ -11,6 +11,8 @@ from mdlib.panda.input import SafeDirectObject
 from mdlib.panda import event
 from mdlib.panda import eventCallback, guiCallback
 
+from gui.qt.model import SceneGraphModel, EntityInspectorModel
+
 class GUICommand(object):
     def __init__(self, oneliner):
         self._oneliner = oneliner
@@ -45,17 +47,18 @@ class GUIPresenter(object):
     def __init__(self):
         self._pandaController = None
         self._model = None
+        self._view = None
         self._listener = SafeDirectObject()
         self._listener.accept(event.SELECT_ENTITY, self.onEntitySelect)
-    
-    """
-    def __getattr__(self,attr):
-        try:
-            return self.__dict__[attr]
-        except KeyError, e:
-            print attr
-            return self._pandaController.__dict__[attr]
-    """
+        self._listener.accept(event.ENTITY_DELETED, self.onEntityDeleted)
+        self._listener.accept(event.ENTITY_ADDED, self.onEntityAdded)
+        
+        self._sceneGraphModel = SceneGraphModel()
+        self._entitiesModel = EntityInspectorModel()
+        
+    def idleCallback(self):
+        # HACK
+        taskMgr.step()
     
     def setView(self, view):
         """ Set the GUI object"""
@@ -68,13 +71,20 @@ class GUIPresenter(object):
         """
         self._pandaController = pandaController
  
-    def setModel(self, model):
+    def setModel(self, model=None):
         """ 
         Set the model that manage the entities in the Panda3D window 
         For the editor this is the GameScene object.
         """
-        self._model = model
-        self._view.onModelUpdate()
+        if model is not None:
+            self._model = model
+            self._entitiesModel.populate(self._model.getEntities().values())
+            self._sceneGraphModel.populate(self.getSceneGraphRoot())
+        
+        if self._view is not None:
+            self._view.sceneGraphView.setModel(self._sceneGraphModel)
+            self._view.entityInspector.setModel(self._entitiesModel)
+            #self._view.onModelUpdate()
         
     def onShutDown(self):
         pass
@@ -86,7 +96,13 @@ class GUIPresenter(object):
             items = self._model.getEntities()
             
         return items
-        
+    
+    def getSceneGraphModel(self):
+        return self._sceneGraphModel
+    
+    def getEntitiesModel(self):
+        return self._entitiesModel
+    
     def getSceneGraphRoot(self):
         """ Returns the master node of the scene, called by the GUI """
         if self._model is not None:
@@ -94,34 +110,51 @@ class GUIPresenter(object):
         
     # BEGIN WX WINDOWS CALLBACK CRAP
     
-    def onNewButtonClicked(self, wxEvent):
+    def onNewButtonClicked(self):
+        # ask if wants to save
+        # erase scene
         pass
     
-    def onOpenButtonClicked(self, wxEvent):
+    def onOpenButtonClicked(self):
+        """ Executed when the open tool is clicked """
         loadFile = self._view.getLoadedFile()
         self._pandaController.loadScene(loadFile)
     
-    def onSaveButtonClicked(self, wxEvent):
+    def onSaveButtonClicked(self):
+        """ Executed when the save tool is clicked """
+        if self._pandaController.hasSavedScene():
+            self._pandaController.saveScene(self._pandaController.getSavedScene())
+        else:
+            self.onSaveAsButtonClicked()
+    
+    def onSaveAsButtonClicked(self):
+        """ Executed when the save as tool is clicked """
         saveFile = self._view.getSaveFile()
         self._pandaController.saveScene(saveFile)
+        
+    def onCopyButtonClicked(self):
+        """ Executed when the copy tool is clicked """
+        self._pandaController.copySelectedObject()
     
-    def onCopyButtonClicked(self, wxEvent):
-        pass
+    def onPasteButtonClicked(self):
+        """ Executed when the paste tool is clicked """
+        self._pandaController.pasteSelectedObject()
     
-    def onPasteButtonClicked(self, wxEvent):
-        pass
-    
-    def onDeleteButtonClicked(self, wxEvent):
+    def onDeleteButtonClicked(self):
         """ Executed when the delete tool is clicked """
         self._pandaController.deleteSelectedObject()
     
-    def onUndoButtonClicked(self, wxEvent):
+    def onQuitButtonClicked(self):
+        """ Executed when the quit tool is clicked """
         pass
     
-    def onRedoButtonClicked(self, wxEvent):
+    def onUndoButtonClicked(self):
         pass
     
-    def onSceneGraphSelectionChange(self, wxEvent):
+    def onRedoButtonClicked(self):
+        pass
+    
+    def onSceneGraphSelectionChange(self):
         pass
     
     # END WXWINDOWS CALLBACK CRAP
@@ -135,6 +168,16 @@ class GUIPresenter(object):
         if hasattr(entity, "__dict__"):
             props = entity.__dict__
             self._view.showEntityProperties(props)
+    
+    @eventCallback
+    def onEntityDeleted(self, entity):
+        logger.debug("Entity deleted, updating view")
+        self.setModel()
+        
+    @eventCallback
+    def onEntityAdded(self, entity):
+        logger.debug("Entity added, updating view")
+        self.setModel()
     
     # END PANDA EVENT CALLBACKS
 

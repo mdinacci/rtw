@@ -23,4 +23,5 @@ DELETE_ENTITY_GUI="delete-entity-gui"
 
 ENTITY_DELETED="entity-deleted"
 SELECT_ENTITY="select-entity"
+ENTITY_ADDED="entity-added"
 # EDITOR ONLY EVENTS END   ===============

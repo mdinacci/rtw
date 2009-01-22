@@ -75,13 +75,16 @@ logger = ConsoleLogger("editor", DEBUG)
 import echo
 
 # editor imports
-from gui.wx import EditorGUI
+from PyQt4.QtGui import QApplication
+from gui.qt import EditorGUI
 from gui import GUIPresenter
 #echo.echo_class(EditorGUI)
 
 import cPickle
 from sys import exit 
 
+EDITOR_SCENE_FILE = "../res/scene.rtw"
+SCENE_FORMAT_VERSION = "0.1"
 
 class EditorScene(AbstractScene):
     def __init__(self):
@@ -248,7 +251,7 @@ class EditingView(EditorView):
             logger.debug("Deleting selected entity: %s " % self._selectedObj)
             
             self.scene.deleteEntityByID(int(self._selectedObj.getNetTag("UID")))
-            #self.scene.deleteEntityFromNodePath(self._selectedObj)
+            #self.scene.deleteEntityFromNodePath(self._selectedObj) <-- delete single mesh
             self._selectedObj = None
         else:
             logger.info("Nothing selected, can't delete")
@@ -368,9 +371,14 @@ class EditorLogic(AbstractLogic):
     def __init__(self, view):
         super(EditorLogic, self).__init__(view)
         
-        self.loadScene("/tmp/test.rtw")
+        # copied objects are stored here.
+        self._copyMemory = []
         
-        """
+        self._sceneFile = ''
+        #self.loadScene(self._sceneFile)
+        self._createInitialScene()
+        
+    def _createInitialScene(self):
         # create some background entities to populate a bit the space 
         self.view.addToScene(GOM.createEntity(environment_params.copy()))    
         
@@ -383,8 +391,10 @@ class EditorLogic(AbstractLogic):
         # create player
         self._player = GOM.createEntity(ball_params.copy())
         self.view.addToScene(self._player)
-        #"""
         
+    def getSavedScene(self):
+        return self._sceneFile
+    
     def _subscribeToEvents(self):
         self.listener = SafeDirectObject()
         self.listener.accept(event.NEW_ROW, self.addRow)
@@ -419,14 +429,17 @@ class EditorLogic(AbstractLogic):
                     for idx in range(0, entitiesNum)]
         
         # set player and track
-        #self._player = self.view.getEntityByName("Ball")
-        #self._track = self.view.getEntityByName("Track")
-        
+        self._player = self.view.scene.getEntityByName("Ball")
+        self._track = self.view.scene.getEntityByName("Track")
+    
+    @guiCallback
+    def hasSavedScene(self):
+        return self._sceneFile != ''
     
     @guiCallback
     def saveScene(self, sceneFile):
         # TODO save to a multifile
-        fh = open('/tmp/test.rtw', "wb")
+        fh = open(sceneFile, "wb")
         
         # save function
         dump = lambda x: cPickle.dump(x, fh, -1)
@@ -435,7 +448,7 @@ class EditorLogic(AbstractLogic):
         entities = self.view.scene.serialise()
         
         # store version
-        dump("v0.1")
+        dump(SCENE_FORMAT_VERSION)
         
         # store the number of entities, useful when unpickling
         dump(len(entities))
@@ -446,6 +459,7 @@ class EditorLogic(AbstractLogic):
         fh.close()
         
         logger.info("Scene file saved to %s" % sceneFile )
+        self._sceneFile = sceneFile
     
     @guiCallback
     def deleteSelectedObject(self):
@@ -454,6 +468,22 @@ class EditorLogic(AbstractLogic):
             POM.removeGeometryTo(entity)
         self.view.deleteFromScene(entity)
 
+    @guiCallback
+    def copySelectedObject(self):
+        entity = self.view.getSelectedEntity()
+        if entity is not None:
+            self._copyMemory.append(entity)
+            
+    
+    @guiCallback
+    def pasteSelectedObject(self):
+        params = self._copyMemory.pop().serialise()
+        # slightly shifts the pasted object respect the original
+        params.position.x += 3 
+        params.position.z += 3 
+        
+        self.view.addToScene(GOM.createEntity(params))
+        
     def showPlayer(self):
         logger.debug("Showing player")
         if hasattr(self._view,"setPlayer"):
@@ -472,13 +502,13 @@ class EditorLogic(AbstractLogic):
         
 
 class EditorApplication(AbstractApplication):
-    REFRESH_RATE = 1.0/90.0
     dta = 0
     
-    def __init__(self):
+    def __init__(self, qtApp):
         super(EditorApplication, self).__init__()
         self._isRunning = True
         self._isPaused = False
+        self._qtApp = qtApp
         
     def shutdown(self):
         logger.info("Shutdown requested")
@@ -490,36 +520,22 @@ class EditorApplication(AbstractApplication):
         taskMgr.step()
         self.run()
     
-    def _onMouseEnterPanda(self, args):
-        pass
-        #self._isPaused = False
-    
-    def _onMouseLeavePanda(self, args):
-        pass
-        #self._isPaused = True
-    
     def run(self):
         """ 
         Main loop of the application 
         First step, create the processes that will be constantly updated
         Second, run them.
         Third, destroy them
+        Now the loop is handled by QT, so all the tasks are executed when the
+        QT decides to execute the idle function I set up.
         """
-        
+        logger.debug("Starting application")
+
         # Create processes
         self._createProcesses()
-        
-        # Run processes
-        import time
-        while self._isRunning:
-            if not self._isPaused:
-                taskMgr.step()
-            time.sleep(0.001)
-        else:
-            self._shutDownProcesses()
-            # TODO do cleanup
-            logger.info("Quitting application, have fun")  
-            
+        self._gui.show()
+        self._qtApp.exec_()
+    
     def _createProcesses(self):
         # Start processes in the correct order
         # - logic update
@@ -531,11 +547,14 @@ class EditorApplication(AbstractApplication):
         # - view render
         #     - scene render view does it
         #     - gui render   view does it
+        logger.debug("Creating processes")
+        
         taskMgr.add(self._logic.update, "logic-update")
         taskMgr.add(self._view.update, "view-update")
         taskMgr.add(self._view.render, "view-render")
-        taskMgr.add(self._gui.MainLoop, "wx-mainloop")
-        taskMgr.add(self._mouseWatcher.update, "mw-update")
+        
+        #taskMgr.add(self._gui.MainLoop, "wx-mainloop")
+        #taskMgr.add(self._mouseWatcher.update, "mw-update")
     
     def _shutDownProcesses(self):
         taskMgr.stop()
@@ -561,8 +580,6 @@ class EditorApplication(AbstractApplication):
         self.listener = SafeDirectObject()
         self.listener.accept(event.SWITCH_VIEW, self._switchView)
         self.listener.accept(event.REQUEST_SHUTDOWN, self.shutdown)
-        self.listener.accept(event.MOUSE_ENTER_PANDA, self._onMouseEnterPanda)
-        self.listener.accept(event.MOUSE_LEAVE_PANDA, self._onMouseLeavePanda)
   
     def _createLogicAndView(self):
         # TODO override ShowBase in order to use only what we really need
@@ -574,13 +591,13 @@ class EditorApplication(AbstractApplication):
         self._mouseWatcher = MouseWatcher(self.nbase)
         
         self._guiPresenter = GUIPresenter()
-        self._gui = EditorGUI("gui/wx/gui.xrc", self._guiPresenter)
+        self._gui = EditorGUI(self._guiPresenter)
         
-        h = self._gui.frame.GetHandle()
+        winHandle = self._gui.getHandle()
         wp = WindowProperties().getDefault()
         wp.setOrigin(0,0)
-        wp.setSize(self._gui.frame.ClientSize.GetWidth(), self._gui.frame.ClientSize.GetHeight())
-        wp.setParentWindow(h)
+        wp.setSize(self._gui.width(), self._gui.height())
+        wp.setParentWindow(winHandle)
         self.nbase.openDefaultWindow(startDirect=False, props=wp)
         self._gui.setPandaWindow(self.nbase.win)
         
@@ -604,6 +621,6 @@ class EditorApplication(AbstractApplication):
 
 a = echo.echo_class(EditorApplication)
 if __name__ == "__main__":
-    edApp = EditorApplication()
+    edApp = EditorApplication(QApplication(['']))
     edApp.run()
     

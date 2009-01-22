@@ -82,7 +82,8 @@ class InputManager(SafeDirectObject):
     """
     
     def __init__(self, base):
-
+        
+        # get rid of alt button
         buttons = base.mouseWatcherNode.getModifierButtons()
         buttons.removeButton(buttons.getButton(2))
         base.mouseWatcherNode.setModifierButtons(buttons)

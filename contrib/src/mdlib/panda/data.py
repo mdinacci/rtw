@@ -19,6 +19,17 @@ from UserDict import DictMixin
 
 __all__ = ["KeyValueObject", "ResourceLoader", "GOM", "Types"]
 
+
+def bitMaskToInt(bitmask):
+    # [1:-1] to remove first white space and latest \n
+    s = "".join(str(bitmask)[1:-1].split(" "))
+    num = 0
+    for c in s:
+        if c is "1":
+            num += 2**int(c)
+            
+    return num
+
 # extension classes used for properties
 class Types:
     class tuple3(tuple): pass # a tuple with three elements
@@ -90,9 +101,12 @@ class KeyValueObject(object, DictMixin):
 
     def __setitem__(self, key, value):
         self.__dict__[key] = value
-        
+    
     def __delitem__(self, item):
         del self.__dict__[item]
+    
+    def __str__(self):
+        return self.__dict__.__str__()
     
     def keys(self):
         return self.__dict__.keys()
@@ -145,14 +159,11 @@ class GameEntity(KeyValueObject):
             if self.physics.has_key("geom"):
                 attrs["physics"]["geom"] = None
             if self.physics.has_key("collisionBitMask"):
-                # convert to str the bitmask -> "<ws> 0000 0000 0000 0000\n"
-                # remove <whitespace> and "\n" with [1:-1]
-                # split to remove spaces, join to string, convert to int
                 attrs["physics"]["collisionBitMask"] = \
-                    int("".join(str(self.physics.collisionBitMask)[1:-1].split(" ")))
+                    bitMaskToInt(self.physics.collisionBitMask)
             if self.physics.has_key("categoryBitMask"):
                 attrs["physics"]["categoryBitMask"] = \
-                    int("".join(str(self.physics.categoryBitMask)[1:-1].split(" ")))
+                    bitMaskToInt(self.physics.categoryBitMask)
                 
         return attrs
         
@@ -304,7 +315,6 @@ class GameEntityManager(object):
         previous_id += 1
         
         return id
-    
     
     def _sanityCheckData(self, data):
         isValid = True
