@@ -17,7 +17,7 @@ from direct.directtools.DirectGeometry import LineNodePath
 
 from UserDict import DictMixin
 
-__all__ = ["KeyValueObject", "ResourceLoader", "GOM", "Types"]
+__all__ = ["KeyValueObject", "ResourceLoader", "GOM"]
 
 
 def bitMaskToInt(bitmask):
@@ -30,17 +30,7 @@ def bitMaskToInt(bitmask):
             
     return num
 
-# extension classes used for properties
-class Types:
-    class tuple3(tuple): pass # a tuple with three elements
-    class tuple4(tuple): pass # a tuple with four elements
-    class float1(float): pass # a float with single decimal precision
-    class float2(float): pass # a float with double decimal precision
-    class Geom:
-        BOX_GEOM_TYPE = 0x1
-        SPHERE_GEOM_TYPE = 0x2
- 
- 
+
 class EntityType:
     NONE  = 0x0   # non renderable objects (triggers, lights, cameras etc..)
     STATIC = 0x1  # environments and level geometry
