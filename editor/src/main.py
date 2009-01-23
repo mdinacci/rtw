@@ -83,7 +83,6 @@ from gui import GUIPresenter
 import cPickle
 from sys import exit 
 
-EDITOR_SCENE_FILE = "../res/scene.rtw"
 SCENE_FORMAT_VERSION = "0.1"
 
 class EditorScene(AbstractScene):
@@ -91,17 +90,9 @@ class EditorScene(AbstractScene):
         super(EditorScene, self).__init__()
         self._camera = None
         
-        # subscribe to events ASAP
-        self._subscribeToEvents()
-        
         # create initial lights
         self._setupLights()
         
-    
-    def _subscribeToEvents(self):
-        # must be overridden
-        pass
-    
     def _setupLights(self):
         #Create some lights and add them to the scene. By setting the lights on
         #render they affect the entire scene
@@ -125,7 +116,7 @@ class EditorScene(AbstractScene):
         nodePath.hideBounds()
         nodePath.removeNode()
     """
-     
+    
     def render(self):
         # FIXME Panda is doing everything now
         pass
@@ -161,7 +152,7 @@ class EditorView(AbstractView):
         # update GUI
         self._inputMgr.update()
         self.scene.camera.update()
-        self.scene.update()
+        #self.scene.update() do nothing for the moment
         
         return task.cont
     
@@ -367,6 +358,7 @@ class EditorLogic(AbstractLogic):
     """
     The editor allows to construct the games by managing 3D objects,
     it allows also to debug and test the game.
+    TODO create a SceneDelegate object to deal with scene stuff
     """
     def __init__(self, view):
         super(EditorLogic, self).__init__(view)
@@ -374,9 +366,9 @@ class EditorLogic(AbstractLogic):
         # copied objects are stored here.
         self._copyMemory = []
         
-        self._sceneFile = ''
-        #self.loadScene(self._sceneFile)
-        self._createInitialScene()
+        self._sceneFile = '/home/mdinacci/Work/MD/rtw/editor/res/scenes/editor_start_1.rtw'
+        self.loadScene(self._sceneFile)
+        #self._createInitialScene()
         
     def _createInitialScene(self):
         # create some background entities to populate a bit the space 
@@ -473,16 +465,20 @@ class EditorLogic(AbstractLogic):
         entity = self.view.getSelectedEntity()
         if entity is not None:
             self._copyMemory.append(entity)
-            
+    
+    @guiCallback
+    def editObject(self, eid, property, newValue):  
+        self.view.scene.editEntity(eid, property, newValue)
     
     @guiCallback
     def pasteSelectedObject(self):
-        params = self._copyMemory.pop().serialise()
-        # slightly shifts the pasted object respect the original
-        params.position.x += 3 
-        params.position.z += 3 
-        
-        self.view.addToScene(GOM.createEntity(params))
+        if len(self._copyMemory) > 0:
+            params = self._copyMemory.pop().serialise()
+            # slightly shifts the pasted object respect the original
+            params.position.x += 2
+            params.position.z += 2 
+            
+            self.view.addToScene(GOM.createEntity(params))
         
     def showPlayer(self):
         logger.debug("Showing player")
@@ -597,7 +593,7 @@ class EditorApplication(AbstractApplication):
         wp = WindowProperties().getDefault()
         wp.setOrigin(0,0)
         wp.setSize(self._gui.width(), self._gui.height())
-        wp.setParentWindow(winHandle)
+        wp.setParentWindow(int(winHandle)) # must be an int or it won't work on windows
         self.nbase.openDefaultWindow(startDirect=False, props=wp)
         self._gui.setPandaWindow(self.nbase.win)
         
