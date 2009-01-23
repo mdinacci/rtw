@@ -38,20 +38,6 @@ class MouseWatcher(object):
          
         return task.cont #if task != None: return task.cont
 
-
-class Color(object):
-    """ Some color constants """
-    # some colors
-    BLACK = (0,0,0,1)
-    WHITE = (1,1,1,1)
-    RED = (1,0,0,1)
-    GREEN = (0,1,0,1)
-    BLUE = (0,0,1,1)
-    HIGHLIGHT = (1,1,0.3,0.5)
-    
-    COLOR_IDX = 0
-    b_n_w = [BLACK,WHITE]
-
     
 # DECORATORS ===================================================================
 
