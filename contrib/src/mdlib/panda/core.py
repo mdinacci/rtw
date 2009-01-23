@@ -17,7 +17,7 @@ logger = ConsoleLogger("core", DEBUG)
 from pandac.PandaModules import NodePath
 
 from mdlib.panda import event
-from mdlib.panda.data import EntityType
+from mdlib.panda.data import EntityType, KeyValueObject
 
 from input import InputManager
 
@@ -170,14 +170,23 @@ class AbstractScene(object):
     """
     def __init__(self):
         self._rootNode = NodePath("Scene")
+        self._rootNode.setTag("UID","-999")
         self._noneNode = self._rootNode.attachNewNode("Non-Render")
+        self._rootNode.setTag("UID","-998")
         self._staticNode = self._rootNode.attachNewNode("Static")
+        self._rootNode.setTag("UID","-997")
         self._actorsNode = self._rootNode.attachNewNode("Actors")
+        self._rootNode.setTag("UID","-996")
         self._envNode = self._rootNode.attachNewNode("Background")
+        self._rootNode.setTag("UID","-995")
         self._alphasNode = self._rootNode.attachNewNode("Alphas")
+        self._rootNode.setTag("UID","-994")
         
          # data structure for game objects
         self._entities = {}
+        
+        # entities that needs to be updated
+        self._dirtyEntities = {}
     
     def getActors(self):
         return [entity for entity in self._entities.values() \
@@ -218,8 +227,10 @@ class AbstractScene(object):
                 destNode = parentEntity.render.nodepath
                 entity.render.parentNode = destNode
         
-        self._entities[entity.UID] = entity
         entity.render.nodepath.reparentTo(destNode)
+
+        self._entities[entity.UID] = entity
+        self._dirtyEntities[entity] = []
         
         messenger.send(event.ENTITY_ADDED, [entity])
     
@@ -236,16 +247,21 @@ class AbstractScene(object):
         return None
     
     def deleteEntity(self, entity):
-        logger.debug("Deleting entity %d", entity.UID)
+        logger.debug("Deleting entity %d (total: %s)" % (entity.UID,
+                                                         len(self._entities)))
+        uid = entity.UID
         
-        # send notification
-        messenger.send(event.ENTITY_DELETED, [entity])
-        
-        # destroy node, should automatically update the scene tree
+        # destroy node
         entity.render.nodepath.hideBounds()
         entity.render.nodepath.removeNode()
-        # remove from map
+        
+        # remove from maps
+        if self._dirtyEntities.has_key(entity):
+            del self._dirtyEntities[entity]
         del self._entities[entity.UID]
+        
+        # send notification
+        messenger.send(event.ENTITY_DELETED, [uid])
     
     def deleteEntityByID(self, entityID):
         logger.debug("Deleting entity %d from scene " % entityID)
@@ -265,6 +281,38 @@ class AbstractScene(object):
         logger.debug("Showing entity %s" % entity)
         entity.nodePath.unstash()
     
+    def editEntity(self, eid, propPath, newValue):
+        """ Change the property of an entity """
+        
+        logger.debug("Updating entity %s with value %s for property %s" \
+                     % (eid, propPath, newValue ) )
+        
+        entity = self.getEntityByID(eid)
+
+        print "BEFORE: ", entity.prettyName
+        
+        # set the new property value, a bit hackish..
+        tokens = propPath.split(".")
+        if len(tokens) > 1:
+            prev = entity[tokens[0]]
+            print prev
+            for token in tokens[1:]:
+                if token == tokens[-1]:
+                    prev[token] = newValue
+                    print prev
+                else:
+                    prev = prev.get(token)
+                    print prev
+        else:
+            entity[propPath] = newValue
+
+        if self._dirtyEntities.has_key(entity):
+            self._dirtyEntities[entity].append(propPath)
+        else:
+            self._dirtyEntities[entity] = [propPath]
+            
+        print "AFTER: ", entity.prettyName
+        
     def setRootNodeParent(self, node):
         self._rootNode.reparentTo(node)
     
@@ -275,10 +323,11 @@ class AbstractScene(object):
         return self._entities
     
     def update(self):
-        pass
+        for entity in self._dirtyEntities():
+            """ update...complicated, the code depends on the specific 
+            properties that need to be updated """
     
     def render(self):
-        # TODO raise exception
         pass
 
     def serialise(self):
