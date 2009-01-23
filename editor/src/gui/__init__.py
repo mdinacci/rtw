@@ -13,6 +13,8 @@ from mdlib.panda import eventCallback, guiCallback
 
 from gui.qt.model import SceneGraphModel, EntityInspectorModel
 
+import time
+
 class GUICommand(object):
     def __init__(self, oneliner):
         self._oneliner = oneliner
@@ -59,6 +61,8 @@ class GUIPresenter(object):
     def idleCallback(self):
         # HACK
         taskMgr.step()
+        time.sleep(0.01)
+        
     
     def setView(self, view):
         """ Set the GUI object"""
@@ -84,7 +88,9 @@ class GUIPresenter(object):
         if self._view is not None:
             self._view.sceneGraphView.setModel(self._sceneGraphModel)
             self._view.entityInspector.setModel(self._entitiesModel)
-            #self._view.onModelUpdate()
+            # FIXME should be in the view code, but it's just one line...
+            # move it as soon as the code become more complicated
+            self._view.sceneGraphView.expandAll()
         
     def onShutDown(self):
         pass
@@ -108,7 +114,7 @@ class GUIPresenter(object):
         if self._model is not None:
             return self._model._rootNode
         
-    # BEGIN WX WINDOWS CALLBACK CRAP
+    # BEGIN GUI CALLBACKS
     
     def onNewButtonClicked(self):
         # ask if wants to save
@@ -155,9 +161,17 @@ class GUIPresenter(object):
         pass
     
     def onSceneGraphSelectionChange(self):
-        pass
+        print "IMPLEMENT ME: onSceneGraphSelectionChange"
     
-    # END WXWINDOWS CALLBACK CRAP
+    def onEntityInspectorSelectionChanged(self, index):
+        print "IMPLEMENT ME: onEntityInspectorSelectionChanged"
+    
+    def onEntityPropertyModified(self, eid, prop, newValue):
+        logger.debug("Entity modified, updating view")
+        self._pandaController.editObject(eid, prop, newValue)
+        
+        
+    # END GUI CALLBACKS
     
     # BEGIN PANDA EVENT CALLBACKS
 
@@ -165,19 +179,24 @@ class GUIPresenter(object):
     def onEntitySelect(self, entity):
         """ Executed when an entity is selected inside the panda window """
         logger.debug("Selecting entity %s " % entity)
-        if hasattr(entity, "__dict__"):
-            props = entity.__dict__
-            self._view.showEntityProperties(props)
+
+        # get qmodelidx from model
+        # on view collapse and expand the qmodelidx node
+        sgIndex = self._sceneGraphModel.getIndexForEntityID(entity.UID)
+        eiIndex = self._entitiesModel.getIndexForEntityID(entity.UID)
+        
+        self._view.highlightNodes(sgIndex, eiIndex)
     
     @eventCallback
-    def onEntityDeleted(self, entity):
+    def onEntityDeleted(self, entityID):
         logger.debug("Entity deleted, updating view")
-        self.setModel()
+        self.setModel(self._model)
         
     @eventCallback
     def onEntityAdded(self, entity):
         logger.debug("Entity added, updating view")
-        self.setModel()
+        self.setModel(self._model)
+    
     
     # END PANDA EVENT CALLBACKS
 

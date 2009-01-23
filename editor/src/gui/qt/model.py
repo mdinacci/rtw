@@ -13,11 +13,40 @@ from PyQt4.QtGui import *
 
 from mdlib.panda.data import KeyValueObject
 
-class SceneGraphModel(QStandardItemModel):
+class EntityItemModel(QStandardItemModel):
+    def __init__(self, *args):
+        apply(QStandardItemModel.__init__, (self,) + args)
+        
+        # the purpose of this map is to store the QStandardItem for each 
+        # entity added to the model. This is for easier data retrieval, however
+        # if an entity is deleted I have to remember also to remove the entry 
+        # from this dictionary
+        self.entityItemMap = {}
+        
+    def getIndexForEntityID(self, eid):
+        logger.debug("Returning index for entity ID: %s" % eid)
+        return self.entityItemMap[int(eid)].index()
+    
+    def getEntityIDForIndex(self, index):
+        sibling = index.sibling(index.row(), 0)
+        parent = sibling.parent()
+        
+        recursion = 10
+        while recursion > 0:
+            parentItem = parent.model().itemFromIndex(parent)
+            recursion -= 1
+            for entity, item in self.entityItemMap.items():
+                if item is parentItem:
+                    return entity
+            # item not found, go to parent'parent
+            parent = parent.parent()
+    
+
+class SceneGraphModel(EntityItemModel):
     """ Model class for the SceneGraphView widget """
     
     def __init__(self, *args):
-        apply(QStandardItemModel.__init__, (self,) + args)
+        super(SceneGraphModel, self).__init__(*args)
         self.setHorizontalHeaderLabels(['Entity'])
         self._headerLabels = {0:"Node"}
     
@@ -36,57 +65,39 @@ class SceneGraphModel(QStandardItemModel):
                 if child.getNumChildren() > 0:
                     item = QStandardItem(child.getName())
                     parent.appendRow(item)
+                    self.entityItemMap[int(rootNode.getNetTag("UID"))] = item 
                     _populateTree(child, item)
                 else:
-                    parent.appendRow(QStandardItem(child.getName()))
+                    item = EntityItem(child.getName())
+                    parent.appendRow(item)
+                    self.entityItemMap[int(rootNode.getNetTag("UID"))] = item 
             
         if rootNode is not None:
-            logger.debug("Populating scene graph browser")
+            self.entityItemMap = {}
+            logger.debug("Populating scene graph model")
             self.clear()
             parent = self.invisibleRootItem();
             rootItem = QStandardItem(rootNode.getName())
             parent.appendRow(rootItem)
+            self.entityItemMap[rootNode.getNetTag("UID")] = rootItem 
             _populateTree(rootNode, rootItem)  
             
 
-class EntityItem(object):
+class EntityItem(QStandardItem):
     def __init__(self, data, parent=None):
+        super(EntityItem, self).__init__(data)
         self.parentItem = parent
         self.itemData = data
-        self.childItems = []
-
-    def appendChild(self, item):
-        self.childItems.append(item)
-
-    def child(self, row):
-        return self.childItems[row]
-
-    def childCount(self):
-        return len(self.childItems)
-
-    def columnCount(self):
-        return len(self.itemData)
-
-    def data(self, column):
-        return self.itemData[column]
-
-    def parent(self):
-        return self.parentItem
-
-    def row(self):
-        if self.parentItem:
-            return self.parentItem.childItems.index(self)
-
-        return 0
     
     def __str__(self):
-        return self.itemData.prettyName
+        return self.itemData
+        #return self.itemData.prettyName
     
 
-class EntityInspectorModel(QStandardItemModel):
+class EntityInspectorModel(EntityItemModel):
     def __init__(self, *args):
-        apply(QStandardItemModel.__init__, (self,) + args)
-        self.entities = []
+        super(EntityInspectorModel, self).__init__(*args)
+
         self._headerLabels = {0:"Entity", 1: "Value"}
         self.setColumnCount(2)
     
@@ -105,17 +116,19 @@ class EntityInspectorModel(QStandardItemModel):
                     _populateEntity(v, item)
                 else:
                     parent.appendRow([item, QStandardItem(str(v))])
-                
-        logger.debug("Populating entity inspector")
 
-        self.entities = entities
-        self.clear()
-        
-        parent = self.invisibleRootItem();
-        rootItem = QStandardItem("Entities")
-        parent.appendRow([rootItem, QStandardItem("")])
-        for entity in self.entities:
-            item = QStandardItem(entity.prettyName)
-            rootItem.appendRow([item, QStandardItem("")])
-            _populateEntity(entity, item)
-        
+        if len(entities) > 0:
+            logger.debug("Populating entity inspector model")
+    
+            self.clear()
+            self.entityItemMap = {}
+            
+            parent = self.invisibleRootItem();
+            rootItem = QStandardItem("Entities")
+            parent.appendRow([rootItem, QStandardItem("")])
+            for entity in entities:
+                item = QStandardItem(entity.prettyName)
+                rootItem.appendRow([item, QStandardItem("#%d"%entity.UID)])
+                _populateEntity(entity, item)
+                self.entityItemMap[entity.UID] = item 
+            
