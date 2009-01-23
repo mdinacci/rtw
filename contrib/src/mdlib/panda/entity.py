@@ -8,12 +8,13 @@ Copyright © 2008-2009
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("entity", DEBUG)
 
-from mdlib.panda import Color
 from mdlib.panda.input import SafeDirectObject
-from mdlib.panda.data import GOM, Types, GameEntity, EntityType
+from mdlib.panda.data import GOM, GameEntity, EntityType, \
+        KeyValueObject, transformToKeyValue
 from mdlib.panda import event
+from mdlib.types import Types
 
-from pandac.PandaModules import NodePath, Point3
+from pandac.PandaModules import NodePath, Point3, OdeGeom
 
 class Track(GameEntity):
     """
@@ -110,7 +111,7 @@ class Track(GameEntity):
         params["position"]["y"] = pos.getY() 
         params["position"]["z"] = pos.getZ() 
         
-        render["color"] = Color.b_n_w[len(self._cells) % 2]
+        render["color"] = Types.Color.b_n_w[len(self._cells) % 2]
         render["tags"]["pos"] = "%d %d" % (row, col)
         
         cell = GOM.createEntity(params)
@@ -138,7 +139,7 @@ class TrackCell(GameEntity):
 
     
 # Property schema: defines the existing properties and their type
-property_list = {
+property_schema = {
                  "archetype": str,
                  "prettyName": str,
                  "python": 
@@ -157,6 +158,7 @@ property_list = {
                      "collisionBitMask": int, # unsigned
                      "categoryBitMask" : int, # unsigned
                      "geomType": Types.Geom,
+                     "geom": OdeGeom,
                      "radius": Types.float2,
                      "hasBody": bool,
                      "linearSpeed": int,
@@ -164,12 +166,15 @@ property_list = {
                      "xForce" : Types.float1,
                      "yForce" : Types.float1,
                      "zForce" : Types.float1,
-                     "torque" : Types.float1
+                     "torque" : Types.float1,
+                     "length": Types.float2,
+                     "width": Types.float2,
+                     "height": Types.float2,
                      },
                  "render": 
                     {
                      "entityType": int, # EntityType constant
-                     "color": Color,
+                     "color": Types.Color,
                      "nodepath": NodePath,
                      "scale": int,
                      "modelPath": str,
@@ -298,3 +303,23 @@ environment_params = {
                              "isDirty": True,
                              }
                      }
+
+# create a global KeyValueObject to simplify the getPropertyType function 
+schema_kvo = transformToKeyValue(property_schema)
+
+def getPropertyType(propPath, schema=property_schema):
+    if propPath is not None:
+        expression = "schema_kvo.%s" % propPath
+        return eval(expression)
+
+def getPropertyPath(propName, schema=property_schema, result=""):
+    """ Returns the type of a property given its name (the name is unique) """
+    for key, value in schema.items():
+        if key == propName:
+            result += propName
+            return result
+        elif type(value) is dict:
+            s = getPropertyPath(propName, value)
+            if s is not None:
+                result+= "%s.%s" % (key,s)
+                return result
