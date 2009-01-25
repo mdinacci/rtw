@@ -13,8 +13,6 @@ from mdlib.panda import eventCallback, guiCallback
 
 from gui.qt.model import SceneGraphModel, EntityInspectorModel
 
-import time
-
 class GUICommand(object):
     def __init__(self, oneliner):
         self._oneliner = oneliner
@@ -57,12 +55,12 @@ class GUIPresenter(object):
         
         self._sceneGraphModel = SceneGraphModel()
         self._entitiesModel = EntityInspectorModel()
-        
+    
+    def setIdleCallback(self, idleCallback):
+        self._idleCallback = idleCallback
+    
     def idleCallback(self):
-        # HACK
-        taskMgr.step()
-        time.sleep(0.01)
-        
+        self._idleCallback()
     
     def setView(self, view):
         """ Set the GUI object"""
