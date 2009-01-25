@@ -18,6 +18,7 @@ from pandac.PandaModules import NodePath
 
 from mdlib.panda import event
 from mdlib.panda.data import EntityType, KeyValueObject
+from mdlib.panda.entity import EntityUpdaterDelegate
 
 from input import InputManager
 
@@ -181,13 +182,30 @@ class AbstractScene(object):
         self._rootNode.setTag("UID","-995")
         self._alphasNode = self._rootNode.attachNewNode("Alphas")
         self._rootNode.setTag("UID","-994")
+        self._playerNode = self._rootNode.attachNewNode("Player")
+        self._rootNode.setTag("UID","-993")
+        
+        self._updaterDelegate = EntityUpdaterDelegate()
         
          # data structure for game objects
         self._entities = {}
         
-        # entities that needs to be updated
+        # entities that needs to be updated and their keypath
         self._dirtyEntities = {}
+        
+        self._player = None
     
+    def setEntityAsDirty(self, entity, keypaths):
+        if self._dirtyEntities.has_key(entity):
+            self._dirtyEntities[entity] + keypaths 
+        else:
+            self._dirtyEntities[entity] = keypaths 
+    
+    def getDirtyActors(self):
+        return [entity for entity in self._dirtyEntities.keys() \
+                  if entity.render.entityType == EntityType.ACTOR] \
+                  + [self._player]
+        
     def getActors(self):
         return [entity for entity in self._entities.values() \
                   if entity.render.entityType == EntityType.ACTOR]
@@ -212,9 +230,15 @@ class AbstractScene(object):
             elif rp == EntityType.BACKGROUND:
                 entity.render.parentNode = self._envNode
                 destNode = self._envNode
-            elif rp == EntityType.ALPHAS:
+            elif rp == EntityType.ALPHA:
                 entity.render.parentNode = self._alphasNode
                 destNode = self._alphasNode
+            elif rp == EntityType.PLAYER:
+                entity.render.parentNode = self._playerNode
+                destNode = self._playerNode
+                
+                self._player = entity
+                
             else:
                 logger.error("Unknown render pass, adding node to root node")
                 destNode = self._noneNode
@@ -285,33 +309,22 @@ class AbstractScene(object):
         """ Change the property of an entity """
         
         logger.debug("Updating entity %s with value %s for property %s" \
-                     % (eid, propPath, newValue ) )
+                     % (eid, newValue, propPath ) )
         
         entity = self.getEntityByID(eid)
-
-        print "BEFORE: ", entity.prettyName
+        entity.setPropertyFromKeyPath(propPath, newValue)
         
-        # set the new property value, a bit hackish..
-        tokens = propPath.split(".")
-        if len(tokens) > 1:
-            prev = entity[tokens[0]]
-            print prev
-            for token in tokens[1:]:
-                if token == tokens[-1]:
-                    prev[token] = newValue
-                    print prev
-                else:
-                    prev = prev.get(token)
-                    print prev
+        # Position hack. If the property modified is the position, update
+        # directly before the physics step which otherwise would override
+        # the newly set position with the previous one still in the geom object.
+        # This is useful only for the editor
+        if propPath.startswith("position"):
+            self._updaterDelegate.updateEntity(entity, [propPath])
         else:
-            entity[propPath] = newValue
-
-        if self._dirtyEntities.has_key(entity):
-            self._dirtyEntities[entity].append(propPath)
-        else:
-            self._dirtyEntities[entity] = [propPath]
-            
-        print "AFTER: ", entity.prettyName
+            if self._dirtyEntities.has_key(entity):
+                self._dirtyEntities[entity] += [propPath]
+            else:
+                self._dirtyEntities[entity] = [propPath]
         
     def setRootNodeParent(self, node):
         self._rootNode.reparentTo(node)
@@ -323,12 +336,26 @@ class AbstractScene(object):
         return self._entities
     
     def update(self):
-        for entity in self._dirtyEntities():
-            """ update...complicated, the code depends on the specific 
-            properties that need to be updated """
-    
+        # FIXME the best thing to do is to call entity.update()
+        # for now just hack the position
+        if self._player in self._dirtyEntities.keys():
+            for entity, keypaths in self._dirtyEntities.items():
+                if entity.has_key("position"):
+                    pos = entity.position
+                    entity.render.nodepath.setPos(pos.x, pos.y, pos.z)
+        else:
+            pos = self._player.position
+            self._player.render.nodepath.setPos(pos.x, pos.y, pos.z)
+            self._player.render.nodepath.setQuat(pos.rotation)
+        """
+        for entity, keypaths in self._dirtyEntities.items():
+            if len(keypaths) > 0:
+                self._updaterDelegate.updateEntity(entity, keypaths)
+        """
+        
     def render(self):
-        pass
+        # TODO step graphics engine
+        self._dirtyEntities.clear()
 
     def serialise(self):
         # no need to serialise the root node as it will be recreated

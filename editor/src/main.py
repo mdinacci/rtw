@@ -60,7 +60,6 @@ from mdlib.panda import eventCallback, inputCallback, guiCallback, MouseWatcher
 from mdlib.panda.core import *
 from mdlib.panda.camera import *
 from mdlib.panda.entity import *
-from mdlib.panda.actor import *
 from mdlib.panda.input import *
 from mdlib.panda.data import *
 from mdlib.panda.entity import *
@@ -80,10 +79,10 @@ from gui.qt import EditorGUI
 from gui import GUIPresenter
 #echo.echo_class(EditorGUI)
 
-import cPickle
+import cPickle, time
 from sys import exit 
 
-SCENE_FORMAT_VERSION = "0.1"
+SCENE_FORMAT_VERSION = "0.1.1"
 
 class EditorScene(AbstractScene):
     def __init__(self):
@@ -117,17 +116,11 @@ class EditorScene(AbstractScene):
         nodePath.removeNode()
     """
     
-    def render(self):
-        # FIXME Panda is doing everything now
-        pass
-    
     camera = property(fget=lambda self: self._camera, 
                       fset=lambda self,cam: setattr(self, '_camera', cam))
         
     
 class EditorView(AbstractView):    
-    INPUT_REFRESH_RATE = 1.0/60.0
-    _dta = 0
     
     _scene = EditorScene()
     
@@ -144,15 +137,19 @@ class EditorView(AbstractView):
         # disable camera controller
         self.camera.setActive(False)
         self._inputMgr.switchSchemeTo(BASE_SCHEME)
-    
+ 
+    def readInput(self, task):
+        self._inputMgr.update()
+        
+        return task.cont
+        
     def update(self, task):
         # entity position is updated automatically by the physic manager by 
         # setting parameters for position and rotation in params.
         # TODO
         # update GUI
-        self._inputMgr.update()
         self.scene.camera.update()
-        #self.scene.update() do nothing for the moment
+        self.scene.update()
         
         return task.cont
     
@@ -214,7 +211,7 @@ class EditingView(EditorView):
     It transform the editor in a world editor allowing to insert
     and to position objects.
     
-    Messages sent here are received by the WxWindows GUI
+    Messages sent here are received by the GUI
     
     Accepted inputs:
     - space -> add a new row
@@ -367,9 +364,12 @@ class EditorLogic(AbstractLogic):
         self._copyMemory = []
         
         self._sceneFile = '/home/mdinacci/Work/MD/rtw/editor/res/scenes/editor_start_1.rtw'
-        self.loadScene(self._sceneFile)
-        #self._createInitialScene()
+        #self.loadScene(self._sceneFile)
+        self._createInitialScene()
         
+    def getSavedScene(self):
+        return self._sceneFile
+    
     def _createInitialScene(self):
         # create some background entities to populate a bit the space 
         self.view.addToScene(GOM.createEntity(environment_params.copy()))    
@@ -383,9 +383,6 @@ class EditorLogic(AbstractLogic):
         # create player
         self._player = GOM.createEntity(ball_params.copy())
         self.view.addToScene(self._player)
-        
-    def getSavedScene(self):
-        return self._sceneFile
     
     def _subscribeToEvents(self):
         self.listener = SafeDirectObject()
@@ -396,11 +393,17 @@ class EditorLogic(AbstractLogic):
     def _movePlayer(self, xForce, yForce, zForce):
         logger.info("Moving player with vector force: %d,%d,%d" 
                     % (xForce, yForce, zForce))
-        body = self._player.physics.geom.getBody()
-        speed = self._player.physics.linearSpeed
-        body.addForce(xForce*speed, yForce*speed, zForce*speed)
-        entity = self.view.scene.getEntityByID(self._player.UID)
-        entity.isDirty = True
+        
+        #entity = self.view.scene.getEntityByID(self._player.UID)
+        
+        # FIXME refactor 
+        path = getPropertyPath("xForce")
+        self.view.scene.editEntity(self._player.UID, path, xForce)
+        path = getPropertyPath("yForce")
+        self.view.scene.editEntity(self._player.UID, path, yForce)
+        path = getPropertyPath("zForce")
+        self.view.scene.editEntity(self._player.UID, path, zForce)
+        
     
     @eventCallback    
     def addRow(self):
@@ -478,6 +481,12 @@ class EditorLogic(AbstractLogic):
             params.position.x += 2
             params.position.z += 2 
             
+            # I need to create a new ID for the pasted entity, I can't rely
+            # on GOM because it will reuses the existing one, therefore creating
+            # an entity with the same ID as the copied one.
+            newUid = GOM.generateUID()
+            params._uid = newUid
+            
             self.view.addToScene(GOM.createEntity(params))
         
     def showPlayer(self):
@@ -491,8 +500,17 @@ class EditorLogic(AbstractLogic):
         self._view.scene.hideEntityByID(self._player.UID)
     
     def update(self, task):
-        # TODO add state management
-        POM.update(self.view.scene.getActors())
+        # TODO
+        # update game state
+        # run ai behavior
+        # trigger new events
+        
+        # run physics simulation
+        POM.update(self.view.scene)
+        
+        # update particle systems
+        # moves animation forward for visible characters
+        # update player's position and cameras
         
         return task.cont
         
@@ -505,6 +523,14 @@ class EditorApplication(AbstractApplication):
         self._isRunning = True
         self._isPaused = False
         self._qtApp = qtApp
+        
+    def step(self):
+        taskMgr.step()
+        #self.dta += globalClock.getDt()
+        #while self.dta > self.stepSize:
+        #    self.dta -= self.stepSize
+        #    taskMgr.step()
+        #time.sleep(0.0001)
         
     def shutdown(self):
         logger.info("Shutdown requested")
@@ -545,6 +571,7 @@ class EditorApplication(AbstractApplication):
         #     - gui render   view does it
         logger.debug("Creating processes")
         
+        taskMgr.add(self._view.readInput, "read-input")
         taskMgr.add(self._logic.update, "logic-update")
         taskMgr.add(self._view.update, "view-update")
         taskMgr.add(self._view.render, "view-render")
@@ -587,6 +614,7 @@ class EditorApplication(AbstractApplication):
         self._mouseWatcher = MouseWatcher(self.nbase)
         
         self._guiPresenter = GUIPresenter()
+        self._guiPresenter.setIdleCallback(self.step)
         self._gui = EditorGUI(self._guiPresenter)
         
         winHandle = self._gui.getHandle()
@@ -615,7 +643,14 @@ class EditorApplication(AbstractApplication):
         self._guiPresenter.setModel(self._views["editing"].scene)
         
 
-a = echo.echo_class(EditorApplication)
+# set a fixed frame rate 
+from pandac.PandaModules import ClockObject
+FPS = 40
+globalClock = ClockObject.getGlobalClock()
+globalClock.setMode(ClockObject.MLimited)
+globalClock.setFrameRate(FPS)
+
+
 if __name__ == "__main__":
     edApp = EditorApplication(QApplication(['']))
     edApp.run()

@@ -130,11 +130,8 @@ class InputManager(SafeDirectObject):
         commands = self._currentScheme.getCommands().values() + \
             self._schemes[BASE_SCHEME].getCommands().values()
         
-                
-        
         for commandList in commands:
             for command in commandList:
-        #for command in commands:
                 if command.pressed is True:
                     command.pressed = False
                     if command.type == Command.EVENT:
@@ -197,9 +194,9 @@ class InputManager(SafeDirectObject):
         # for instance shift-x. The problem here is that there is no event
         # "shift-x-up" so the command will never be terminated. 
         # To fix this problem, I take the keys and look if they are prefixed 
-        # by special keys (shift, meta etc...); if they are, we set the 
+        # by special keys (shift, meta etc...); if they are, I set the 
         # command off when the x key is up.
-         
+        
         keys = self._currentScheme.getCommands().keys()
         for k in keys:
             # key is of the type <special>-key

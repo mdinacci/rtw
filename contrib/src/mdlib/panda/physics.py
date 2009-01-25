@@ -32,7 +32,7 @@ class PhysicManager(object):
     simulate the game world.
     """
     # refresh rate
-    REFRESH_RATE = 1/30.0
+    REFRESH_RATE = 1/40.0
     
     # Create an accumulator to track the time since the sim has been running
     deltaTimeAccumulator = 0.0
@@ -120,33 +120,43 @@ class PhysicManager(object):
             body.setMass(M)
         
         return geometry
-
-    def update(self, actors):
+    
+    def update(self, scene):
         """
         Run the physical simulation and update the actors with their
         new positions.
         """
-        # Add the deltaTime for the task to the accumulator
-        self.deltaTimeAccumulator += globalClock.getDt()
-        while self.deltaTimeAccumulator > self.REFRESH_RATE:
-            self.space.autoCollide()
-            # Remove a stepSize from the accumulator until
-            # the accumulated time is less than the stepsize
-            self.deltaTimeAccumulator -= self.REFRESH_RATE
-            # Step the simulation
-            self.physWorld.quickStep(self.REFRESH_RATE)
-            
-            # set the new positions
-            for actor in actors:
-                if actor.has_key("physics") and actor.physics.has_key("geom"):
-                    pos = actor.physics.geom.getPosition()
-                    actor.position.x = pos[0]
-                    actor.position.y = pos[1]
-                    actor.position.z = pos[2]
-                    if actor.render.has_key("nodepath"):
-                        actor.render.nodepath.setPos(pos)
-    
-            self.contactgroup.empty()
-
+        
+        actors = scene.getDirtyActors()
+        
+        # apply forces if necessary
+        for actor in actors:
+            phys = actor.physics
+            if phys.has_key("xForce") and phys.xForce != 999:
+                xf,yf,zf = (phys.xForce, phys.yForce, phys.zForce)
+                logger.debug("Applying force %d-%d-%d to actor %s" % \
+                             (xf,yf,zf,actor.UID))
+                body = phys.geom.getBody()
+                speed = phys.linearSpeed
+                body.addForce(xf*speed, yf*speed, zf*speed)
+                phys.xForce = 999
+                
+        # collision step
+        if len(actors) > 0:
+            self.deltaTimeAccumulator += globalClock.getDt()
+            while self.deltaTimeAccumulator > self.REFRESH_RATE:
+                self.space.autoCollide()
+                self.deltaTimeAccumulator -= self.REFRESH_RATE
+                self.physWorld.quickStep(self.REFRESH_RATE)
+                
+                for actor in actors:
+                    if actor.has_key("physics") and actor.physics.has_key("geom"):
+                        pos = actor.physics.geom.getPosition()
+                        actor.position.x = pos[0]
+                        actor.position.y = pos[1]
+                        actor.position.z = pos[2]
+                        actor.position.rotation = actor.physics.geom.getQuaternion()
+                        
+                self.contactgroup.empty()
 
 POM = PhysicManager()

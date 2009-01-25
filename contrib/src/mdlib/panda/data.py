@@ -31,12 +31,14 @@ def bitMaskToInt(bitmask):
     return num
 
 
+# TODO move from here
 class EntityType:
     NONE  = 0x0   # non renderable objects (triggers, lights, cameras etc..)
     STATIC = 0x1  # environments and level geometry
     ACTOR = 0x2   # things that have a physic geometry and eventually a body
     BACKGROUND = 0x3 # the background "behind" everything
     ALPHA = 0x4   # alpha objects
+    PLAYER = 0x5 # player object
 
     
 class ResourceLoader(object):
@@ -100,6 +102,18 @@ class KeyValueObject(object, DictMixin):
     
     def keys(self):
         return self.__dict__.keys()
+    
+    def setPropertyFromKeyPath(self, keypath, newValue):
+        tokens = keypath.split(".")
+        if len(tokens) > 1:
+            prev = self[tokens[0]]
+            for token in tokens[1:]:
+                if token == tokens[-1]:
+                    prev[token] = newValue
+                else:
+                    prev = prev.get(token)
+        else:
+            self[keypath] = newValue
 
     
 class GameEntity(KeyValueObject):
@@ -215,11 +229,9 @@ class GameEntityManager(object):
             # referring node, it is important to recreate the entity with the
             # same id as when it was serialised. 
             # FIXME Unfortunately this may cause UID collisions !!
-            uid = None
+            uid = self.generateUID()
             if data.has_key("_uid"):
                 uid = data._uid
-            else: 
-                uid = self._generateUID()
             # ge has a custom class
             if data.has_key("python") and data.python.has_key("clazz"):
                 ge = data.python.clazz(uid, data)
@@ -242,6 +254,8 @@ class GameEntityManager(object):
                     nodepath.setPos(Point3(ge.position.x,
                                                ge.position.y,
                                                ge.position.z))
+                    rot = ge.rotation
+                    nodepath.setQuat(Quat(rot[0],rot[1],rot[2],rot[3]))
             
             
             # NOTE: attaching the node to the parent node is delegated to the 
@@ -297,7 +311,7 @@ class GameEntityManager(object):
                 
         return ge
             
-    def _generateUID(self):
+    def generateUID(self):
         """ Generate a unique id for an object TODO improve me ... """
         global previous_id
         
