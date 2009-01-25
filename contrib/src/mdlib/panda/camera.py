@@ -8,7 +8,6 @@ TODO rename to scene.py
 This module contains a collection of different cameras
 
 TODO:
-- add wheel mouse support for some cameras
 - add a refresh rate for the mouse (1/30):
     curTime = globalClock.getFrameTime()
     if (curTime - MOUSE_REFRESH_RATE > self.lastTaskTime):
@@ -45,13 +44,16 @@ STOP = Vec3(0)
 
 class WASDCamera(Camera):
     """ A camera that supports navigation through WASD keys """
+    
+    ZOOM_SPEED = 4
+    
     def __init__(self, name, inputMgr):
         super(WASDCamera, self).__init__(name)
         
         self.walk = STOP
         self.strafe = STOP
         self.linearSpeed = 40
-        self.angularSpeed = 4
+        self.angularSpeed = 3
         base.disableMouse()
         
         # cameras must be enabled by calling enable()
@@ -72,6 +74,17 @@ class WASDCamera(Camera):
         inputMgr.bindCallback( "e" , self.__setattr__,["strafe",DOWN], scheme="base")
         inputMgr.bindCallback( "q-up" , self.__setattr__,["strafe",STOP], scheme="base")
         inputMgr.bindCallback( "e-up" , self.__setattr__,["strafe",STOP], scheme="base")
+        
+        inputMgr.bindCallback('page_up', self.zoomIn, scheme="base")
+        inputMgr.bindCallback('page_down', self.zoomOut, scheme="base")
+        inputMgr.bindCallback('wheel_up-up', self.zoomIn, scheme="base")
+        inputMgr.bindCallback('wheel_down-up', self.zoomOut, scheme="base")
+    
+    def zoomOut(self):
+        base.camera.setY(base.camera, - self.ZOOM_SPEED)
+
+    def zoomIn(self):
+        base.camera.setY(base.camera,  self.ZOOM_SPEED)
     
     def getPos(self):
         return base.camera.getPos()
@@ -114,9 +127,6 @@ class RoamingCamera(WASDCamera):
     """
     def __init__(self, inputMgr):
         super(RoamingCamera, self).__init__("free-camera", inputMgr)
-        pl = self.getLens()
-        pl.setFov(70)
-        self.setLens(pl)
         self.showCursor(False)
         
     def update(self):
