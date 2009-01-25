@@ -47,6 +47,7 @@ class StrEditor(QLineEdit):
         self.setText(value)
         self.eid = eid
         
+        #self.connect(self, SIGNAL("returnPressed()"), self.onValueChanged)
         self.connect(self, SIGNAL("editingFinished()"), self.onValueChanged)
     
     def onValueChanged(self):
@@ -84,17 +85,20 @@ class FloatEditor(QDoubleSpinBox):
         self.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
         self.setDecimals(precision)
         self.setValue(float(value))
+        self.setRange(-1000.0,1000.0)
+        self.setSingleStep(0.5)
         self.keyPath = keyPath
         self.eid = eid
         
         step = float("0.%(#)s1" % {"#": "0"*(precision-1)})
-        self.setSingleStep(step)
+        #self.setSingleStep(step)
         
+        #self.connect(self, SIGNAL("editingFinished()"), self.onValueChanged)
         self.connect(self, SIGNAL("valueChanged(double)"), self.onValueChanged)
     
     def onValueChanged(self, value):
         dispatchEntityModifiedMessage([self.eid, self.keyPath, value])   
-
+        self.setValue(value)
 
 class EntityInspectorDelegate(QItemDelegate):
     def createEditor(self, parent, option, index):
