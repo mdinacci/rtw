@@ -8,7 +8,7 @@ License:
 
 """
 
-from mdlib import gui
+from mdlib.gui.gtk import GladeView
 from mdlib.decorator import Property
 from mdlib.patterns import SimpleObservable, Observer
 
@@ -248,7 +248,7 @@ class FreeHandCanvas(gtk.DrawingArea, Observer):
             self.controller.stop_drawing(event)
         return True
 
-class EditorView(gui.GladeView):
+class EditorView(GladeView):
     def __init__(self, gladefile, main_window="MainWindow", is_gnome_app=False):
         super(EditorView,self).__init__(gladefile, main_window, is_gnome_app)
         self._init_freehand_view()
