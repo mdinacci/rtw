@@ -8,5 +8,8 @@
 <path>/rtw/editor/src</path>
 <path>/rtw/game/src</path>
 <path>/rtw/editor/res/gui</path>
+<path>/rtw/src</path>
+<path>/rtw/src</path>
+<path>/rtw/track-editor/src</path>
 </pydev_pathproperty>
 </pydev_project>

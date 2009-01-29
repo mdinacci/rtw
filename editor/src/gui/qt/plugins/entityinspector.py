@@ -4,6 +4,10 @@
 Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
 """
+
+from PyQt4.QtGui import *
+from PyQt4.QtCore import *
+
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("entity-inspector", DEBUG)
 
@@ -11,16 +15,11 @@ from mdlib.panda import event
 from mdlib.panda.entity import getPropertyType, getPropertyPath
 from mdlib.types import Types
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-
-import echo
 
 def dispatchEntityModifiedMessage(values):
     logger.debug("Dispatching message %s with values: %s" % \
                  (event.ENTITY_MODIFIED, values))
     messenger.send(event.ENTITY_PROPERTY_MODIFIED, values)
-
 
 # Editors for the entity properties. Not the best OOP here...
 
@@ -57,7 +56,8 @@ class StrEditor(QLineEdit):
         # has been dispatched. The method is still called twice but the message
         # is delivered only once
         if self.isModified():
-            dispatchEntityModifiedMessage([self.eid, self.keyPath, str(self.text())])   
+            dispatchEntityModifiedMessage([self.eid, self.keyPath, 
+                                           str(self.text())])   
             self.setModified(False)
 
 
@@ -99,6 +99,7 @@ class FloatEditor(QDoubleSpinBox):
     def onValueChanged(self, value):
         dispatchEntityModifiedMessage([self.eid, self.keyPath, value])   
         self.setValue(value)
+
 
 class EntityInspectorDelegate(QItemDelegate):
     def createEditor(self, parent, option, index):
@@ -143,11 +144,19 @@ class EntityInspectorDelegate(QItemDelegate):
             # find the type in the schema
             # provide an editor
 
-
 class EntityInspector(QTreeView):
     
     def __init__(self, parent=None):
         super(EntityInspector, self).__init__(parent)
         
         self.setItemDelegate(EntityInspectorDelegate(self))
+    
         
+if __name__ == '__main__':
+    import sys
+    
+    app = QApplication(sys.argv)
+    ei = EntityInspector()
+    ei.show()
+    app.exec_()
+    

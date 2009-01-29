@@ -1,6 +1,6 @@
 <ui version="4.0" >
- <class>sceneGraphDock</class>
- <widget class="QDockWidget" name="sceneGraphDock" >
+ <class>toolsDock</class>
+ <widget class="QDockWidget" name="toolsDock" >
   <property name="windowModality" >
    <enum>Qt::NonModal</enum>
   </property>
@@ -9,7 +9,7 @@
     <x>0</x>
     <y>0</y>
     <width>350</width>
-    <height>269</height>
+    <height>427</height>
    </rect>
   </property>
   <property name="floating" >
@@ -19,12 +19,68 @@
    <set>Qt::NoDockWidgetArea</set>
   </property>
   <property name="windowTitle" >
-   <string>Scene Graph View</string>
+   <string>Tools</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents" >
    <layout class="QHBoxLayout" name="horizontalLayout" >
     <item>
-     <widget class="SceneGraphView" name="sceneGraphView" />
+     <widget class="QToolBox" name="toolBox" >
+      <property name="currentIndex" >
+       <number>1</number>
+      </property>
+      <widget class="QWidget" name="sgPage" >
+       <property name="geometry" >
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>332</width>
+         <height>327</height>
+        </rect>
+       </property>
+       <attribute name="label" >
+        <string>Page 1</string>
+       </attribute>
+       <widget class="QWidget" name="horizontalLayoutWidget" >
+        <property name="geometry" >
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>331</width>
+          <height>321</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2" >
+         <item>
+          <widget class="SceneGraphView" name="sceneGraphView" />
+         </item>
+        </layout>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="page_2" >
+       <property name="geometry" >
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>332</width>
+         <height>327</height>
+        </rect>
+       </property>
+       <attribute name="label" >
+        <string>Page 2</string>
+       </attribute>
+       <widget class="QWidget" name="gridLayoutWidget" >
+        <property name="geometry" >
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>331</width>
+          <height>321</height>
+         </rect>
+        </property>
+        <layout class="QGridLayout" name="gridLayout" />
+       </widget>
+      </widget>
+     </widget>
     </item>
    </layout>
   </widget>

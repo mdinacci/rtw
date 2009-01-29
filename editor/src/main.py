@@ -9,7 +9,6 @@ World Editor
 
 TODO
 
-- install trac on website
 * to deal with entities I need an Entity Manager (see also multifiles). 
   It's ok to have multiple references
   but there must be only a single place where to manage them.
