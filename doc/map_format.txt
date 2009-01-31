@@ -1,0 +1,37 @@
+MAP FORMAT GUIDE
+
+Maps are written down as ascii files, then compressed (with zip ?)
+
+The format is:
+===============================================================================
+[N<X>]!<TILE_LIST>![N<Y>]
+===============================================================================
+
+X is the number of NONE (empty) cells before the tile list.
+If there are no NONE cells, N<X> is not written.
+
+TILE_LIST is the list of tiles, they are written using the following syntax:
+
+tile.x1 tile.y1 tile.z1 tile.type1!tile.x2 tile.y2 tile.z2 tile.type2!tile.xn tile.yn tile.z tile.typen!
+
+Example:
+1.000000 0.000000 0.000000 3!2.000000 0.000000 0.000000 12!3.000000 0.000000 0.000000 8!4.000000 0.000000 0.000000 9!
+
+The above lin describe a row made up of 4 tiles:
+
+Tile1: 1,0,0 type 1
+Tile2: 2,0,0 type 2
+Tile3: 3,0,0 type 3
+Tile4: 4,0,0 type 4
+
+After the TILE_LIST there is an obligatory exclamative point. 
+
+IF there are any empty cells, after the exclamative point there's the char N 
+followed by the number of empty tiles and an exclamative point
+
+Ex.
+N20!
+
+Note:
+
+Empty lines are written as N<X>! Where X is the lenght of the line

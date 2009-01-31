@@ -1,0 +1,38 @@
+Creating filelist for contrib
+Creating filelist for editor
+Creating filelist for game
+Creating filelist for track-editor
+Categorizing files.
+Finding a working MD5 command....
+Found a working MD5 command.
+Computing results.
+
+
+SLOC	Directory	SLOC-by-Language (Sorted)
+1739    editor          python=1729,sh=10
+1486    contrib         python=1486
+357     track-editor    python=357
+0       game            (none)
+
+
+Totals grouped by language (dominant language first):
+python:        3572 (99.72%)
+sh:              10 (0.28%)
+
+
+
+
+Total Physical Source Lines of Code (SLOC)                = 3,582
+Development Effort Estimate, Person-Years (Person-Months) = 0.76 (9.16)
+ (Basic COCOMO model, Person-Months = 2.4 * (KSLOC**1.05))
+Schedule Estimate, Years (Months)                         = 0.48 (5.80)
+ (Basic COCOMO model, Months = 2.5 * (person-months**0.38))
+Estimated Average Number of Developers (Effort/Schedule)  = 1.58
+Total Estimated Cost to Develop                           = $ 103,151
+ (average salary = $56,286/year, overhead = 2.40).
+SLOCCount, Copyright (C) 2001-2004 David A. Wheeler
+SLOCCount is Open Source Software/Free Software, licensed under the GNU GPL.
+SLOCCount comes with ABSOLUTELY NO WARRANTY, and you are welcome to
+redistribute it under certain conditions as specified by the GNU GPL license;
+see the documentation for details.
+Please credit this data as "generated using David A. Wheeler's 'SLOCCount'."
