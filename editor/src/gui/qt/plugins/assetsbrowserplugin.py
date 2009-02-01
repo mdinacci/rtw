@@ -5,7 +5,7 @@ Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
 """
 from PyQt4 import QtGui, QtDesigner
-from assetbrowser import AssetBrowser
+from assetsbrowser import AssetsBrowser
 
 class AssetBrowserPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
     def __init__(self, parent=None):
@@ -23,10 +23,10 @@ class AssetBrowserPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
         return self.initialized
     
     def createWidget(self, parent):
-        return AssetBrowser(parent)
+        return AssetsBrowser(parent)
 
     def name(self):
-        return "AssetBrowser"
+        return "AssetsBrowser"
     
     def group(self):
         return "Game editor"
@@ -41,7 +41,7 @@ class AssetBrowserPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
         return False
     
     def domXml(self):
-        return '<widget class="AssetBrowser" name=\"assetBrowser\" />\n'
+        return '<widget class="AssetsBrowser" name=\"assetsBrowser\" />\n'
     
     def includeFile(self):
-        return "assetbrowser"
+        return "assetsbrowser"
