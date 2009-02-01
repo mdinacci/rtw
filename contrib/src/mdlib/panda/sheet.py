@@ -117,6 +117,8 @@ class Sheet(NodePath):
                     color = vertex.get('color', defaultColor)
                     
                 if isinstance(point, tuple):
+                    # force all points to float
+                    point = map(lambda x: float(x), point)
                     if (len(point) >= 4):
                         self.surface.setVertex(u, v, \
                                     VBase4(point[0], point[1], point[2], point[3]))
@@ -202,7 +204,3 @@ class Sheet(NodePath):
             ens.addVertex(vertex)
             
         return egg
-        
-    
-    
-    
