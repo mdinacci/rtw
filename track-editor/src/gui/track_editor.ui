@@ -10,18 +10,36 @@
    </rect>
   </property>
   <property name="windowTitle" >
-   <string>MainWindow</string>
+   <string>Track Editor 0.0.1</string>
   </property>
   <widget class="QWidget" name="centralwidget" >
-   <widget class="TileEditorView" name="tileEditorView" >
+   <widget class="QScrollArea" name="scrollArea" >
     <property name="geometry" >
      <rect>
       <x>0</x>
       <y>0</y>
       <width>791</width>
-      <height>600</height>
+      <height>551</height>
      </rect>
     </property>
+    <property name="widgetResizable" >
+     <bool>true</bool>
+    </property>
+    <widget class="QWidget" name="scrollAreaWidgetContents" >
+     <property name="geometry" >
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>1218</width>
+       <height>1218</height>
+      </rect>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout" >
+      <item>
+       <widget class="TileEditorView" name="tileEditorView" />
+      </item>
+     </layout>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar" >
@@ -47,29 +65,67 @@
    <addaction name="menuFile" />
   </widget>
   <widget class="QStatusBar" name="statusbar" />
+  <widget class="QToolBar" name="toolBar" >
+   <property name="windowTitle" >
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea" >
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak" >
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionPreview" />
+  </widget>
   <action name="actionNew" >
    <property name="text" >
     <string>New</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+N</string>
    </property>
   </action>
   <action name="actionOpen" >
    <property name="text" >
     <string>Open</string>
    </property>
+   <property name="shortcut" >
+    <string>Ctrl+O</string>
+   </property>
   </action>
   <action name="actionSave" >
    <property name="text" >
     <string>Save</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+S</string>
    </property>
   </action>
   <action name="actionSave_As" >
    <property name="text" >
     <string>Save As</string>
    </property>
+   <property name="shortcut" >
+    <string>Ctrl+Shift+S</string>
+   </property>
   </action>
   <action name="actionQuit" >
+   <property name="checkable" >
+    <bool>true</bool>
+   </property>
    <property name="text" >
     <string>Quit</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionPreview" >
+   <property name="checkable" >
+    <bool>false</bool>
+   </property>
+   <property name="text" >
+    <string>Preview</string>
    </property>
   </action>
  </widget>
@@ -81,5 +137,70 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>actionSave</sender>
+   <signal>triggered()</signal>
+   <receiver>tileEditorView</receiver>
+   <slot>on_actionSave_triggered()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>610</x>
+     <y>632</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionOpen</sender>
+   <signal>triggered()</signal>
+   <receiver>tileEditorView</receiver>
+   <slot>on_actionLoad_triggered()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>610</x>
+     <y>632</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>tileEditorView</receiver>
+   <slot>on_actionQuit_triggered()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>610</x>
+     <y>658</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionNew</sender>
+   <signal>triggered()</signal>
+   <receiver>tileEditorView</receiver>
+   <slot>on_actionNew_triggered()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>610</x>
+     <y>658</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

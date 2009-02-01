@@ -43,12 +43,13 @@ class TileEditorView(QWidget):
         self.selectedCellMousePos = None
         
         self.tiles = self.reset()
+
+    def setController(self):
+        self.controller = controller
     
     def reset(self):
         return [[None for col in range(self.TILES_NUM_Y)] \
                       for row in range(self.TILES_NUM_X)]
-    
-    
     
     @pyqtSignature("")
     def on_actionQuit_triggered(self):

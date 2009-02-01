@@ -103,7 +103,7 @@ class Camera(object):
         return task.cont
 
 
-TILES_ROW_MIN = 4
+VERTEX_PER_ROW = 4
 
 class TrackGenerator(DirectObject):   
     def __init__(self):
@@ -181,49 +181,37 @@ class TrackGenerator(DirectObject):
     
     def generate(self, tiles, x=0,y=0,z=0):
         verts = []
-        uVertsMax = TILES_ROW_MIN
-        for idx, row in enumerate(tiles):
-            #if idx % 2 == 0:
-            if True:
-                # check that row has at least TILES_ROW_MIN valid tiles. 
-                # If it doesn't create additional tiles
-                realTiles = filter(lambda x: x is not None, row)
-                num = len(realTiles)
-                if num > uVertsMax:
-                    uVertsMax = num
-                if num < TILES_ROW_MIN and num > 0:
-                    #logger.info("Row hasn't enough tiles,\
-                    #    generating additional ones.")
-                    tilesToAdd = TILES_ROW_MIN - num
-                    firstTile = realTiles[0]
-                    lastTile = realTiles[-1]
-                    xStep = (lastTile.x - firstTile.x) / float(TILES_ROW_MIN-1) 
-                    yStep = (lastTile.y - firstTile.y) / float(TILES_ROW_MIN-1) 
+        vertexDistance = 2
+        for row in tiles:
+            realTiles = filter(lambda x: x is not None, row)
+            if len(realTiles) > 0:
+                firstTile = realTiles[0]
+                lastTile = realTiles[-1]
+                
+                xIncrement = (lastTile.x - firstTile.x+1) / float(VERTEX_PER_ROW)
+                if len(realTiles) == 1:
+                    xIncrement = 1.0/ float(VERTEX_PER_ROW)
+                for i in range(VERTEX_PER_ROW):
+                    x = firstTile.x + (i * xIncrement) + xIncrement/2.0
+                    print x
+                    y, z = firstTile.y, firstTile.z
+                    # FIXME
+                    color = self._colorForTile(realTiles[0].color)
+                    vert = {'node':None, 'point': (x,y,z), 
+                                    'color' : color}
+                    verts.append(vert)
                     
-                    lastIdxAdded = row.index(firstTile)+1
-                    for tileToAdd in range(tilesToAdd):
-                        x,y,z = (firstTile.x + xStep*(tileToAdd+1),\
-                                 firstTile.y + yStep*(tileToAdd+1), firstTile.z)
-                        
-                        row.insert(lastIdxAdded, Tile(x,y,z,firstTile.type))
-                        lastIdxAdded += 1
-                        
-                        
-                for tile in row:
-                    if tile is not None:
-                        color = self._colorForTile(tile.color)
-                        vert = {'node':None, 'point': (tile.x, tile.y, tile.z), 
-                                'color' : color}
-                        verts.append(vert)
-        
+        self.generateSurface(verts)
+                    
+    def generateSurface(self, verts):
         surface = Sheet("curve")
         # FIXME setting it to because of bug #14 
-        uVertsMax = 4
-        surface.setup(4,4,uVertsMax, verts)
-        surface.sheetNode.setNumUSubdiv(4)
-        surface.sheetNode.setNumVSubdiv(4)
+        surface.setup(4,4,VERTEX_PER_ROW, verts)
+        surface.sheetNode.setNumUSubdiv(VERTEX_PER_ROW)
+        #surface.sheetNode.setNumVSubdiv(4)
         #surface.setTwoSided(True)
         
+        # draw control points
         points = [v['point'] for v in verts]
         points = map(lambda x: map(lambda y: float(y), x), points)
         for idx, point in enumerate(points):
