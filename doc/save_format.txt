@@ -1,5 +1,17 @@
 SAVE FORMAT GUIDE
 
+HOW IT IS NOW:
+
+The dicionary of each entity is saved down to disk. 
+A couple of properties are replaced as they are unpickable:
+
+- nodePath
+- parent (the UID is saved, and during the loading the node is reconnected)
+- geom (it is recreated at loading time)
+
+
+HOW IT SHOULD BE DONE:
+
 Level files are stored in Panda3D Multifiles.
 A single Multifile contains:
 
