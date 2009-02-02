@@ -182,6 +182,38 @@ class TrackGenerator(DirectObject):
     def generate(self, tiles, x=0,y=0,z=0):
         verts = []
         vertexDistance = 2
+        """
+        for row in tiles:
+            realTiles = filter(lambda x: x is not None, row)
+            if len(realTiles) > 0:
+                firstTile = realTiles[0]
+                lastTile = realTiles[-1]
+                
+                yIncrement = (lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
+                if len(realTiles) == 1:
+                    yIncrement = 1.0/ float(VERTEX_PER_ROW)
+                for i in range(VERTEX_PER_ROW):
+                    y = firstTile.y + (i * yIncrement) + yIncrement/2.0
+                    x, z = firstTile.x, firstTile.z
+                    # FIXME
+                    color = self._colorForTile(realTiles[0].color)
+                    vert = {'node':None, 'point': (x,y,z), 
+                                    'color' : color}
+                    verts.insert(0,vert)
+
+        """
+        verts = []
+        color = (1,1,1,0)
+        for i in range(10):
+            vert = {'node':None, 'point': (i,0.875,z), 'color' : color}
+            verts.append(vert)
+            vert = {'node':None, 'point': (i,0.625,z), 'color' : color}
+            verts.append(vert)
+            vert = {'node':None, 'point': (i,0.375,z), 'color' : color}
+            verts.append(vert)
+            vert = {'node':None, 'point': (i,0.175,z), 'color' : color}
+            verts.append(vert)
+    
         for row in tiles:
             realTiles = filter(lambda x: x is not None, row)
             if len(realTiles) > 0:
@@ -193,19 +225,18 @@ class TrackGenerator(DirectObject):
                     xIncrement = 1.0/ float(VERTEX_PER_ROW)
                 for i in range(VERTEX_PER_ROW):
                     x = firstTile.x + (i * xIncrement) + xIncrement/2.0
-                    print x
                     y, z = firstTile.y, firstTile.z
                     # FIXME
                     color = self._colorForTile(realTiles[0].color)
                     vert = {'node':None, 'point': (x,y,z), 
                                     'color' : color}
                     verts.append(vert)
-                    
+                print realTiles
+                
         self.generateSurface(verts)
                     
     def generateSurface(self, verts):
         surface = Sheet("curve")
-        # FIXME setting it to because of bug #14 
         surface.setup(4,4,VERTEX_PER_ROW, verts)
         surface.sheetNode.setNumUSubdiv(VERTEX_PER_ROW)
         #surface.sheetNode.setNumVSubdiv(4)
