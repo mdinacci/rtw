@@ -12,15 +12,36 @@
   <property name="windowTitle" >
    <string>Track Editor 0.0.1</string>
   </property>
+  <property name="dockNestingEnabled" >
+   <bool>true</bool>
+  </property>
   <widget class="QWidget" name="centralwidget" >
-   <widget class="QScrollArea" name="scrollArea" >
+   <property name="sizePolicy" >
+    <sizepolicy vsizetype="Expanding" hsizetype="Expanding" >
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize" >
+    <size>
+     <width>0</width>
+     <height>0</height>
+    </size>
+   </property>
+   <widget class="QScrollArea" name="tileEditorViewContainer" >
     <property name="geometry" >
      <rect>
       <x>0</x>
       <y>0</y>
       <width>791</width>
-      <height>551</height>
+      <height>521</height>
      </rect>
+    </property>
+    <property name="minimumSize" >
+     <size>
+      <width>662</width>
+      <height>0</height>
+     </size>
     </property>
     <property name="widgetResizable" >
      <bool>true</bool>
@@ -30,15 +51,41 @@
       <rect>
        <x>0</x>
        <y>0</y>
-       <width>1218</width>
-       <height>1218</height>
+       <width>1200</width>
+       <height>1200</height>
       </rect>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout" >
-      <item>
-       <widget class="TileEditorView" name="tileEditorView" />
-      </item>
-     </layout>
+     <property name="sizePolicy" >
+      <sizepolicy vsizetype="Expanding" hsizetype="Expanding" >
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize" >
+      <size>
+       <width>1200</width>
+       <height>1200</height>
+      </size>
+     </property>
+     <widget class="TileEditorView" name="tileEditorView" >
+      <property name="geometry" >
+       <rect>
+        <x>9</x>
+        <y>9</y>
+        <width>1200</width>
+        <height>1200</height>
+       </rect>
+      </property>
+      <property name="minimumSize" >
+       <size>
+        <width>1200</width>
+        <height>1200</height>
+       </size>
+      </property>
+      <property name="styleSheet" >
+       <string notr="true" />
+      </property>
+     </widget>
     </widget>
    </widget>
   </widget>
@@ -75,7 +122,15 @@
    <attribute name="toolBarBreak" >
     <bool>false</bool>
    </attribute>
+   <addaction name="actionNew" />
+   <addaction name="actionOpen" />
+   <addaction name="actionSave" />
+   <addaction name="separator" />
    <addaction name="actionPreview" />
+   <addaction name="separator" />
+   <addaction name="actionDirectionMode" />
+   <addaction name="actionElevationMode" />
+   <addaction name="separator" />
   </widget>
   <action name="actionNew" >
    <property name="text" >
@@ -128,6 +183,25 @@
     <string>Preview</string>
    </property>
   </action>
+  <action name="actionDirectionMode" >
+   <property name="checkable" >
+    <bool>true</bool>
+   </property>
+   <property name="checked" >
+    <bool>true</bool>
+   </property>
+   <property name="text" >
+    <string>DirectionMode</string>
+   </property>
+  </action>
+  <action name="actionElevationMode" >
+   <property name="checkable" >
+    <bool>true</bool>
+   </property>
+   <property name="text" >
+    <string>ElevationMode</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -137,70 +211,5 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections>
-  <connection>
-   <sender>actionSave</sender>
-   <signal>triggered()</signal>
-   <receiver>tileEditorView</receiver>
-   <slot>on_actionSave_triggered()</slot>
-   <hints>
-    <hint type="sourcelabel" >
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel" >
-     <x>610</x>
-     <y>632</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionOpen</sender>
-   <signal>triggered()</signal>
-   <receiver>tileEditorView</receiver>
-   <slot>on_actionLoad_triggered()</slot>
-   <hints>
-    <hint type="sourcelabel" >
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel" >
-     <x>610</x>
-     <y>632</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionQuit</sender>
-   <signal>triggered()</signal>
-   <receiver>tileEditorView</receiver>
-   <slot>on_actionQuit_triggered()</slot>
-   <hints>
-    <hint type="sourcelabel" >
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel" >
-     <x>610</x>
-     <y>658</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionNew</sender>
-   <signal>triggered()</signal>
-   <receiver>tileEditorView</receiver>
-   <slot>on_actionNew_triggered()</slot>
-   <hints>
-    <hint type="sourcelabel" >
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel" >
-     <x>610</x>
-     <y>658</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>
