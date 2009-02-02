@@ -1,0 +1,1 @@
+ egg-qtess -e -tbnauto -cs z-up test.egg > cippa.egg
