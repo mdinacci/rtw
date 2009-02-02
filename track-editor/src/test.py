@@ -69,8 +69,7 @@ surface2.setup(4,4,4, verts, uKnot, vKnot)
 surface2.sheetNode.setNumUSubdiv(6)
 surface2.sheetNode.setNumVSubdiv(6)
 surface2.reparentTo(render)
-
-surface2.flattenStrong()
+surface2.setTwoSided(True)
 
 render.analyze() 
 
