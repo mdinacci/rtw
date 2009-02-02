@@ -12,14 +12,29 @@ import math, string
 
 from random import randint 
 
+__all__ = ['TileEditorModel', 'TileEditorController', 'TileEditorView', 'Mode',
+           'Direction', 'Tile']
+
 colors = [Qt.white, Qt.green, Qt.red, Qt.yellow, Qt.blue]
 
+class Mode:
+    DIRECTION = 0x1
+    ELEVATION = 0x2
+
+class Direction:
+    FORWARD = 0x1
+    BACKWARD = 0x2
+    LEFT = 0x4
+    RIGHT = 0x8
+
+
 class Tile(object):
-    def __init__(self, x, y, z, tileType):
+    def __init__(self, x, y, z, tileType, direction):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
         self.type = int(tileType)
+        self.direction = direction
         # TODO color will depend on type
         self.color = colors[randint(0,len(colors)-1)]
         
@@ -27,95 +42,116 @@ class Tile(object):
         return "x: %s y: %s z: %s type: %s" % (self.x, self.y, 
                                                 self.z, self.type)
 
+class TileEditorController(object):
+    def __init__(self, view, model, defaultColor=None, defaultDirection=None):
+        self.view = view
+        self.model = model
+        self.mode = Mode.DIRECTION
+        if defaultColor is not None:
+            self.currentColor = defaultColor
+        else:
+            self.currentColor = colors[randint(0,len(colors)-1)]
+        if defaultDirection is not None:
+            self.currentDirection = defaultDirection 
+        else:
+            self.currentDirection = Direction.FORWARD 
+            
+        
+    def setCurrentColor(self, color):
+        self.currentColor = color
+        
+    def setCurrentDirection(self, direction):
+        self.currentDirection = direction
+    
+    def getCurrentColor(self):
+        return self.currentColor
+    
+    def getCurrentDirection(self):
+        return self.currentDirection
+    
+    def getMode(self):
+        return self.mode
+
+    def setMode(self, mode):
+        self.mode = mode
+        self.view.update()
+        
+    def getTiles(self):
+        return self.model.tiles
+    
+    def addTileAt(self, tile, row, col):
+        self.model.addTileAt(tile, row, col)
+    
+    def removeTileAt(self, row, col):
+        self.model.removeTileAt(row, col)
+    
+    def tileAt(self, row, col):
+        return self.model.tiles[row][col]
+    
+    def tilePressed(self, event):
+        if self.mode == Mode.DIRECTION:
+            self.view.updateSelection(event.x(),event.y())
+        elif self.mode == Mode.ELEVATION:
+            self.view.updateHeight(event)
+
+    def mustAddTile(self):
+        return self.mode == Mode.DIRECTION
+    
+    def mustPaintDirections(self):
+        return self.mode == Mode.DIRECTION
+    
+    def mustPaintElevations(self):
+        return self.mode == Mode.ELEVATION
+    
+
+class TileEditorModel(object):
+    def __init__(self, xTiles, yTiles):
+        self.xTiles = xTiles
+        self.yTiles = yTiles
+        self.reset(False)
+        self.views = []
+    
+    def addView(self, view):
+        self.views.append(view)
+    
+    def reset(self, updateView = True):
+        tiles = [[None for col in range(self.yTiles)] \
+                      for row in range(self.xTiles)]
+        self.tiles = tiles
+        if updateView:
+            for view in self.views:
+                view.update()
+        
+    def addTileAt(self, tile, row, col, updateView = True):
+        self.tiles[row][col] = tile
+        if updateView:
+            for view in self.views:
+                view.update()
+        
+    def removeTileAt(self, row, col, updateView = True):
+        self.tiles[row][col] = None
+        if updateView:
+            for view in self.views:
+                view.update()
+
+
 class TileEditorView(QWidget):
     
+    # must be here, and not in the model so I can set them using qt designer
     TILES_NUM_X = 80
     TILES_NUM_Y = 80
-    
-    SEPARATOR = '!'
     
     def __init__(self, parent=None):
         super(TileEditorView, self).__init__(parent)
         self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding,
                                        QSizePolicy.Expanding))
         self.setMinimumSize(self.minimumSizeHint())
-        
         self.selectedCellMousePos = None
-        
-        self.tiles = self.reset()
 
-    def setController(self):
+    def setController(self, controller):
         self.controller = controller
     
-    def reset(self):
-        return [[None for col in range(self.TILES_NUM_Y)] \
-                      for row in range(self.TILES_NUM_X)]
     
-    @pyqtSignature("")
-    def on_actionQuit_triggered(self):
-        pass
-        
-    @pyqtSignature("")
-    def on_actionNew_triggered(self):
-        # TODO ask to save
-        self.tiles = self.reset()
-        self.update()
-        
-    @pyqtSignature("")
-    def on_actionSave_triggered(self):
-        fileName = QFileDialog.getSaveFileName(self, "Save map (*.map)")
-        if fileName is not None:
-            if fileName != '':
-                f = open(fileName, "w")
-                for row in self.tiles:
-                    leftNonesWritten = rightNonesWritten = False
-                    nones = 0
-                    for tile in row:
-                        # keep track of the number of empty tiles
-                        if tile is None:
-                            nones +=1
-                        else:
-                            if leftNonesWritten is False:
-                                # ex. write N30- if there are 30 consecutives
-                                # empty tiles 
-                                f.write("N%d%s" % (nones, self.SEPARATOR))
-                                nones = 0
-                                leftNonesWritten = True
-                            f.write("%f %f %f %d%s" % (tile.x, tile.y, tile.z, 
-                                                       tile.type, 
-                                                       self.SEPARATOR))
-                    if nones > 0: 
-                        # write right empty tiles number
-                        f.write("N%d%s" % (nones, self.SEPARATOR))
-                    f.write("\n")
-                f.close()
-      
-    @pyqtSignature("")
-    def on_actionLoad_triggered(self):
-        self.tiles = self.reset()
-        fileName = QFileDialog.getOpenFileName(self, "Map file (*.map)")
-        if fileName != '':
-            f = open(fileName)
-            for i,row in enumerate(f.readlines()):
-                cells = row.split(self.SEPARATOR)
-                j = 0
-                for cell in cells:
-                    if cell != "\n":
-                        if cell.startswith("N"):
-                            # assign empty tiles
-                            numNones = int(cell[1:])
-                            for none in range(numNones):
-                                self.tiles[i][j+none] = None
-                            # a bit of a hack the minus one, but it's necessary
-                            # since j is increased at the end of the loop
-                            j += numNones-1
-                        else:
-                            p= string.split(cell)
-                            self.tiles[i][j] = Tile(p[0],p[1],p[2],p[3])
-                    j +=1
-            f.close()
-            self.update()
-                    
     def sizeHint(self):
         return QSize(1200, 1200)
 
@@ -132,59 +168,62 @@ class TileEditorView(QWidget):
         
         return (row,col)
     
-    def updateHeight(self, x, y, zInc):
-        row, col = self.getRowColAtPoint(x, y)
-        tile = self.tiles[row][col]
-        if tile is not None:
-            tile.z+=zInc
-            self.update()
-    
+    def updateHeight(self, event):
+        def _updateHeight(x, y, zInc):
+            row, col = self.getRowColAtPoint(x, y)
+            tile = self.controller.tileAt(row,col)
+            if tile is not None:
+                # HACK the controller should do it
+                tile.z+=zInc
+                self.update()
+        
+        x = event.x()
+        y = event.y()
+        if event.modifiers() & Qt.ShiftModifier:
+            _updateHeight(x,y,-1)
+        else:
+            _updateHeight(x,y,1)
+                
     def updateSelection(self, x,y):
         row, col = self.getRowColAtPoint(x, y)
-        previous = self.tiles[row][col]
+        previous = self.controller.tileAt(row,col)
         if previous is not None:
-            self.tiles[row][col] = None
+            self.controller.removeTileAt(row, col)
         else:
-            t = Tile(col, row, 0, colors[randint(0, len(colors)-1)])
-            self.tiles[row][col] = t
-            
-        self.update()
+            color = self.controller.getCurrentColor()
+            direction = self.controller.getCurrentDirection()
+            t = Tile(col, row, 0, color, direction)
+            self.controller.addTileAt(t, row, col)
     
     def mousePressEvent(self, event):
         x = event.x()
         y = event.y()
         self.selectedCellMousePos = (x,y)
-
-        if event.modifiers() & Qt.ShiftModifier:
-            self.updateHeight(x,y,1)
-        elif event.modifiers() & Qt.ControlModifier:
-            self.updateHeight(x,y,-1)
-        else:
-            self.updateSelection(x,y)
+        
+        self.controller.tilePressed(event)
         
     def mouseReleaseEvent(self, event):
         self.selectedCellMousePos = None
     
     def mouseMoveEvent(self, event):
         x,y = (event.x(), event.y())
-        pos = self.selectedCellMousePos
-        if pos is not None:
-            # check that mouse is outside cell boundaries otherwise I'll just 
-            # deselect the selected cell
-            tileWidth = float(self.width() / self.TILES_NUM_X)
-            tileHeight = float(self.height() / self.TILES_NUM_Y)
-            
-            col = int(x / tileWidth)
-            row = int(y / tileHeight)
-            
-            if row == int(pos[1]/tileHeight) and col == int(pos[0]/tileWidth):
-                event.ignore()
-            else:
-                self.updateSelection(event.x(), event.y())
-                self.selectedCellMousePos = (x,y)
-    
-    def keyPressEvent(self, event):
-        pass
+        
+        if self.controller.mustAddTile():
+            pos = self.selectedCellMousePos
+            if pos is not None:
+                # check that mouse is outside cell boundaries otherwise I'll just 
+                # deselect the selected cell
+                tileWidth = float(self.width() / self.TILES_NUM_X)
+                tileHeight = float(self.height() / self.TILES_NUM_Y)
+                
+                col = int(x / tileWidth)
+                row = int(y / tileHeight)
+                
+                if row == int(pos[1]/tileHeight) and col == int(pos[0]/tileWidth):
+                    event.ignore()
+                else:
+                    self.updateSelection(event.x(), event.y())
+                    self.selectedCellMousePos = (x,y)
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -194,7 +233,6 @@ class TileEditorView(QWidget):
         tileHeight = float(self.height() / self.TILES_NUM_Y)
         
         # draw grid 
-        
         grid = []
         for i in range(self.TILES_NUM_X):
             x1 = x2 = i*tileHeight
@@ -213,27 +251,78 @@ class TileEditorView(QWidget):
         painter.drawLines(grid)
         
         # draw tiles
-        for rowIdx, row in enumerate(self.tiles):
-            for colIdx, tile in enumerate(row):
-                if tile is not None:
-                    painter.save()
-                    painter.setPen(Qt.black)
-                    #color = colors[randint(0,len(colors)-1)]
-                    painter.setBrush(QBrush(tile.color,Qt.SolidPattern))
-                    x = colIdx * tileWidth
-                    y = self.height()-tileHeight-rowIdx*tileHeight
-                    painter.drawEllipse(x, y, tileWidth, tileHeight)
-                    painter.setBrush(QBrush(Qt.white,Qt.SolidPattern))
-                    # magic numbers are offsets to place the number at the 
-                    # center of the square
-                    painter.drawText(x+tileWidth/2 -3,y+tileHeight-2, "%s" \
-                                     % int(tile.z))
-                    painter.restore()
+        if hasattr(self, "controller"):
+            tiles = self.controller.getTiles()
+            for rowIdx, row in enumerate(tiles):
+                for colIdx, tile in enumerate(row):
+                    if tile is not None:
+                        painter.save()
+                        painter.setPen(tile.color)
+                        
+                        x = colIdx*tileWidth
+                        y = self.height()-rowIdx*tileHeight
+                        
+                        if self.controller.mustPaintDirections():
+                            # draw arrows
+                            if tile.direction is Direction.FORWARD:
+                                painter.drawLine(x+ tileWidth/2.0,
+                                                 y-1,
+                                                 x+ tileWidth/2.0,
+                                                 y-tileHeight+1)
+                                painter.drawLine(x+ tileWidth/2.0,
+                                                 y-tileHeight+1,
+                                                 x+ tileWidth/2.0-4,
+                                                 y-8)
+                                painter.drawLine(x+ tileWidth/2.0,
+                                                 y-tileHeight+1,
+                                                 x+ tileWidth/2.0+4,
+                                                 y-8)
+                            elif tile.direction is Direction.BACKWARD:
+                                painter.drawLine(x+ tileWidth/2.0,
+                                                 y-1,
+                                                 x+ tileWidth/2.0,
+                                                 y-tileHeight+1)
+                                painter.drawLine(x+ tileWidth/2.0,
+                                                 y,
+                                                 x+ tileWidth/2.0-4,
+                                                 y-6)
+                                painter.drawLine(x+ tileWidth/2.0,
+                                                 y,
+                                                 x+ tileWidth/2.0+4,
+                                                 y-6)
+                            elif tile.direction is Direction.LEFT:
+                                startX = x+1
+                                endX = x + tileWidth -1
+                                painter.drawLine(startX, y-tileHeight/2.0,
+                                                 endX, y-tileHeight/2.0)
+                                painter.drawLine(startX,y-tileHeight/2.0,
+                                                 startX+6,y-tileHeight+4)
+                                painter.drawLine(startX,y-tileHeight/2.0,
+                                                 startX+6,y-4)
+                            elif tile.direction is Direction.RIGHT:
+                                startX = x+1
+                                endX = x + tileWidth -1
+                                painter.drawLine(startX, y-tileHeight/2.0,
+                                                 endX, y-tileHeight/2.0)
+                                painter.drawLine(endX,y-tileHeight/2.0,
+                                                 endX-6,y-tileHeight+4)
+                                painter.drawLine(endX,y-tileHeight/2.0,
+                                                 endX-6,y-4)
+                                
+                            
+                        if self.controller.mustPaintElevations():
+                            # draw elevations
+                            painter.setPen(Qt.black)
+                            painter.setBrush(QBrush(Qt.white,Qt.SolidPattern))
+                            painter.drawText(x+tileWidth/2.0-3,y-2, "%s" \
+                                             % int(tile.z))
+                            
+                        painter.restore()
         
-        tileNumX = pyqtProperty("int", lambda self: self.TILES_NUM_X, 
-                             lambda self, x: setattr(self,"TILES_NUM_X", x), 
-                             lambda self, x: setattr(self,"TILES_NUM_X", 10)) 
-        tileNumY = pyqtProperty("int", lambda self: self.TILES_NUM_Y, 
+    tilesNumX = pyqtProperty("int", lambda self: self.TILES_NUM_X, 
+                         lambda self, x: setattr(self,"TILES_NUM_X", x), 
+                         lambda self, x: setattr(self,"TILES_NUM_X", 10)) 
+    tilesNumY = pyqtProperty("int", lambda self: self.TILES_NUM_Y, 
                              lambda self, y: setattr(self,"TILES_NUM_Y", y), 
                              lambda self, y: setattr(self,"TILES_NUM_Y", 10)) 
 

@@ -41,7 +41,7 @@ class TileEditorViewPlugin(QtDesigner.QPyDesignerCustomWidgetPlugin):
         return False
     
     def domXml(self):
-        return '<widget class="TileEditorView" name=\"tileEditorView\"> \
+        return '<widget class="TileEditorView" name="tileEditorView"> \
                     <property name="tilesNumX" >\n\
                         <string>Number of tiles on X axis</string>\n\
                     </property>\
