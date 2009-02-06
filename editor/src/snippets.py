@@ -1,3 +1,91 @@
+def generateVertexes(self, grid, x=0,y=0,z=0):
+        stepOut = False
+        
+        for i,row in enumerate(grid):
+            for j,col in enumerate(row):
+                # iterate the row until we find a column which is not None
+                if col is not None:
+                    tileRow = []
+                    # read 5 (maximum number of tiles per row) +1 columns
+                    # HACK change with constants from tileeditorview
+                    tileRow = [grid[i][j+w] for w in range(5+1) if (j+w) < 80]
+                    tileRow = filter(lambda x: x is not None, tileRow)
+                    
+                    if len(tileRow) > 0:
+                        # detect if there is a curve (direction changes)
+                        isCurve = False
+                        curveOffset = 0
+                        firstDir = tileRow[0].direction
+                        for tile in tileRow:
+                            if tile.direction != firstDir:
+                                isCurve = True
+                                curveDir = tile.direction
+                                curveOffset = grid[i].index(tile)
+                                break
+                            
+                        if isCurve:
+                                
+                            logger.debug("Detected a curve, direction is: %s" \
+                                         % tile.direction)
+                            
+                            # TODO interpolate some vertexes to make the 
+                            # curve smoother
+                            
+                            # transpose matrix
+                            newgrid = deepcopy(grid)
+                            newgrid.reverse()
+                            newgrid = map(lambda *row: list(row), *grid)[curveOffset:]
+                            
+                            # call generate with the new matrix
+                            self.generateVertexes(newgrid)
+                            stepOut = True
+                            
+                        else:
+                            self.addVertexes(tileRow, self.tempVertexes)
+                    # read another row
+                    break
+            if stepOut:
+                break
+def transpose(m):
+    """
+    Transpose the rectangular two-dimentional matrix m.
+    """
+    return [[m[y][x] for y in range(len(m))]for x in
+range(len(m[0]))]
+
+
+"""
+s        color = (1,1,1,0)
+        for i in range(10):
+            vert = {'node':None, 'point': (i,0.875,z), 'color' : color}
+            verts.append(vert)
+            vert = {'node':None, 'point': (i,0.625,z), 'color' : color}
+            verts.append(vert)
+            vert = {'node':None, 'point': (i,0.375,z), 'color' : color}
+            verts.append(vert)
+            vert = {'node':None, 'point': (i,0.175,z), 'color' : color}
+            verts.append(vert)
+        verts = []
+        vertexDistance = 2
+        for row in tiles:
+            realTiles = filter(lambda x: x is not None, row)
+            if len(realTiles) > 0:
+                firstTile = realTiles[0]
+                lastTile = realTiles[-1]
+                
+                yIncrement = (lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
+                if len(realTiles) == 1:
+                    yIncrement = 1.0/ float(VERTEX_PER_ROW)
+                for i in range(VERTEX_PER_ROW):
+                    y = firstTile.y + (i * yIncrement) + yIncrement/2.0
+                    x, z = firstTile.x, firstTile.z
+                    # FIXME
+                    color = self._colorForTile(realTiles[0].color)
+                    vert = {'node':None, 'point': (x,y,z), 
+                                    'color' : color}
+                    verts.insert(0,vert)
+
+"""
 """
         verts = [
          {'node':None, 'point': (-7.5, -8., 0.), 'color' : (0,0,0,0)} ,
