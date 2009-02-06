@@ -17,15 +17,14 @@ TILE_LIST is the list of tiles, they are written using the following syntax:
 tile.x1 tile.y1 tile.z1 tile.type1!tile.x2 tile.y2 tile.z2 tile.type2!tile.xn tile.yn tile.z tile.typen!
 
 Example:
-1.000000 0.000000 0.000000 3!2.000000 0.000000 0.000000 12!3.000000 0.000000 0.000000 8!4.000000 0.000000 0.000000 9!
+1.000000 0.000000 0.000000 3 1!2.000000 0.000000 0.000000 12 2!3.000000 0.000000 0.000000 8 1!4.000000 0.000000 0.000000 9 4!
 
 The above lin describe a row made up of 5 tiles:
 
-Tile1: 1,0,0 type 1
-Tile2: 2,0,0 type 2
-Tile3: 3,0,0 type 3
-Tile4: 4,0,0 type 4
-Tile5: 5,0,0 type 5
+Tile1: 1,0,0 type 3  direction 1
+Tile2: 2,0,0 type 12 direction 2
+Tile3: 3,0,0 type 8  direction 1
+Tile4: 4,0,0 type 8  direction 4
 
 After the TILE_LIST there is an obligatory exclamative point. 
 
