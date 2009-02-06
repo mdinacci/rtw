@@ -4,17 +4,20 @@
 Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
 """
+from mdlib.log import ConsoleLogger, DEBUG
+logger = ConsoleLogger("track-editor", DEBUG)
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from gui.autogen import *
 from gui.qt.plugins.tileeditorview import *
 
-from utils import *
 from preview import TrackGenerator
 
-import sys, string
+import sys, string, cPickle
 from copy import deepcopy
+from subprocess import Popen
 
 import echo
 
@@ -56,12 +59,23 @@ class GUI(QMainWindow):
         self.connect(self._tools.actionBackward, \
                  SIGNAL("toggled(bool)"),self.controller.toggleDirectionBackward)
         self.connect(self._tools.actionLeft, \
-                     SIGNAL("toggled(bool)"),self.controller.toggleDirectionLeft)
+                 SIGNAL("toggled(bool)"),self.controller.toggleDirectionLeft)
         self.connect(self._tools.actionRight, \
-                     SIGNAL("toggled(bool)"),self.controller.toggleDirectionRight)
+                 SIGNAL("toggled(bool)"),self.controller.toggleDirectionRight)
         
-        # colors
-        
+        # types
+        self.connect(self._tools.actionNeutral, \
+                 SIGNAL("toggled(bool)"),self.controller.toggleNeutralType)
+        self.connect(self._tools.actionJump, \
+                 SIGNAL("toggled(bool)"),self.controller.toggleJumpType)
+        self.connect(self._tools.actionSlow, \
+                 SIGNAL("toggled(bool)"),self.controller.toggleSlowType)
+        self.connect(self._tools.actionSpeed, \
+                 SIGNAL("toggled(bool)"),self.controller.toggleSpeedType)
+        self.connect(self._tools.actionInvert, \
+                 SIGNAL("toggled(bool)"),self.controller.toggleInvertType)
+        self.connect(self._tools.actionBounceBack, \
+                 SIGNAL("toggled(bool)"),self.controller.toggleBounceBackType)
         
         # toolbar
         self.connect(self._mainWin.actionNew, SIGNAL("triggered()"),\
@@ -72,6 +86,8 @@ class GUI(QMainWindow):
                      self.controller.saveTrack)
         self.connect(self._mainWin.actionQuit, SIGNAL("triggered()"),\
                      self.controller.quit)
+        self.connect(self._mainWin.actionExport, SIGNAL("triggered()"),\
+                     self.controller.exportTrack)
         self.connect(self._mainWin.actionPreview, SIGNAL("triggered()"),\
                      self.controller.previewTrack)
         
@@ -85,6 +101,8 @@ class GUI(QMainWindow):
 class TrackEditor(object):
 
     SEPARATOR = '!'
+    EXPORT_CMD = 'egg-qtess -cs z-up -tbnauto -up 5 -o %s %s'
+    TEMP_FILE = '/tmp/test.egg'
     
     def __init__(self, argv):
         self.app = QApplication(argv)
@@ -99,72 +117,90 @@ class TrackEditor(object):
                                            defaultDirection=Direction.FORWARD)
         self.tileView.setController(self.tileController)
         self.tileModel.addView(self.tileView)
+        self.tileModel.addView(self.gui.mvcLcdNumber)
+        
+        self.gui.mvcLcdNumber.setModel(self.tileModel)
         
         self._prevDirAction = self.gui.actionForward
+        self._prevDirType = self.gui.actionNeutral
+    
+    def exportTrack(self):
+        fileName = QFileDialog.getSaveFileName(self.gui, "Save track (*.egg)")
+        if fileName != '':
+            # TODO to launch in a new thread, progress bar etc...
+            self.trackGenerator.generate(self.tileModel.tiles)
+            # FIXME functionality should be here but for the moment I leave it 
+            # in the track generator in order to save from the preview
+            self.trackGenerator.saveTo(self.TEMP_FILE)
+            # run egg-qtess
+            cmd= self.EXPORT_CMD % (fileName, self.TEMP_FILE)
+            Popen(cmd.split())
+            logger.info("Track succesfully exported to %s" % fileName)
         
+    
     def newTrack(self):
         self.tileModel.reset()
     
-    def openTrack(self):
-        # TODO ask to save current track
-        self.tileModel.reset()
-        fileName = QFileDialog.getOpenFileName(self, "Map file (*.map)")
-        if fileName != '':
-            f = open(fileName)
-            for i,row in enumerate(f.readlines()):
-                cells = row.split(self.SEPARATOR)
-                j = 0
-                for cell in cells:
-                    if cell != "\n":
-                        if cell.startswith("N"):
-                            # assign empty tiles
-                            numNones = int(cell[1:])
-                            for none in range(numNones):
-                                self.tileModel.addTileAt(None, i, j+none, False)
-                            # a bit of a hack the minus one, but it's necessary
-                            # since j is increased at the end of the loop
-                            j += numNones-1
-                        else:
-                            p= string.split(cell)
-                            tile = Tile(p[0],p[1],p[2],p[3], 0x1)
-                            self.tileModel.addTileAt(tile, i, j, False)
-                    j +=1
-            f.close()
-            
-            self.tileView.update()
-    
     def saveTrack(self):
-        fileName = QFileDialog.getSaveFileName(self, "Save map (*.map)")
-        if fileName is not None:
-            if fileName != '':
-                f = open(fileName, "w")
-                tiles = self.tileModel.tiles
-                for row in tiles:
-                    leftNonesWritten = rightNonesWritten = False
-                    nones = 0
-                    for tile in row:
-                        # keep track of the number of empty tiles
-                        if tile is None:
-                            nones +=1
-                        else:
-                            if leftNonesWritten is False:
-                                # ex. write N30- if there are 30 consecutives
-                                # empty tiles 
-                                f.write("N%d%s" % (nones, self.SEPARATOR))
-                                nones = 0
-                                leftNonesWritten = True
-                            f.write("%f %f %f %d%s" % (tile.x, tile.y, tile.z, 
-                                                       tile.type, 
-                                                       self.SEPARATOR))
-                    if nones > 0: 
-                        # write right empty tiles number
-                        f.write("N%d%s" % (nones, self.SEPARATOR))
-                    f.write("\n")
-                f.close()
+        fileName = QFileDialog.getSaveFileName(self.gui, "Save map (*.map)")
+        if fileName != '':
+            f = open(fileName, "wb")
+            tiles = self.tileModel.tiles
+            cPickle.dump(tiles, f)
     
+    def openTrack(self):
+        self.tileModel.reset()
+        fileName = QFileDialog.getOpenFileName(self.gui, "Map file (*.map)")
+        if fileName != '':
+            f = open(fileName, "rb")
+            tiles = cPickle.load(f)
+            self.tileModel.tiles = tiles
+            self.tileView.update()
+            
     def quit(self):
         # TODO ask to save track
         sys.exit(1)
+        
+    def previewTrack(self):
+        tiles = self.tileModel.tiles
+        self.trackGenerator.generate(tiles)
+        self.trackGenerator.showTrack()
+        
+    def toggleNeutralType(self, toggled):
+        if not self.tileController.getCurrentType() == TileType.NEUTRAL:
+            self._prevDirType.toggle()
+            self._prevDirType = self.gui.actionNeutral
+            self.tileController.currentType = TileType.NEUTRAL
+    
+    def toggleJumpType(self, toggled):
+        if not self.tileController.getCurrentType() == TileType.JUMP:
+            self._prevDirType.toggle()
+            self._prevDirType = self.gui.actionJump
+            self.tileController.currentType = TileType.JUMP
+    
+    def toggleSpeedType(self, toggled):
+        if not self.tileController.getCurrentType() == TileType.SPEED:
+            self._prevDirType.toggle()
+            self._prevDirType = self.gui.actionSpeed
+            self.tileController.currentType = TileType.SPEED
+    
+    def toggleSlowType(self, toggled):
+        if not self.tileController.getCurrentType() == TileType.SLOW:
+            self._prevDirType.toggle()
+            self._prevDirType = self.gui.actionSlow
+            self.tileController.currentType = TileType.SLOW
+    
+    def toggleInvertType(self, toggled):
+        if not self.tileController.getCurrentType() == TileType.INVERT:
+            self._prevDirType.toggle()
+            self._prevDirType = self.gui.actionInvert
+            self.tileController.currentType = TileType.INVERT
+    
+    def toggleBounceBackType(self, toggled):
+        if not self.tileController.getCurrentType() == TileType.BOUNCE_BACK:
+            self._prevDirType.toggle()
+            self._prevDirType = self.gui.actionBounceBack
+            self.tileController.currentType = TileType.BOUNCE_BACK
 
     def toggleDirectionForward(self, toggled):
         if not self.tileController.getCurrentDirection() == Direction.FORWARD:
@@ -198,15 +234,10 @@ class TrackEditor(object):
         self.gui.actionElevationMode.toggle()
         self.tileController.setMode(Mode.DIRECTION)
     
-    def previewTrack(self):
-        tiles = self.tileModel.tiles
-        self.trackGenerator.generate(tiles)
-        self.trackGenerator.showTrack()
-        
     def run(self):
         self.gui.show()
         self.app.exec_()
-        
+
 if __name__ == '__main__':
     TrackEditor(sys.argv).run()
     
