@@ -34,7 +34,7 @@
       <x>0</x>
       <y>0</y>
       <width>791</width>
-      <height>521</height>
+      <height>531</height>
      </rect>
     </property>
     <property name="minimumSize" >
@@ -83,7 +83,7 @@
        </size>
       </property>
       <property name="styleSheet" >
-       <string notr="true" />
+       <string notr="true" >background-color: rgb(255, 170, 127);</string>
       </property>
      </widget>
     </widget>
@@ -107,6 +107,8 @@
     <addaction name="actionSave" />
     <addaction name="actionSave_As" />
     <addaction name="separator" />
+    <addaction name="actionExport" />
+    <addaction name="separator" />
     <addaction name="actionQuit" />
    </widget>
    <addaction name="menuFile" />
@@ -125,6 +127,7 @@
    <addaction name="actionNew" />
    <addaction name="actionOpen" />
    <addaction name="actionSave" />
+   <addaction name="actionExport" />
    <addaction name="separator" />
    <addaction name="actionPreview" />
    <addaction name="separator" />
@@ -200,6 +203,14 @@
    </property>
    <property name="text" >
     <string>ElevationMode</string>
+   </property>
+  </action>
+  <action name="actionExport" >
+   <property name="text" >
+    <string>Export</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+E, Ctrl+S</string>
    </property>
   </action>
  </widget>

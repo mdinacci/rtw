@@ -19,16 +19,6 @@
    <string>Tools</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents" >
-   <widget class="QLCDNumber" name="tilesNumber" >
-    <property name="geometry" >
-     <rect>
-      <x>1</x>
-      <y>11</y>
-      <width>129</width>
-      <height>60</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="Line" name="line" >
     <property name="geometry" >
      <rect>
@@ -145,7 +135,7 @@
     </property>
     <layout class="QGridLayout" name="gridLayout_2" >
      <item row="0" column="0" >
-      <widget class="QToolButton" name="slowButton" >
+      <widget class="QToolButton" name="actionSlow" >
        <property name="styleSheet" >
         <string notr="true" >background-color: red;</string>
        </property>
@@ -158,7 +148,7 @@
       </widget>
      </item>
      <item row="0" column="1" >
-      <widget class="QToolButton" name="inverseButton" >
+      <widget class="QToolButton" name="actionInvert" >
        <property name="styleSheet" >
         <string notr="true" >background-color: yellow;</string>
        </property>
@@ -171,7 +161,7 @@
       </widget>
      </item>
      <item row="0" column="2" >
-      <widget class="QToolButton" name="jumpButton" >
+      <widget class="QToolButton" name="actionJump" >
        <property name="styleSheet" >
         <string notr="true" >background-color: blue</string>
        </property>
@@ -184,7 +174,7 @@
       </widget>
      </item>
      <item row="1" column="0" >
-      <widget class="QToolButton" name="speedButton" >
+      <widget class="QToolButton" name="actionSpeed" >
        <property name="styleSheet" >
         <string notr="true" >background-color: green</string>
        </property>
@@ -197,7 +187,7 @@
       </widget>
      </item>
      <item row="1" column="1" >
-      <widget class="QToolButton" name="holeButton" >
+      <widget class="QToolButton" name="actionBounceBack" >
        <property name="styleSheet" >
         <string notr="true" >background-color: black</string>
        </property>
@@ -210,7 +200,7 @@
       </widget>
      </item>
      <item row="1" column="2" >
-      <widget class="QToolButton" name="neutralButton" >
+      <widget class="QToolButton" name="actionNeutral" >
        <property name="styleSheet" >
         <string notr="true" >background-color: white</string>
        </property>
@@ -227,8 +217,25 @@
      </item>
     </layout>
    </widget>
+   <widget class="MVCLCDNumber" name="mvcLcdNumber" >
+    <property name="geometry" >
+     <rect>
+      <x>0</x>
+      <y>10</y>
+      <width>131</width>
+      <height>61</height>
+     </rect>
+    </property>
+   </widget>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MVCLCDNumber</class>
+   <extends>QLCDNumber</extends>
+   <header>mvclcdnumber</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
