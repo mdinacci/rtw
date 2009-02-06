@@ -13,7 +13,7 @@ import math, string
 from random import randint 
 
 __all__ = ['TileEditorModel', 'TileEditorController', 'TileEditorView', 'Mode',
-           'Direction', 'Tile']
+           'Direction', 'Tile', 'TileType']
 
 colors = [Qt.white, Qt.green, Qt.red, Qt.yellow, Qt.blue]
 
@@ -23,9 +23,17 @@ class Mode:
 
 class Direction:
     FORWARD = 0x1
-    BACKWARD = 0x2
-    LEFT = 0x4
-    RIGHT = 0x8
+    LEFT = 0x2
+    RIGHT = 0x4
+    BACKWARD = 0x8
+
+class TileType:
+    NEUTRAL = Qt.gray
+    JUMP = Qt.blue
+    SPEED = Qt.green
+    SLOW = Qt.red
+    INVERT = Qt.yellow
+    BOUNCE_BACK = Qt.black
 
 
 class Tile(object):
@@ -33,38 +41,30 @@ class Tile(object):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
-        self.type = int(tileType)
+        self.type = tileType
         self.direction = direction
-        # TODO color will depend on type
-        self.color = colors[randint(0,len(colors)-1)]
         
     def __repr__(self):
-        return "x: %s y: %s z: %s type: %s" % (self.x, self.y, 
-                                                self.z, self.type)
+        return "x: %s y: %s z: %s type: %s direction: %d" % (self.x, self.y, 
+                                            self.z, self.type, self.direction)
 
 class TileEditorController(object):
-    def __init__(self, view, model, defaultColor=None, defaultDirection=None):
+    def __init__(self, view, model, defaultType=TileType.NEUTRAL, 
+                 defaultDirection=Direction.FORWARD):
         self.view = view
         self.model = model
         self.mode = Mode.DIRECTION
-        if defaultColor is not None:
-            self.currentColor = defaultColor
-        else:
-            self.currentColor = colors[randint(0,len(colors)-1)]
-        if defaultDirection is not None:
-            self.currentDirection = defaultDirection 
-        else:
-            self.currentDirection = Direction.FORWARD 
-            
+        self.currentType = defaultType
+        self.currentDirection = defaultDirection 
         
-    def setCurrentColor(self, color):
-        self.currentColor = color
+    def setCurrentType(self, type):
+        self.currentType = type
         
     def setCurrentDirection(self, direction):
         self.currentDirection = direction
     
-    def getCurrentColor(self):
-        return self.currentColor
+    def getCurrentType(self):
+        return self.currentType
     
     def getCurrentDirection(self):
         return self.currentDirection
@@ -110,6 +110,13 @@ class TileEditorModel(object):
         self.yTiles = yTiles
         self.reset(False)
         self.views = []
+        #self.tiles = []
+    
+    def getTileCount(self):
+        tiles = 0
+        for row in self.tiles:
+            tiles += len(filter(lambda x: x is not None, row)) 
+        return tiles
     
     def addView(self, view):
         self.views.append(view)
@@ -190,9 +197,9 @@ class TileEditorView(QWidget):
         if previous is not None:
             self.controller.removeTileAt(row, col)
         else:
-            color = self.controller.getCurrentColor()
+            type = self.controller.getCurrentType()
             direction = self.controller.getCurrentDirection()
-            t = Tile(col, row, 0, color, direction)
+            t = Tile(col, row, 0, type, direction)
             self.controller.addTileAt(t, row, col)
     
     def mousePressEvent(self, event):
@@ -257,7 +264,7 @@ class TileEditorView(QWidget):
                 for colIdx, tile in enumerate(row):
                     if tile is not None:
                         painter.save()
-                        painter.setPen(tile.color)
+                        painter.setPen(tile.type)
                         
                         x = colIdx*tileWidth
                         y = self.height()-rowIdx*tileHeight
