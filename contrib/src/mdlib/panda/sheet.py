@@ -9,6 +9,8 @@ from pandac.PandaModules import NodePath, SheetNode, NurbsSurfaceEvaluator, \
     EggNurbsSurface, EggVertex, EggData, EggVertexPool, EggGroup
 from pandac.PandaModules import VBase3, Point3, Point4D, VBase4
 
+from pandac.PandaModules import BamFile, Filename
+
 class Sheet(NodePath):
     """ This class defines a NURBS surface whose control vertices are
     defined based on points relative to one or more nodes in space, so
@@ -24,6 +26,7 @@ class Sheet(NodePath):
         self.sheetNode.setSurface(self.surface)
         self.sheetNode.setUseVertexColor(True)
         NodePath.__init__(self, self.sheetNode)
+        
         self.name = name
         
     def setup(self, uOrder, vOrder, uVertsNum, verts, uKnots=None, vKnots=None):
@@ -82,6 +85,7 @@ class Sheet(NodePath):
         self.vKnots = vKnots
         
         self.recompute()
+    
     
     def recompute(self):
         """Recomputes the surface after its properties have changed.
@@ -156,7 +160,7 @@ class Sheet(NodePath):
         
         
     def getPoints(self, length, coordSpace=None):
-        """Returns a list of len points, evenly distributed in
+        """Returns a list of length points, evenly distributed in
         parametric space on the sheet, in the coordinate space passed as 
         second parameter. If no second parameter is passed the coordinate space
         will be that of the sheet itself """
@@ -171,6 +175,7 @@ class Sheet(NodePath):
             result.evalPoint(u,v, pt)
             sheetPts.append(pt)
         return sheetPts
+
     
     def toEgg(self, coordSpace=None):
         """ Convert this Sheet to an EggNurbsSurface and return it"""
@@ -178,6 +183,7 @@ class Sheet(NodePath):
         egg = EggData()
         pool = EggVertexPool("sheet_vertex_pool")
         egg.addChild(pool)
+        
         group = EggGroup('sheet_group')
         egg.addChild(group) 
         
@@ -185,8 +191,8 @@ class Sheet(NodePath):
         ens.setup(self.uOrder, self.vOrder, 
                   self.surface.getNumUKnots(), 
                   self.surface.getNumVKnots())
-        ens.setUSubdiv(self.sheetNode.getNumUSubdiv())
-        ens.setVSubdiv(self.sheetNode.getNumVSubdiv())
+        ens.setUSubdiv(self.uVertsNum)
+        ens.setVSubdiv(self.vVertsNum)
         group.addChild(ens)
         
         for vert in self.verts:
