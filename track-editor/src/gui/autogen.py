@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'track_editor.ui'
 #
-# Created: Mon Feb  2 20:35:57 2009
+# Created: Thu Feb  5 18:01:13 2009
 #      by: PyQt4 UI code generator 4.4.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -23,7 +23,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setMinimumSize(QtCore.QSize(0, 0))
         self.centralwidget.setObjectName("centralwidget")
         self.tileEditorViewContainer = QtGui.QScrollArea(self.centralwidget)
-        self.tileEditorViewContainer.setGeometry(QtCore.QRect(0, 0, 791, 521))
+        self.tileEditorViewContainer.setGeometry(QtCore.QRect(0, 0, 791, 531))
         self.tileEditorViewContainer.setMinimumSize(QtCore.QSize(662, 0))
         self.tileEditorViewContainer.setWidgetResizable(True)
         self.tileEditorViewContainer.setObjectName("tileEditorViewContainer")
@@ -39,6 +39,7 @@ class Ui_MainWindow(object):
         self.tileEditorView = TileEditorView(self.scrollAreaWidgetContents)
         self.tileEditorView.setGeometry(QtCore.QRect(9, 9, 1200, 1200))
         self.tileEditorView.setMinimumSize(QtCore.QSize(1200, 1200))
+        self.tileEditorView.setStyleSheet("background-color: rgb(255, 170, 127);")
         self.tileEditorView.setObjectName("tileEditorView")
         self.tileEditorViewContainer.setWidget(self.scrollAreaWidgetContents)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -75,16 +76,21 @@ class Ui_MainWindow(object):
         self.actionElevationMode = QtGui.QAction(MainWindow)
         self.actionElevationMode.setCheckable(True)
         self.actionElevationMode.setObjectName("actionElevationMode")
+        self.actionExport = QtGui.QAction(MainWindow)
+        self.actionExport.setObjectName("actionExport")
         self.menuFile.addAction(self.actionNew)
         self.menuFile.addAction(self.actionOpen)
         self.menuFile.addAction(self.actionSave)
         self.menuFile.addAction(self.actionSave_As)
+        self.menuFile.addSeparator()
+        self.menuFile.addAction(self.actionExport)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionQuit)
         self.menubar.addAction(self.menuFile.menuAction())
         self.toolBar.addAction(self.actionNew)
         self.toolBar.addAction(self.actionOpen)
         self.toolBar.addAction(self.actionSave)
+        self.toolBar.addAction(self.actionExport)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.actionPreview)
         self.toolBar.addSeparator()
@@ -112,13 +118,15 @@ class Ui_MainWindow(object):
         self.actionPreview.setText(QtGui.QApplication.translate("MainWindow", "Preview", None, QtGui.QApplication.UnicodeUTF8))
         self.actionDirectionMode.setText(QtGui.QApplication.translate("MainWindow", "DirectionMode", None, QtGui.QApplication.UnicodeUTF8))
         self.actionElevationMode.setText(QtGui.QApplication.translate("MainWindow", "ElevationMode", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionExport.setText(QtGui.QApplication.translate("MainWindow", "Export", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionExport.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+E, Ctrl+S", None, QtGui.QApplication.UnicodeUTF8))
 
 from gui.qt.plugins.tileeditorview import TileEditorView
 # -*- coding: utf-8 -*-
 
 # Form implementation generated from reading ui file 'track_tools.ui'
 #
-# Created: Mon Feb  2 20:35:57 2009
+# Created: Thu Feb  5 18:01:13 2009
 #      by: PyQt4 UI code generator 4.4.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -132,9 +140,6 @@ class Ui_toolsDock(object):
         toolsDock.setMinimumSize(QtCore.QSize(130, 36))
         self.dockWidgetContents = QtGui.QWidget()
         self.dockWidgetContents.setObjectName("dockWidgetContents")
-        self.tilesNumber = QtGui.QLCDNumber(self.dockWidgetContents)
-        self.tilesNumber.setGeometry(QtCore.QRect(1, 11, 129, 60))
-        self.tilesNumber.setObjectName("tilesNumber")
         self.line = QtGui.QFrame(self.dockWidgetContents)
         self.line.setGeometry(QtCore.QRect(1, 77, 129, 16))
         self.line.setFrameShape(QtGui.QFrame.HLine)
@@ -180,37 +185,40 @@ class Ui_toolsDock(object):
         self.layoutWidget1.setObjectName("layoutWidget1")
         self.gridLayout_2 = QtGui.QGridLayout(self.layoutWidget1)
         self.gridLayout_2.setObjectName("gridLayout_2")
-        self.slowButton = QtGui.QToolButton(self.layoutWidget1)
-        self.slowButton.setStyleSheet("background-color: red;")
-        self.slowButton.setCheckable(True)
-        self.slowButton.setObjectName("slowButton")
-        self.gridLayout_2.addWidget(self.slowButton, 0, 0, 1, 1)
-        self.inverseButton = QtGui.QToolButton(self.layoutWidget1)
-        self.inverseButton.setStyleSheet("background-color: yellow;")
-        self.inverseButton.setCheckable(True)
-        self.inverseButton.setObjectName("inverseButton")
-        self.gridLayout_2.addWidget(self.inverseButton, 0, 1, 1, 1)
-        self.jumpButton = QtGui.QToolButton(self.layoutWidget1)
-        self.jumpButton.setStyleSheet("background-color: blue")
-        self.jumpButton.setCheckable(True)
-        self.jumpButton.setObjectName("jumpButton")
-        self.gridLayout_2.addWidget(self.jumpButton, 0, 2, 1, 1)
-        self.speedButton = QtGui.QToolButton(self.layoutWidget1)
-        self.speedButton.setStyleSheet("background-color: green")
-        self.speedButton.setCheckable(True)
-        self.speedButton.setObjectName("speedButton")
-        self.gridLayout_2.addWidget(self.speedButton, 1, 0, 1, 1)
-        self.holeButton = QtGui.QToolButton(self.layoutWidget1)
-        self.holeButton.setStyleSheet("background-color: black")
-        self.holeButton.setCheckable(True)
-        self.holeButton.setObjectName("holeButton")
-        self.gridLayout_2.addWidget(self.holeButton, 1, 1, 1, 1)
-        self.neutralButton = QtGui.QToolButton(self.layoutWidget1)
-        self.neutralButton.setStyleSheet("background-color: white")
-        self.neutralButton.setCheckable(True)
-        self.neutralButton.setChecked(True)
-        self.neutralButton.setObjectName("neutralButton")
-        self.gridLayout_2.addWidget(self.neutralButton, 1, 2, 1, 1)
+        self.actionSlow = QtGui.QToolButton(self.layoutWidget1)
+        self.actionSlow.setStyleSheet("background-color: red;")
+        self.actionSlow.setCheckable(True)
+        self.actionSlow.setObjectName("actionSlow")
+        self.gridLayout_2.addWidget(self.actionSlow, 0, 0, 1, 1)
+        self.actionInvert = QtGui.QToolButton(self.layoutWidget1)
+        self.actionInvert.setStyleSheet("background-color: yellow;")
+        self.actionInvert.setCheckable(True)
+        self.actionInvert.setObjectName("actionInvert")
+        self.gridLayout_2.addWidget(self.actionInvert, 0, 1, 1, 1)
+        self.actionJump = QtGui.QToolButton(self.layoutWidget1)
+        self.actionJump.setStyleSheet("background-color: blue")
+        self.actionJump.setCheckable(True)
+        self.actionJump.setObjectName("actionJump")
+        self.gridLayout_2.addWidget(self.actionJump, 0, 2, 1, 1)
+        self.actionSpeed = QtGui.QToolButton(self.layoutWidget1)
+        self.actionSpeed.setStyleSheet("background-color: green")
+        self.actionSpeed.setCheckable(True)
+        self.actionSpeed.setObjectName("actionSpeed")
+        self.gridLayout_2.addWidget(self.actionSpeed, 1, 0, 1, 1)
+        self.actionBounceBack = QtGui.QToolButton(self.layoutWidget1)
+        self.actionBounceBack.setStyleSheet("background-color: black")
+        self.actionBounceBack.setCheckable(True)
+        self.actionBounceBack.setObjectName("actionBounceBack")
+        self.gridLayout_2.addWidget(self.actionBounceBack, 1, 1, 1, 1)
+        self.actionNeutral = QtGui.QToolButton(self.layoutWidget1)
+        self.actionNeutral.setStyleSheet("background-color: white")
+        self.actionNeutral.setCheckable(True)
+        self.actionNeutral.setChecked(True)
+        self.actionNeutral.setObjectName("actionNeutral")
+        self.gridLayout_2.addWidget(self.actionNeutral, 1, 2, 1, 1)
+        self.mvcLcdNumber = MVCLCDNumber(self.dockWidgetContents)
+        self.mvcLcdNumber.setGeometry(QtCore.QRect(0, 10, 131, 61))
+        self.mvcLcdNumber.setObjectName("mvcLcdNumber")
         toolsDock.setWidget(self.dockWidgetContents)
 
         self.retranslateUi(toolsDock)
@@ -223,3 +231,4 @@ class Ui_toolsDock(object):
         self.actionRight.setText(QtGui.QApplication.translate("toolsDock", "->", None, QtGui.QApplication.UnicodeUTF8))
         self.actionBackward.setText(QtGui.QApplication.translate("toolsDock", "V", None, QtGui.QApplication.UnicodeUTF8))
 
+from gui.qt.plugins.mvclcdnumber import MVCLCDNumber
