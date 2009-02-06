@@ -5,3 +5,4 @@ pyuic4 track_tools.ui >> autogen.py
 
 # fix plugins imports
 sed -i s/"from tileeditor"/"from gui.qt.plugins.tileeditor"/ autogen.py
+sed -i s/"from mvclcdnumber"/"from gui.qt.plugins.mvclcdnumber"/ autogen.py
