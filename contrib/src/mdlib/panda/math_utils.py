@@ -16,6 +16,8 @@ def pointAtZ(z, point, vec):
     2D mouse position. It also assumes that we are dragging in the XY plane.
     
     This is derived from the mathematical of a plane, solved for a given point
+    
+    Author: taken from panda3D examples
     """
     return point + vec * ((z-point.getZ()) / vec.getZ())
 
