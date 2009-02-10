@@ -7,6 +7,8 @@ Copyright © 2008-2009
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("track-editor", DEBUG)
 
+from mdlib.panda import tools
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
@@ -15,9 +17,8 @@ from gui.qt.plugins.tileeditorview import *
 
 from preview import TrackGenerator
 
-import sys, string, cPickle
+import sys, string, cPickle, time, os
 from copy import deepcopy
-from subprocess import Popen
 
 import echo
 
@@ -101,8 +102,9 @@ class GUI(QMainWindow):
 class TrackEditor(object):
 
     SEPARATOR = '!'
-    EXPORT_CMD = 'egg-qtess -cs z-up -tbnauto -up 5 -o %s %s'
     TEMP_FILE = '/tmp/test.egg'
+    QTESS_FILE = '/tmp/qtess.egg'
+    MAP_FORMAT_VERSION = "1.0"
     
     def __init__(self, argv):
         self.app = QApplication(argv)
@@ -123,18 +125,26 @@ class TrackEditor(object):
         
         self._prevDirAction = self.gui.actionForward
         self._prevDirType = self.gui.actionNeutral
+        
+        self._currentTrack = None
     
     def exportTrack(self):
         fileName = QFileDialog.getSaveFileName(self.gui, "Save track (*.egg)")
         if fileName != '':
             # TODO to launch in a new thread, progress bar etc...
             self.trackGenerator.generate(self.tileModel.tiles)
-            # FIXME functionality should be here but for the moment I leave it 
+            # FIXME the egg should be written here but for the moment I leave it 
             # in the track generator in order to save from the preview
             self.trackGenerator.saveTo(self.TEMP_FILE)
-            # run egg-qtess
-            cmd= self.EXPORT_CMD % (fileName, self.TEMP_FILE)
-            Popen(cmd.split())
+            # tessellate
+            tools.tessellate(self.TEMP_FILE, self.QTESS_FILE)
+            
+            # sleep in order to give egg-qtess some time to run
+            while not os.path.exists(self.QTESS_FILE):
+                time.sleep(0.2)
+            
+            tools.groupify(self.QTESS_FILE, fileName)
+            
             logger.info("Track succesfully exported to %s" % fileName)
         
     
@@ -142,20 +152,39 @@ class TrackEditor(object):
         self.tileModel.reset()
     
     def saveTrack(self):
-        fileName = QFileDialog.getSaveFileName(self.gui, "Save map (*.map)")
-        if fileName != '':
+        def _saveTrack(fileName, tiles, version):
+            logger.info("Saving track as %s" % fileName)
             f = open(fileName, "wb")
-            tiles = self.tileModel.tiles
-            cPickle.dump(tiles, f)
+            cPickle.dump(version, f, -1)
+            cPickle.dump(tiles, f, -1)
+            
+        if self._currentTrack is None:
+            fileName = QFileDialog.getSaveFileName(self.gui, "Save map (*.map)")
+            if fileName != '':
+                self._currentTrack = fileName
+                _saveTrack(self._currentTrack, self.tileModel.tiles, \
+                           self.MAP_FORMAT_VERSION)
+        else:
+            _saveTrack(self._currentTrack, self.tileModel.tiles, \
+                       self.MAP_FORMAT_VERSION)
+            
+            
     
     def openTrack(self):
         self.tileModel.reset()
         fileName = QFileDialog.getOpenFileName(self.gui, "Map file (*.map)")
         if fileName != '':
+            logger.info("Opening track %s" % fileName)
             f = open(fileName, "rb")
-            tiles = cPickle.load(f)
-            self.tileModel.tiles = tiles
-            self.tileView.update()
+            version = cPickle.load(f)
+            if version == self.MAP_FORMAT_VERSION:
+                tiles = cPickle.load(f)
+                self.tileModel.tiles = tiles
+                self.tileView.update()
+                self._currentTrack = fileName
+            else:
+                QErrorMessage().showMessage("Map with format version %s \
+                are not supported" % version)
             
     def quit(self):
         # TODO ask to save track
