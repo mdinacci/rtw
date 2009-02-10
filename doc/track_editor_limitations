@@ -1,0 +1,7 @@
+- Straight curves can't have elevation.
+  As I discard all the tiles between two straight segments and I interpolate
+  only four control points, there is no way to specify a precise Z value.
+
+- Curve segments can't turn
+  For instance, in a f-l-f curve, the 'l' segment can't have curves, I would
+  need to modify idxStart and idxEnd in order to do this.
