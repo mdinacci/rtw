@@ -159,6 +159,14 @@ class Sheet(NodePath):
             self.surface.normalizeVKnots()
         
         
+    def getSurfacePointAt(self, u,v, coordSpace=None):
+        if coordSpace is None: coordSpace = self
+        
+        point = Point3()
+        self.surface.evaluate(coordSpace).evalPoint(u, v, point)
+        return point
+        
+        
     def getPoints(self, length, coordSpace=None):
         """Returns a list of length points, evenly distributed in
         parametric space on the sheet, in the coordinate space passed as 
@@ -184,18 +192,15 @@ class Sheet(NodePath):
         pool = EggVertexPool("sheet_vertex_pool")
         egg.addChild(pool)
         
-        group = EggGroup('sheet_group')
-        egg.addChild(group) 
-        
         ens = EggNurbsSurface(self.getName())
         ens.setup(self.uOrder, self.vOrder, 
                   self.surface.getNumUKnots(), 
                   self.surface.getNumVKnots())
         ens.setUSubdiv(self.uVertsNum)
         ens.setVSubdiv(self.vVertsNum)
-        group.addChild(ens)
+        egg.addChild(ens)
         
-        for vert in self.verts:
+        for idx,vert in enumerate(self.verts):
             vertex = EggVertex()
             
             point = vert['point']
