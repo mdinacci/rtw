@@ -52,7 +52,8 @@ from pandac.PandaModules import EggData, Filename, BamFile
 from pandac.PandaModules import WindowProperties
 
 # collision to pick entities with mouse
-from pandac.PandaModules import CollisionNode, CollisionHandlerQueue, CollisionTraverser, CollisionRay, GeomNode
+from pandac.PandaModules import CollisionNode, CollisionHandlerQueue, \
+CollisionTraverser, CollisionRay, GeomNode
 
 # panda utilities and actors
 from mdlib.panda import eventCallback, inputCallback, guiCallback, MouseWatcher
@@ -454,6 +455,10 @@ class EditorLogic(AbstractLogic):
         
         logger.info("Scene file saved to %s" % sceneFile )
         self._sceneFile = sceneFile
+    
+    @guiCallback
+    def addEntityFromFile(self, fileName):
+        pass
     
     @guiCallback
     def deleteSelectedObject(self):
