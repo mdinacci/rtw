@@ -81,6 +81,7 @@
    <addaction name="separator" />
    <addaction name="copyButton" />
    <addaction name="pasteButton" />
+   <addaction name="addButton" />
    <addaction name="deleteButton" />
    <addaction name="separator" />
    <addaction name="undoButton" />
@@ -175,15 +176,15 @@
   </action>
   <action name="deleteButton" >
    <property name="icon" >
-    <iconset>
-     <normalon>:/delete.png</normalon>
-    </iconset>
+    <iconset resource="../../../res/gui/gui.qrc" >
+     <normaloff>:/list-remove.png</normaloff>
+     <normalon>:/delete.png</normalon>:/list-remove.png</iconset>
    </property>
    <property name="text" >
     <string>Delete</string>
    </property>
    <property name="shortcut" >
-    <string>Ctrl+D, Ctrl+S</string>
+    <string>Ctrl+D</string>
    </property>
   </action>
   <action name="undoButton" >
@@ -204,6 +205,18 @@
    </property>
    <property name="text" >
     <string>Redo</string>
+   </property>
+  </action>
+  <action name="addButton" >
+   <property name="icon" >
+    <iconset resource="../../../res/gui/gui.qrc" >
+     <normaloff>:/list-add.png</normaloff>:/list-add.png</iconset>
+   </property>
+   <property name="text" >
+    <string>Add Entity</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+A</string>
    </property>
   </action>
  </widget>

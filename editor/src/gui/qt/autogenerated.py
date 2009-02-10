@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'gui.ui'
 #
-# Created: Thu Jan 22 11:08:07 2009
+# Created: Mon Feb  9 14:26:03 2009
 #      by: PyQt4 UI code generator 4.4.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -67,6 +67,7 @@ class Ui_MainWindow(object):
         self.pasteButton.setObjectName("pasteButton")
         self.deleteButton = QtGui.QAction(MainWindow)
         icon5 = QtGui.QIcon()
+        icon5.addPixmap(QtGui.QPixmap(":/list-remove.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         icon5.addPixmap(QtGui.QPixmap(":/delete.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
         self.deleteButton.setIcon(icon5)
         self.deleteButton.setObjectName("deleteButton")
@@ -80,6 +81,11 @@ class Ui_MainWindow(object):
         icon7.addPixmap(QtGui.QPixmap(":/edit-redo.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
         self.redoButton.setIcon(icon7)
         self.redoButton.setObjectName("redoButton")
+        self.addButton = QtGui.QAction(MainWindow)
+        icon8 = QtGui.QIcon()
+        icon8.addPixmap(QtGui.QPixmap(":/list-add.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.addButton.setIcon(icon8)
+        self.addButton.setObjectName("addButton")
         self.menuFile.addAction(self.newButton)
         self.menuFile.addAction(self.openButton)
         self.menuFile.addAction(self.saveButton)
@@ -100,6 +106,7 @@ class Ui_MainWindow(object):
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.copyButton)
         self.toolBar.addAction(self.pasteButton)
+        self.toolBar.addAction(self.addButton)
         self.toolBar.addAction(self.deleteButton)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.undoButton)
@@ -129,39 +136,85 @@ class Ui_MainWindow(object):
         self.pasteButton.setText(QtGui.QApplication.translate("MainWindow", "Paste", None, QtGui.QApplication.UnicodeUTF8))
         self.pasteButton.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+V", None, QtGui.QApplication.UnicodeUTF8))
         self.deleteButton.setText(QtGui.QApplication.translate("MainWindow", "Delete", None, QtGui.QApplication.UnicodeUTF8))
-        self.deleteButton.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+D, Ctrl+S", None, QtGui.QApplication.UnicodeUTF8))
+        self.deleteButton.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+D", None, QtGui.QApplication.UnicodeUTF8))
         self.undoButton.setText(QtGui.QApplication.translate("MainWindow", "Undo", None, QtGui.QApplication.UnicodeUTF8))
         self.redoButton.setText(QtGui.QApplication.translate("MainWindow", "Redo", None, QtGui.QApplication.UnicodeUTF8))
+        self.addButton.setText(QtGui.QApplication.translate("MainWindow", "Add Entity", None, QtGui.QApplication.UnicodeUTF8))
+        self.addButton.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+A", None, QtGui.QApplication.UnicodeUTF8))
 
+# -*- coding: utf-8 -*-
 
-class Ui_sceneGraphDock(object):
-    def setupUi(self, sceneGraphDock):
-        sceneGraphDock.setObjectName("sceneGraphDock")
-        sceneGraphDock.resize(350, 269)
-        sceneGraphDock.setFloating(False)
-        sceneGraphDock.setAllowedAreas(QtCore.Qt.RightDockWidgetArea)
+# Form implementation generated from reading ui file 'scenegraph.ui'
+#
+# Created: Mon Feb  9 14:26:04 2009
+#      by: PyQt4 UI code generator 4.4.3
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+class Ui_toolsDock(object):
+    def setupUi(self, toolsDock):
+        toolsDock.setObjectName("toolsDock")
+        toolsDock.setWindowModality(QtCore.Qt.NonModal)
+        toolsDock.resize(350, 427)
+        toolsDock.setFloating(False)
+        toolsDock.setAllowedAreas(QtCore.Qt.RightDockWidgetArea)
         self.dockWidgetContents = QtGui.QWidget()
         self.dockWidgetContents.setObjectName("dockWidgetContents")
         self.horizontalLayout = QtGui.QHBoxLayout(self.dockWidgetContents)
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.sceneGraphView = SceneGraphView(self.dockWidgetContents)
+        self.toolBox = QtGui.QToolBox(self.dockWidgetContents)
+        self.toolBox.setObjectName("toolBox")
+        self.sgPage = QtGui.QWidget()
+        self.sgPage.setGeometry(QtCore.QRect(0, 0, 332, 327))
+        self.sgPage.setObjectName("sgPage")
+        self.horizontalLayoutWidget = QtGui.QWidget(self.sgPage)
+        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(0, 0, 331, 321))
+        self.horizontalLayoutWidget.setObjectName("horizontalLayoutWidget")
+        self.horizontalLayout_2 = QtGui.QHBoxLayout(self.horizontalLayoutWidget)
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.sceneGraphView = SceneGraphView(self.horizontalLayoutWidget)
         self.sceneGraphView.setObjectName("sceneGraphView")
-        self.horizontalLayout.addWidget(self.sceneGraphView)
-        sceneGraphDock.setWidget(self.dockWidgetContents)
+        self.horizontalLayout_2.addWidget(self.sceneGraphView)
+        self.toolBox.addItem(self.sgPage, "")
+        self.page_2 = QtGui.QWidget()
+        self.page_2.setGeometry(QtCore.QRect(0, 0, 332, 327))
+        self.page_2.setObjectName("page_2")
+        self.gridLayoutWidget = QtGui.QWidget(self.page_2)
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(0, 0, 331, 321))
+        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
+        self.gridLayout = QtGui.QGridLayout(self.gridLayoutWidget)
+        self.gridLayout.setObjectName("gridLayout")
+        self.toolBox.addItem(self.page_2, "")
+        self.horizontalLayout.addWidget(self.toolBox)
+        toolsDock.setWidget(self.dockWidgetContents)
 
-        self.retranslateUi(sceneGraphDock)
-        QtCore.QMetaObject.connectSlotsByName(sceneGraphDock)
+        self.retranslateUi(toolsDock)
+        self.toolBox.setCurrentIndex(1)
+        QtCore.QMetaObject.connectSlotsByName(toolsDock)
 
-    def retranslateUi(self, sceneGraphDock):
-        sceneGraphDock.setWindowTitle(QtGui.QApplication.translate("sceneGraphDock", "Scene Graph View", None, QtGui.QApplication.UnicodeUTF8))
+    def retranslateUi(self, toolsDock):
+        toolsDock.setWindowTitle(QtGui.QApplication.translate("toolsDock", "Tools", None, QtGui.QApplication.UnicodeUTF8))
+        self.toolBox.setItemText(self.toolBox.indexOf(self.sgPage), QtGui.QApplication.translate("toolsDock", "Page 1", None, QtGui.QApplication.UnicodeUTF8))
+        self.toolBox.setItemText(self.toolBox.indexOf(self.page_2), QtGui.QApplication.translate("toolsDock", "Page 2", None, QtGui.QApplication.UnicodeUTF8))
 
 from gui.qt.plugins.scenegraphview import SceneGraphView
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'entityinspector.ui'
+#
+# Created: Mon Feb  9 14:26:04 2009
+#      by: PyQt4 UI code generator 4.4.3
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
 
 class Ui_EntityInspectorDock(object):
     def setupUi(self, EntityInspectorDock):
         EntityInspectorDock.setObjectName("EntityInspectorDock")
         EntityInspectorDock.resize(350, 380)
-        EntityInspectorDock.setAllowedAreas(QtCore.Qt.RightDockWidgetArea)
         self.dockWidgetContents = QtGui.QWidget()
         self.dockWidgetContents.setObjectName("dockWidgetContents")
         self.horizontalLayout = QtGui.QHBoxLayout(self.dockWidgetContents)

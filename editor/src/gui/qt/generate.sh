@@ -14,8 +14,8 @@ sed -i s/NoDock/RightDock/ $TARGET
 sed -i "/import gui_rc/d" $TARGET
 
 # fix plugins imports
-sed -i s/"from entityinspector"/"from gui.qt.plugins.entityinspector"/
-sed -i s/"from scenegraphview"/"from gui.qt.plugins.scenegraphview"/
+sed -i s/"from entityinspector"/"from gui.qt.plugins.entityinspector"/ $TARGET
+sed -i s/"from scenegraphview"/"from gui.qt.plugins.scenegraphview"/  $TARGET
 
 # to remove repeated imports and comments
 vi $TARGET
