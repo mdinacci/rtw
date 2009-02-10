@@ -3,6 +3,16 @@
 """
 Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
+
+
+An alternative could be to add to a list the points to plot and then
+iterate over the list to generate a *curve*. 
+Once I have a curve I can extrude it in order to create a surface.
+
+If I don't have control over the single cells once the egg file is generated
+then it's not worth the effort doing it like I'm doing it now.
+
+See: http://www.codeproject.com/KB/miscctrl/SimVE-TrackEd.aspx 
 """
 
 # logging
@@ -130,7 +140,6 @@ class TrackGenerator(DirectObject):
         self.points = []
         self.surface = None
         
-        self._matrixIsTransposed = False
         self.tempVertexes = []
         
     def toggleRenderMode(self):
@@ -194,105 +203,134 @@ class TrackGenerator(DirectObject):
     
     def generate(self, grid):
         self.tempVertexes = []
-        self._matrixIsTransposed = False
         self.generateVertexes(grid)
         self.generateSurface(self.tempVertexes)
     
 
     def generateVertexes(self, grid, start=None, end=None, 
                          tileIndexStart=None, tileIndexEnd=None):
-        # can't use a for loop since inside I'll change i, not a very good
-        # design though...
         if start == None: start = 0
         if end == None: end = len(grid)
-        if tileIndexStart == None: tileIndexStart = 0
-        if tileIndexEnd == None: tileIndexEnd = len(grid[0])
-        
-        for i,r in enumerate(grid):
-            for j,col in enumerate(r):
-                if col is not None:
-                    pass#print i,j, "|", col.y, col.x,col.direction
         
         while start < end:
             row = grid[start]
             """ 
             Read the whole row, detect the curves.
             Possible cases are: 
-             - 12 : forward-left
-             - 14 : forward-right
-             - 21 : left-forward
-             - 41 : right-forward
-             - 121: forward-left-forward
-             - 141: forward-right-forward
+             - 12 : forward-left  OK
+             - 14 : forward-right OK
+             - 121: forward-left-forward  OK
+             - 141: forward-right-forward OK
             """
+            if tileIndexStart == None: tileIndexStart = 0
+            if tileIndexEnd == None: tileIndexEnd = len(row)
+            
             case = None
-            tiles = filter(lambda x: x is not None, row[tileIndexStart:])
+            tiles = filter(lambda x: x is not None, row[tileIndexStart:tileIndexEnd])
+            
             if len(tiles) > 0:
                 tileStr = "".join(map(lambda t: str(t.direction), tiles))
                 if "12" in tileStr and "21" in tileStr:
                     logger.debug("Forward-Left-Forward detected")
-                    idx = start
-                    s = len(row) - row.index(tiles[tileStr.rfind("2")])
-                    e = len(row) - row.index(tiles[tileStr.find("2")])
+                    s = len(row) - row.index(tiles[tileStr.rfind("2")]) -1
+                    e = len(row) - row.index(tiles[tileStr.find("2")]) 
+                    
+                    idxStart = start
+                    idxEnd = 0
+                    print idxStart, idxEnd
+                    col = row.index(tiles[tileStr.rfind("2")]) -1
+                    for i in range(1,6):
+                        if start +i < 80:
+                            if grid[start+i][col] is None:
+                                tile = grid[start+i-1][col]
+                                idxEnd = start + i
+                                break
+                    
+                    # Add intermediate point
+                    # TODO correct Z
+                    lastVertex = self.tempVertexes[-4]["point"]
+                    vert = (lastVertex[0], lastVertex[1] +0.5, lastVertex[2]) 
+                    self.addVertexAtCurve(vert, Direction.LEFT, Direction.FORWARD)
+                    
+                    # generate curve segment
                     newGrid = rotateMatrixClockwise(grid)
-                    self.generateVertexes(newGrid, s-1, e, idx)
+                    self.generateVertexes(newGrid, s, e, idxStart, idxEnd)
                     
-                    # find out where to restart
-                    newEnd = 0
-                    for col in newGrid[e-1]:
-                        if col is not None and col.x > newEnd:
-                            newEnd = col.x
+                    # Add intermediate point
+                    # TODO correct Z
+                    lastVertex = self.tempVertexes[-1]["point"]
+                    vert = (lastVertex[0] -0.5, lastVertex[1], lastVertex[2]) 
+                    self.addVertexAtCurve(vert,Direction.LEFT,
+                                          Direction.BACKWARD)
                     
-                    # I need to increase it by the width of the curve
-                    start = int(newEnd) -1
+                    start += (idxEnd - idxStart)
                     continue
                     
                 elif "21" in tileStr:
                     logger.debug("Curve left detected")
                     
-                    idx = start
-                    s = len(row) - row.index(tiles[tileStr.rfind("2")])
+                    idxStart = start
+                    s = len(row) - row.index(tiles[tileStr.rfind("2")]) -1
                     e = len(grid) # TODO probably wrong, try the one on flf
                     newGrid = rotateMatrixClockwise(grid)
-
-                    self.generateVertexes(newGrid, s-1, e, idx)
+                    
+                    # Add intermediate point
+                    # TODO correct Z
+                    lastVertex = self.tempVertexes[-4]["point"]
+                    vert = (lastVertex[0], lastVertex[1] +0.5, lastVertex[2]) 
+                    self.addVertexAtCurve(vert, Direction.LEFT, 
+                                          Direction.FORWARD)
+                    
+                    self.generateVertexes(newGrid, s, e, idxStart)
                     break
                 
                 elif "14" in tileStr and "41" in tileStr:
+                    logger.debug("Detected right-left curve")
+                    
                     s = row.index(tiles[tileStr.find("4")])
-                    e = row.index(tiles[tileStr.rfind("4")])
-                    idxStart = 0
+                    e = row.index(tiles[tileStr.rfind("4")]) +1
+                    
+                    idxStart =  None
+                    idxEnd = len(row) - start +1
+                    
+                    for i in range(1,6):
+                        if start +i < 80:
+                            if grid[start+i][s] is None:
+                                tile = grid[start+i-1][s]
+                                idxStart = len(row) - int(tile.y) -1
+                                break
+                    
+                    # Add intermediate point
+                    # TODO correct Z
+                    lastVertex = self.tempVertexes[-1]["point"]
+                    vert = (lastVertex[0], lastVertex[1]+0.5, lastVertex[2]) 
+                    self.addVertexAtCurve(vert,Direction.RIGHT,
+                                          Direction.FORWARD)
+                    
                     newGrid = rotateMatrixAntiClockwise(grid)
-                    # I need to reverse the columns otherwise vertexes are read
-                    # from "down" to "top"
-                    for r in newGrid:
-                        r.reverse()
-                    self.generateVertexes(newGrid,s,e+1,idxStart)
+                    self.generateVertexes(newGrid,s,e,idxStart,idxEnd)
                     
-                    # find latest column before the forward section begins
-                    tile = tiles[tileStr.rfind("4")]
-                    row = newGrid[int(tile.x)]
-                    idx = 0
-                    for col in row:
-                        if col is not None and col.x > idx:
-                            idx = col.x
+                    lastVertex = self.tempVertexes[-4]["point"]
+                    vert = (lastVertex[0]+1, lastVertex[1]+1, lastVertex[2]) 
+                    self.addVertexAtCurve(vert, Direction.RIGHT,
+                                          Direction.BACKWARD)
                     
-                    start = int(idx) +1
-                    continue
+                    start += (idxEnd - idxStart)
                     
                 elif "14" in tileStr:
                     logger.debug("Detected right curve")
-                    s = row.index(tiles[tileStr.find("4")])
-                    e = row.index(tiles[tileStr.rfind("4")])
-                    idxStart = 0
-                    idxEnd = len(row) - row.index(tiles[tileStr.find("4")])
-                    newGrid = rotateMatrixAntiClockwise(grid)
-                    # I need to reverse the columns otherwise vertexes are read
-                    # from "down" to "top"
-                    for r in newGrid:
-                        r.reverse()
                     
-                    self.generateVertexes(newGrid,s,e+1,idxStart)
+                    s = row.index(tiles[tileStr.find("4")])
+                    e = row.index(tiles[tileStr.rfind("4")]) +1
+                    idxStart = 0
+                    idxEnd = len(row) - start +1
+                    newGrid = rotateMatrixAntiClockwise(grid)
+                    
+                    lastVertex = self.tempVertexes[-1]["point"]
+                    vert = (lastVertex[0], lastVertex[1]+0.5, lastVertex[2]) 
+                    self.addVertexAtCurve(vert,Direction.RIGHT,
+                                          Direction.FORWARD)
+                    self.generateVertexes(newGrid,s,e,idxStart, idxEnd)
                     break
                     
                 else:
@@ -302,8 +340,48 @@ class TrackGenerator(DirectObject):
                 
             start+=1
             
+            
+    def addVertexAtCurve(self, vertex, horizDirection, heightDirection):
+        """ 
+        Add a vertex roughly in the middle of a straight curve 
+        horizDirection can be left or right
+        heightDirection can be backward or forward. Forward means that the 
+        points grow starting from the inside of the curve going to the outside  
+        """ 
+        # 4 is the number of control points
+        pos = len(self.tempVertexes)
+        if horizDirection == Direction.LEFT:
+            xIncrement = yIncrement = 4.0/VERTEX_PER_ROW
+            if heightDirection == Direction.BACKWARD:
+                xIncrement *= -1
+                yIncrement *= -1
+            for i in range(VERTEX_PER_ROW):
+                x,y,z = vertex[0]+i*xIncrement,vertex[1]+ i*yIncrement,vertex[2]
+                vert = {'node':None, 'point': (x,y,z), 
+                                     'type' : 1}
+                if heightDirection == Direction.BACKWARD:
+                    self.tempVertexes.insert(pos, vert)
+                else:
+                    self.tempVertexes.append(vert)
+                
+        elif horizDirection == Direction.RIGHT:
+            yIncrement = 4.0/VERTEX_PER_ROW * 2/3
+            xIncrement = -yIncrement
+            if heightDirection == Direction.BACKWARD:
+                yIncrement *= -1
+                xIncrement *= -1
+            for i in range(VERTEX_PER_ROW):
+                x,y,z = vertex[0]+i*xIncrement,vertex[1]+ i*yIncrement,vertex[2]
+                vert = {'node':None, 'point': (x,y,z), 
+                                     'type' : 1}
+                if heightDirection == Direction.FORWARD:
+                    self.tempVertexes.insert(pos, vert)
+                else:
+                    self.tempVertexes.append(vert)
     
-    def addVertexes(self, tileRow, verts):                
+    
+    def addVertexes(self, tileRow, verts):  
+        """ Generate vertexes for a given row """              
         direction = tileRow[0].direction
         firstTile = tileRow[0]
         lastTile = tileRow[-1]
@@ -320,42 +398,37 @@ class TrackGenerator(DirectObject):
                                 'type' : type}
                 verts.append(vert)
                
-        elif direction == Direction.RIGHT:
-            yIncrement = (lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
+        elif direction == Direction.LEFT:
+            yIncrement = abs(lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
             if len(tileRow) == 1:
                 yIncrement = 1.0/ float(VERTEX_PER_ROW)
-            
             offset = len(verts)
             for i in range(VERTEX_PER_ROW):
-                y = firstTile.y + (i * yIncrement) + yIncrement/2.0
+                y = lastTile.y - (i * yIncrement) #- yIncrement/2.0
+                #y = firstTile.y + (i * yIncrement) #- yIncrement/2.0
                 x, z = firstTile.x, firstTile.z
                 type = self._colorForTile(tileRow[0].type)
                 vert = {'node':None, 'point': (x,y,z), 
                                 'type' : type}
                 verts.insert(offset,vert)
-                
-        elif direction == Direction.LEFT:
-            direction = tileRow[0].direction
-            firstTile = tileRow[0]
-            lastTile = tileRow[-1]
+        
+        elif direction == Direction.RIGHT:
             yIncrement = abs(lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
             if len(tileRow) == 1:
                 yIncrement = 1.0/ float(VERTEX_PER_ROW)
             
             offset = len(verts)
             for i in range(VERTEX_PER_ROW):
-                y = lastTile.y - (i * yIncrement) #- yIncrement/2.0
-                x, z = firstTile.x, firstTile.z
+                y = lastTile.y + (i * yIncrement) + yIncrement/2.0
+                x, z = lastTile.x, lastTile.z
                 type = self._colorForTile(tileRow[0].type)
                 vert = {'node':None, 'point': (x,y,z), 
                                 'type' : type}
                 verts.insert(offset,vert)
-                
+        
+        
     def generateSurface(self, verts):
         logger.debug("Generating surface")
-        
-        for vert in verts:
-            pass#print vert
         
         surface = Sheet("curve")
         surface.setup(4,4,VERTEX_PER_ROW, verts)
@@ -383,6 +456,7 @@ class TrackGenerator(DirectObject):
         self.surface = surface
         
     def update(self):
+        """ Necessary to update Panda3D in the preview window """
         taskMgr.step()
     
     def hideTrack(self):
