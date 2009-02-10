@@ -119,6 +119,7 @@ class GUIPresenter(object):
         # erase scene
         pass
     
+    
     def onOpenButtonClicked(self):
         """ Executed when the open tool is clicked """
         loadFile = self._view.getLoadedFile()
@@ -143,6 +144,11 @@ class GUIPresenter(object):
     def onPasteButtonClicked(self):
         """ Executed when the paste tool is clicked """
         self._pandaController.pasteSelectedObject()
+    
+    def onAddButtonClicked(self):
+        """ Executed when the add action is clicked """
+        fileName = self._view.getModelLoadedFile()
+        self._pandaController.addEntityFromFile(fileName)
     
     def onDeleteButtonClicked(self):
         """ Executed when the delete tool is clicked """
