@@ -46,99 +46,7 @@ def generateVertexes(self, grid, x=0,y=0,z=0):
                     break
             if stepOut:
                 break
-def transpose(m):
-    """
-    Transpose the rectangular two-dimentional matrix m.
-    """
-    return [[m[y][x] for y in range(len(m))]for x in
-range(len(m[0]))]
 
-
-"""
-s        color = (1,1,1,0)
-        for i in range(10):
-            vert = {'node':None, 'point': (i,0.875,z), 'color' : color}
-            verts.append(vert)
-            vert = {'node':None, 'point': (i,0.625,z), 'color' : color}
-            verts.append(vert)
-            vert = {'node':None, 'point': (i,0.375,z), 'color' : color}
-            verts.append(vert)
-            vert = {'node':None, 'point': (i,0.175,z), 'color' : color}
-            verts.append(vert)
-        verts = []
-        vertexDistance = 2
-        for row in tiles:
-            realTiles = filter(lambda x: x is not None, row)
-            if len(realTiles) > 0:
-                firstTile = realTiles[0]
-                lastTile = realTiles[-1]
-                
-                yIncrement = (lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
-                if len(realTiles) == 1:
-                    yIncrement = 1.0/ float(VERTEX_PER_ROW)
-                for i in range(VERTEX_PER_ROW):
-                    y = firstTile.y + (i * yIncrement) + yIncrement/2.0
-                    x, z = firstTile.x, firstTile.z
-                    # FIXME
-                    color = self._colorForTile(realTiles[0].color)
-                    vert = {'node':None, 'point': (x,y,z), 
-                                    'color' : color}
-                    verts.insert(0,vert)
-
-"""
-"""
-        verts = [
-         {'node':None, 'point': (-7.5, -8., 0.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (-5., -8.3,- 3.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (5., -8.3,- 3.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (7.5, -8, 0.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (-9.8, -2.7, 3.), 'color' : (0,0.5,0,0)} ,
-         {'node':None, 'point': (-5.3, -7.2, -3.), 'color' : (0,0.5,0,0)} ,
-         {'node':None, 'point': (5.3, -7.2, -3.), 'color' : (0,1,0,0)} ,
-         {'node':None, 'point': (9.8, -2.7, 3.), 'color' : (0,1,0,0)} ,
-         {'node':None, 'point': (-11., 4.0, 3.), 'color' : (0,1,0,0)} ,
-         {'node':None, 'point': (-6., -1.8, 3.), 'color' : (0,1,0,0)} ,
-         {'node':None, 'point': (6., -1.8, 3.), 'color' : (0,0.5,0,0)} ,
-         {'node':None, 'point': (11, 4.0, 3.), 'color' : (0,0.5,0,0)} ,
-         {'node':None, 'point': (-9.5, 9.5, -3.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (-7., 7.8, 3.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (7., 7.8, 3.), 'color' : (0,0,0,0)} ,
-         {'node':None, 'point': (9.5, 9.5, -3.), 'color' : (0,0,0,0)} ,
-         ]
-        verts = [
-                 {'node':None, 'point': (3, 0, 0), 'color' : (0,0,0,0)} ,
-                 {'node':None, 'point': (6, 0, 0), 'color' : (0,0,0,0)} ,
-                 {'node':None, 'point': (9, 0, 0), 'color' : (0,0,0,0)} ,
-                 {'node':None, 'point': (12, 0, 0), 'color' : (0,0,0,0)} ,
-                 
-                 {'node':None, 'point': (3, 3, 0), 'color' : (0,1,0,0)} ,
-                 {'node':None, 'point': (6, 3, 0), 'color' : (0,1,0,0)} ,
-                 {'node':None, 'point': (9, 3, 0), 'color' : (0,1,0,0)} ,
-                 {'node':None, 'point': (12, 3, 0), 'color' : (0,1,0,0)} ,
-                 
-                 {'node':None, 'point': (3, 6, 0), 'color' : (0,0,1,0)} ,
-                 {'node':None, 'point': (6, 6, 0), 'color' : (0,0,1,0)} ,
-                 {'node':None, 'point': (9, 6, 0), 'color' : (0,0,1,0)} ,
-                 {'node':None, 'point': (12, 6, 0), 'color' : (0,0,1,0)} ,
-                 
-                 {'node':None, 'point': (3, 10, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (6, 10, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (9, 10, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (12, 10, 0), 'color' : (0,1,1,0)}
-                 ,
-        
-                 {'node':None, 'point': (3, 12, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (6, 12, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (9, 12, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (12, 12, 0), 'color' : (0,1,1,0)},
-                 
-                 {'node':None, 'point': (3, 14, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (6, 14, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (9, 14, 0), 'color' : (0,1,1,0)} ,
-                 {'node':None, 'point': (12, 14, 0), 'color' : (0,1,1,0)}
-         ]
-         """
-        
 #============================================
 loader.loadModelCopy("models/misc/xyzAxis").reparentTo(render)
 
@@ -172,24 +80,7 @@ def displayLines(a,b, actor):
                           (a[0], a[1]+halfLen, b[2]))])
         lines.create()
 
-"""
-    def changeNature(self, nature):
-        newCell = loader.loadModel("cell_%s" % nature.lower())
-        if newCell is not None:
-            logger.info("Changing cell nature to: %s" % nature)
-            newCell.setScale(self._nodePath.getScale())
-            newCell.setPos(self._nodePath.getPos())
-            parent = self._nodePath.getParent()
-            newCell.setTag("pos",self._nodePath.getTag("pos"))
-            newCell.setColor(self._nodePath.getColor())
-            self._nodePath.removeNode()
-            
-            newCell.reparentTo(parent)
-            self._nodePath = newCell
-        else:
-            logger.error("Cannot change nature cell to: %s. Model does not \
-            exist." % nature )
-"""    
+
 #from pandac.PandaModules import ClockObject
 #FPS = 30
 #globalClock = ClockObject.getGlobalClock()
