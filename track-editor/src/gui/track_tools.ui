@@ -5,8 +5,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>133</width>
-    <height>250</height>
+    <width>134</width>
+    <height>336</height>
    </rect>
   </property>
   <property name="minimumSize" >
@@ -19,213 +19,206 @@
    <string>Tools</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents" >
-   <widget class="Line" name="line" >
-    <property name="geometry" >
-     <rect>
-      <x>1</x>
-      <y>77</y>
-      <width>129</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="orientation" >
-     <enum>Qt::Horizontal</enum>
-    </property>
-   </widget>
-   <widget class="Line" name="line_2" >
-    <property name="geometry" >
-     <rect>
-      <x>1</x>
-      <y>151</y>
-      <width>129</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="orientation" >
-     <enum>Qt::Horizontal</enum>
-    </property>
-   </widget>
-   <widget class="QWidget" name="layoutWidget" >
-    <property name="geometry" >
-     <rect>
-      <x>1</x>
-      <y>86</y>
-      <width>129</width>
-      <height>59</height>
-     </rect>
-    </property>
-    <layout class="QGridLayout" name="gridLayout" >
-     <item rowspan="2" row="0" column="0" >
-      <widget class="QToolButton" name="actionLeft" >
-       <property name="text" >
-        <string>&lt;-</string>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-       <property name="autoRaise" >
-        <bool>true</bool>
-       </property>
-       <property name="arrowType" >
-        <enum>Qt::LeftArrow</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1" >
-      <widget class="QToolButton" name="actionForward" >
-       <property name="text" >
-        <string>^</string>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-       <property name="checked" >
-        <bool>true</bool>
-       </property>
-       <property name="autoRaise" >
-        <bool>true</bool>
-       </property>
-       <property name="arrowType" >
-        <enum>Qt::UpArrow</enum>
-       </property>
-      </widget>
-     </item>
-     <item rowspan="2" row="0" column="2" >
-      <widget class="QToolButton" name="actionRight" >
-       <property name="text" >
-        <string>-></string>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-       <property name="autoRaise" >
-        <bool>true</bool>
-       </property>
-       <property name="arrowType" >
-        <enum>Qt::RightArrow</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1" >
-      <widget class="QToolButton" name="actionBackward" >
-       <property name="text" >
-        <string>V</string>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-       <property name="autoRaise" >
-        <bool>true</bool>
-       </property>
-       <property name="arrowType" >
-        <enum>Qt::DownArrow</enum>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </widget>
-   <widget class="QWidget" name="layoutWidget" >
-    <property name="geometry" >
-     <rect>
-      <x>1</x>
-      <y>160</y>
-      <width>129</width>
-      <height>60</height>
-     </rect>
-    </property>
-    <layout class="QGridLayout" name="gridLayout_2" >
-     <item row="0" column="0" >
-      <widget class="QToolButton" name="actionSlow" >
-       <property name="styleSheet" >
-        <string notr="true" >background-color: red;</string>
-       </property>
-       <property name="text" >
-        <string/>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1" >
-      <widget class="QToolButton" name="actionInvert" >
-       <property name="styleSheet" >
-        <string notr="true" >background-color: yellow;</string>
-       </property>
-       <property name="text" >
-        <string/>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="2" >
-      <widget class="QToolButton" name="actionJump" >
-       <property name="styleSheet" >
-        <string notr="true" >background-color: blue</string>
-       </property>
-       <property name="text" >
-        <string/>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0" >
-      <widget class="QToolButton" name="actionSpeed" >
-       <property name="styleSheet" >
-        <string notr="true" >background-color: green</string>
-       </property>
-       <property name="text" >
-        <string/>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1" >
-      <widget class="QToolButton" name="actionBounceBack" >
-       <property name="styleSheet" >
-        <string notr="true" >background-color: black</string>
-       </property>
-       <property name="text" >
-        <string/>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="2" >
-      <widget class="QToolButton" name="actionNeutral" >
-       <property name="styleSheet" >
-        <string notr="true" >background-color: white</string>
-       </property>
-       <property name="text" >
-        <string/>
-       </property>
-       <property name="checkable" >
-        <bool>true</bool>
-       </property>
-       <property name="checked" >
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </widget>
-   <widget class="MVCLCDNumber" name="mvcLcdNumber" >
+   <widget class="QWidget" name="" >
     <property name="geometry" >
      <rect>
       <x>0</x>
       <y>10</y>
       <width>131</width>
-      <height>61</height>
+      <height>251</height>
      </rect>
     </property>
+    <layout class="QVBoxLayout" name="verticalLayout" >
+     <property name="spacing" >
+      <number>15</number>
+     </property>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout" >
+       <item>
+        <widget class="MVCLCDNumber" name="mvcLcdNumber" />
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line" >
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2" >
+       <item>
+        <widget class="QToolButton" name="actionLeft" >
+         <property name="text" >
+          <string>&lt;-</string>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+         <property name="autoRaise" >
+          <bool>true</bool>
+         </property>
+         <property name="arrowType" >
+          <enum>Qt::LeftArrow</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="actionForward" >
+         <property name="text" >
+          <string>^</string>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+         <property name="checked" >
+          <bool>true</bool>
+         </property>
+         <property name="autoRaise" >
+          <bool>true</bool>
+         </property>
+         <property name="arrowType" >
+          <enum>Qt::UpArrow</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="actionRight" >
+         <property name="text" >
+          <string>-></string>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+         <property name="autoRaise" >
+          <bool>true</bool>
+         </property>
+         <property name="arrowType" >
+          <enum>Qt::RightArrow</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line_2" >
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout_2" >
+       <item row="0" column="0" >
+        <widget class="QToolButton" name="actionSlow" >
+         <property name="styleSheet" >
+          <string notr="true" >background-color: red;</string>
+         </property>
+         <property name="text" >
+          <string/>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1" >
+        <widget class="QToolButton" name="actionInvert" >
+         <property name="styleSheet" >
+          <string notr="true" >background-color: yellow;</string>
+         </property>
+         <property name="text" >
+          <string/>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2" >
+        <widget class="QToolButton" name="actionJump" >
+         <property name="styleSheet" >
+          <string notr="true" >background-color: blue</string>
+         </property>
+         <property name="text" >
+          <string/>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0" >
+        <widget class="QToolButton" name="actionSpeed" >
+         <property name="styleSheet" >
+          <string notr="true" >background-color: green</string>
+         </property>
+         <property name="text" >
+          <string/>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1" >
+        <widget class="QToolButton" name="actionBounceBack" >
+         <property name="styleSheet" >
+          <string notr="true" >background-color: black</string>
+         </property>
+         <property name="text" >
+          <string/>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2" >
+        <widget class="QToolButton" name="actionNeutral" >
+         <property name="styleSheet" >
+          <string notr="true" >background-color: white</string>
+         </property>
+         <property name="text" >
+          <string/>
+         </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+         <property name="checked" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line_3" >
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QFormLayout" name="formLayout" >
+       <item row="0" column="0" >
+        <widget class="QLabel" name="label" >
+         <property name="text" >
+          <string>Size:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1" >
+        <widget class="QComboBox" name="tileSizeBox" >
+         <property name="maxVisibleItems" >
+          <number>5</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
    </widget>
   </widget>
  </widget>

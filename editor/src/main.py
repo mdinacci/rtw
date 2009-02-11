@@ -374,11 +374,8 @@ class EditorLogic(AbstractLogic):
         # create some background entities to populate a bit the space 
         self.view.addToScene(GOM.createEntity(environment_params.copy()))    
         
-        self._track = GOM.createEntity(track_params.copy())
-        self.view.addToScene(self._track)
-        
-        for i in range(0,5):
-            self.addRow()
+        #self._track = GOM.createEntity(track_params.copy())
+        #self.view.addToScene(self._track)
         
         # create player
         self._player = GOM.createEntity(ball_params.copy())
@@ -580,7 +577,6 @@ class EditorApplication(AbstractApplication):
         taskMgr.add(self._view.update, "view-update")
         taskMgr.add(self._view.render, "view-render")
         
-        #taskMgr.add(self._gui.MainLoop, "wx-mainloop")
         #taskMgr.add(self._mouseWatcher.update, "mw-update")
     
     def _shutDownProcesses(self):

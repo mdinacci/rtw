@@ -51,8 +51,8 @@
       <rect>
        <x>0</x>
        <y>0</y>
-       <width>1200</width>
-       <height>1200</height>
+       <width>1600</width>
+       <height>1600</height>
       </rect>
      </property>
      <property name="sizePolicy" >
@@ -63,8 +63,8 @@
      </property>
      <property name="minimumSize" >
       <size>
-       <width>1200</width>
-       <height>1200</height>
+       <width>1600</width>
+       <height>1600</height>
       </size>
      </property>
      <widget class="TileEditorView" name="tileEditorView" >
@@ -72,18 +72,24 @@
        <rect>
         <x>9</x>
         <y>9</y>
-        <width>1200</width>
-        <height>1200</height>
+        <width>1600</width>
+        <height>1600</height>
        </rect>
       </property>
       <property name="minimumSize" >
        <size>
-        <width>1200</width>
-        <height>1200</height>
+        <width>1600</width>
+        <height>1600</height>
        </size>
       </property>
       <property name="styleSheet" >
        <string notr="true" >background-color: rgb(255, 170, 127);</string>
+      </property>
+      <property name="tilesNumX" stdset="0" >
+       <number>100</number>
+      </property>
+      <property name="tilesNumY" stdset="0" >
+       <number>100</number>
       </property>
      </widget>
     </widget>

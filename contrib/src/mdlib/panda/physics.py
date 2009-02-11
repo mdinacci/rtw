@@ -128,7 +128,6 @@ class PhysicManager(object):
         """
         
         actors = scene.getDirtyActors()
-        
         # apply forces if necessary
         for actor in actors:
             phys = actor.physics

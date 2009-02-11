@@ -33,29 +33,34 @@ class TileType:
     SPEED = Qt.green
     SLOW = Qt.red
     INVERT = Qt.yellow
-    BOUNCE_BACK = Qt.black
+    HOLE = Qt.black
+    #BOUNCE_BACK = Qt.black
 
 
 class Tile(object):
-    def __init__(self, x, y, z, tileType, direction):
+    def __init__(self, x, y, z, tileType, direction, size):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
         self.type = tileType
         self.direction = direction
+        self.size = size
         
     def __repr__(self):
-        return "x: %s y: %s z: %s type: %s direction: %d" % (self.x, self.y, 
-                                            self.z, self.type, self.direction)
+        return "x: %s y: %s z: %s type: %s direction: %d size: %d"  \
+                % (self.x, self.y, self.z, self.type, self.direction, self.size)
 
 class TileEditorController(object):
+    # TODO remove getters and setters...this is not java
     def __init__(self, view, model, defaultType=TileType.NEUTRAL, 
-                 defaultDirection=Direction.FORWARD):
+                 defaultDirection=Direction.FORWARD,
+                 defaultTileSize=5):
         self.view = view
         self.model = model
         self.mode = Mode.DIRECTION
         self.currentType = defaultType
         self.currentDirection = defaultDirection 
+        self.currentTileSize = defaultTileSize 
         
     def setCurrentType(self, type):
         self.currentType = type
@@ -110,7 +115,11 @@ class TileEditorModel(object):
         self.yTiles = yTiles
         self.reset(False)
         self.views = []
-        #self.tiles = []
+    
+    # WRONG
+    def getHoleIndexes(self):
+        return [i for i,tile in enumerate(self.tiles) if tile is not None and\
+                tile.type == TileType.HOLE]
     
     def getTileCount(self):
         tiles = 0
@@ -145,8 +154,8 @@ class TileEditorModel(object):
 class TileEditorView(QWidget):
     
     # must be here, and not in the model so I can set them using qt designer
-    TILES_NUM_X = 80
-    TILES_NUM_Y = 80
+    TILES_NUM_X = 100
+    TILES_NUM_Y = 100
     
     def __init__(self, parent=None):
         super(TileEditorView, self).__init__(parent)
@@ -158,20 +167,19 @@ class TileEditorView(QWidget):
     def setController(self, controller):
         self.controller = controller
     
-    
     def sizeHint(self):
-        return QSize(1200, 1200)
+        return QSize(1600, 1600)
 
     def minimumSizeHint(self):
-        return QSize(1200, 1200)
+        return QSize(1600, 1600)
     
     def getRowColAtPoint(self, x,y):
-        tileWidth = float(self.width() / self.TILES_NUM_X)
-        tileHeight = float(self.height() / self.TILES_NUM_Y)
+        tileWidth = float(self.width() / self.tilesNumX)
+        tileHeight = float(self.height() / self.tilesNumY)
         
         col = int(x / tileWidth)
         row = int(y / tileHeight)
-        row = (self.TILES_NUM_Y -1) - row
+        row = (self.tilesNumY -1) - row
         
         return (row,col)
     
@@ -197,9 +205,9 @@ class TileEditorView(QWidget):
         if previous is not None:
             self.controller.removeTileAt(row, col)
         else:
-            type = self.controller.getCurrentType()
-            direction = self.controller.getCurrentDirection()
-            t = Tile(col, row, 0, type, direction)
+            type = self.controller.currentType
+            direction = self.controller.currentDirection
+            t = Tile(col,row,0,type,direction,self.controller.currentTileSize)
             self.controller.addTileAt(t, row, col)
     
     def mousePressEvent(self, event):
@@ -220,8 +228,8 @@ class TileEditorView(QWidget):
             if pos is not None:
                 # check that mouse is outside cell boundaries otherwise I'll just 
                 # deselect the selected cell
-                tileWidth = float(self.width() / self.TILES_NUM_X)
-                tileHeight = float(self.height() / self.TILES_NUM_Y)
+                tileWidth = float(self.width() / self.tilesNumX)
+                tileHeight = float(self.height() / self.tilesNumY)
                 
                 col = int(x / tileWidth)
                 row = int(y / tileHeight)
@@ -236,19 +244,19 @@ class TileEditorView(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
         
-        tileWidth = float(self.width() / self.TILES_NUM_X)
-        tileHeight = float(self.height() / self.TILES_NUM_Y)
+        tileWidth = float(self.width() / self.tilesNumX)
+        tileHeight = float(self.height() / self.tilesNumY)
         
         # draw grid 
         grid = []
-        for i in range(self.TILES_NUM_X):
+        for i in range(self.tilesNumX):
             x1 = x2 = i*tileHeight
             y1 = 0
             y2 = self.height()
             line = QLineF(x1,y1,x2,y2)
             grid.append(line)
             
-        for i in range(self.TILES_NUM_Y):
+        for i in range(self.tilesNumY):
             x1 = 0
             x2 = self.width()
             y1 = y2 = i*tileHeight
@@ -342,8 +350,11 @@ if __name__ == "__main__":
             super(TestDialog, self).__init__(parent)
             layout = QBoxLayout(QBoxLayout.LeftToRight)
             
+            tv = TileEditorView()
+            tv.tilesNumX = 120
+            tv.tilesNumY = 120
             scrollArea = QScrollArea()
-            scrollArea.setWidget(TileEditorView())
+            scrollArea.setWidget(tv)
             layout.addWidget(scrollArea)
             self.setLayout(layout)
     
