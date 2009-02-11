@@ -54,11 +54,17 @@ class GUI(QMainWindow):
         self._tools.setupUi(toolsDock)
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, toolsDock)
         
+        for i in range(5,0,-1): self._tools.tileSizeBox.addItem("%s"%i)
+        self._tools.tileSizeBox.setCurrentIndex(1)
+        self._tools.tileSizeBox.setCurrentIndex(0)
+        
+        self.connect(self._tools.tileSizeBox, 
+                 SIGNAL("currentIndexChanged (const QString&)"), 
+                 self.controller.tileSizeChanged)
+        
         # directions
         self.connect(self._tools.actionForward, \
                  SIGNAL("toggled(bool)"),self.controller.toggleDirectionForward)
-        self.connect(self._tools.actionBackward, \
-                 SIGNAL("toggled(bool)"),self.controller.toggleDirectionBackward)
         self.connect(self._tools.actionLeft, \
                  SIGNAL("toggled(bool)"),self.controller.toggleDirectionLeft)
         self.connect(self._tools.actionRight, \
@@ -104,16 +110,16 @@ class TrackEditor(object):
     SEPARATOR = '!'
     TEMP_FILE = '/tmp/test.egg'
     QTESS_FILE = '/tmp/qtess.egg'
-    MAP_FORMAT_VERSION = "1.0"
+    MAP_FORMAT_VERSION = "1.1"
+    TESSELLATION_CURVES = 5
     
     def __init__(self, argv):
         self.app = QApplication(argv)
         self.gui = GUI(self)
-        self.trackGenerator = TrackGenerator()
         
         self.tileView = self.gui.tileEditorView
-        self.tileModel = TileEditorModel(TileEditorView.TILES_NUM_X,
-                                         TileEditorView.TILES_NUM_Y)
+        self.tileModel = TileEditorModel(self.tileView.tilesNumX, 
+                                         self.tileView.tilesNumY)
         self.tileController = TileEditorController(self.tileView,
                                            self.tileModel,
                                            defaultDirection=Direction.FORWARD)
@@ -126,6 +132,7 @@ class TrackEditor(object):
         self._prevDirAction = self.gui.actionForward
         self._prevDirType = self.gui.actionNeutral
         
+        self.trackGenerator = TrackGenerator(self.tileView.tilesNumX)
         self._currentTrack = None
     
     def exportTrack(self):
@@ -137,19 +144,26 @@ class TrackEditor(object):
             # in the track generator in order to save from the preview
             self.trackGenerator.saveTo(self.TEMP_FILE)
             # tessellate
-            tools.tessellate(self.TEMP_FILE, self.QTESS_FILE)
+            tools.tessellate(self.TEMP_FILE, self.QTESS_FILE, 
+                         self.TESSELLATION_CURVES, self.trackGenerator.rowCount)
             
             # sleep in order to give egg-qtess some time to run
             while not os.path.exists(self.QTESS_FILE):
                 time.sleep(0.2)
             
-            tools.groupify(self.QTESS_FILE, fileName)
+            # organize the polygons in rows
+            tools.groupify(self.QTESS_FILE, self.TEMP_FILE)
+            
+            # get rid of holes
+            tools.holeify(self.TEMP_FILE, fileName, 
+                          self.tileModel.getHoleIndexes())
             
             logger.info("Track succesfully exported to %s" % fileName)
         
     
     def newTrack(self):
         self.tileModel.reset()
+    
     
     def saveTrack(self):
         def _saveTrack(fileName, tiles, version):
@@ -195,62 +209,67 @@ class TrackEditor(object):
         self.trackGenerator.generate(tiles)
         self.trackGenerator.showTrack()
         
+    def tileSizeChanged(self, size):    
+        s = str(size)
+        logger.info("Tile size changed to %s", s)
+        self.tileController.currentTileSize = int(s)
+        
     def toggleNeutralType(self, toggled):
-        if not self.tileController.getCurrentType() == TileType.NEUTRAL:
+        if not self.tileController.currentType == TileType.NEUTRAL:
             self._prevDirType.toggle()
             self._prevDirType = self.gui.actionNeutral
             self.tileController.currentType = TileType.NEUTRAL
     
     def toggleJumpType(self, toggled):
-        if not self.tileController.getCurrentType() == TileType.JUMP:
+        if not self.tileController.currentType == TileType.JUMP:
             self._prevDirType.toggle()
             self._prevDirType = self.gui.actionJump
             self.tileController.currentType = TileType.JUMP
     
     def toggleSpeedType(self, toggled):
-        if not self.tileController.getCurrentType() == TileType.SPEED:
+        if not self.tileController.currentType == TileType.SPEED:
             self._prevDirType.toggle()
             self._prevDirType = self.gui.actionSpeed
             self.tileController.currentType = TileType.SPEED
     
     def toggleSlowType(self, toggled):
-        if not self.tileController.getCurrentType() == TileType.SLOW:
+        if not self.tileController.currentType == TileType.SLOW:
             self._prevDirType.toggle()
             self._prevDirType = self.gui.actionSlow
             self.tileController.currentType = TileType.SLOW
     
     def toggleInvertType(self, toggled):
-        if not self.tileController.getCurrentType() == TileType.INVERT:
+        if not self.tileController.currentType == TileType.INVERT:
             self._prevDirType.toggle()
             self._prevDirType = self.gui.actionInvert
             self.tileController.currentType = TileType.INVERT
     
     def toggleBounceBackType(self, toggled):
-        if not self.tileController.getCurrentType() == TileType.BOUNCE_BACK:
+        if not self.tileController.currentType == TileType.HOLE:
             self._prevDirType.toggle()
             self._prevDirType = self.gui.actionBounceBack
-            self.tileController.currentType = TileType.BOUNCE_BACK
+            self.tileController.currentType = TileType.HOLE
 
     def toggleDirectionForward(self, toggled):
-        if not self.tileController.getCurrentDirection() == Direction.FORWARD:
+        if not self.tileController.currentDirection == Direction.FORWARD:
             self._prevDirAction.toggle()
             self._prevDirAction = self.gui.actionForward
             self.tileController.setCurrentDirection(Direction.FORWARD)
     
     def toggleDirectionBackward(self, toggled):
-        if not self.tileController.getCurrentDirection() == Direction.BACKWARD:
+        if not self.tileController.currentDirection == Direction.BACKWARD:
             self._prevDirAction.toggle()
             self._prevDirAction = self.gui.actionBackward
             self.tileController.setCurrentDirection(Direction.BACKWARD)
     
     def toggleDirectionLeft(self, toggled):
-        if not self.tileController.getCurrentDirection() == Direction.LEFT:
+        if not self.tileController.currentDirection == Direction.LEFT:
             self._prevDirAction.toggle()
             self._prevDirAction = self.gui.actionLeft
             self.tileController.setCurrentDirection(Direction.LEFT)
     
     def toggleDirectionRight(self, toggled):
-        if not self.tileController.getCurrentDirection() == Direction.RIGHT:
+        if not self.tileController.currentDirection == Direction.RIGHT:
             self._prevDirAction.toggle()
             self._prevDirAction = self.gui.actionRight
             self.tileController.setCurrentDirection(Direction.RIGHT)
