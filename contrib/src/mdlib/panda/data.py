@@ -208,6 +208,65 @@ class GameEntityManager(object):
         self._resourceLoader = ResourceLoader()
 
     
+    def createEntityFromNodepath(self, nodepath, params):
+        """
+        Create a new entity given the input params and an already existing
+        nodepath. The priority will be given to nodepath properties.
+        """
+        logger.debug("Creating a new game entity from nodepath")
+        
+        data = transformToKeyValue(params, {})
+        
+        dataIsValid = True #self._sanityCheckData(data)
+        
+        ge = None
+        if dataIsValid:
+            uid = self.generateUID()
+            if data.has_key("_uid"):
+                uid = data._uid
+            # ge has a custom class
+            if data.has_key("python") and data.python.has_key("clazz"):
+                ge = data.python.clazz(uid, data)
+            else:
+                ge = GameEntity(uid, data)
+            
+            # now apply only properties that are not written in the egg file
+            if ge.render.has_key("scale"):
+                nodepath.setScale(ge.render.scale)
+                
+            # add tags
+            if ge.render.has_key("tags"):
+                for tagName, tagValue in ge.render.tags.items():
+                    nodepath.setTag(tagName, tagValue)
+            else:
+                # TODO iterate over tags and fill ge.render.tags
+                pass
+            
+            # install UID tag, unfortunately must obligatory be a string
+            nodepath.setTag("UID", str(ge.UID))
+            
+            # finally install the nodepath in the game object    
+            ge.render.nodepath = nodepath
+            
+            if ge.has_key("physics") and ge.physics.has_key("geomType"):
+                # replace bitmask numbers with appropriate objects
+                catBitmask = BitMask32.bit(ge.physics.categoryBitMask)
+                collBitmask = BitMask32.bit(ge.physics.collisionBitMask)
+                ge.physics.categoryBitMask = catBitmask
+                ge.physics.collisionBitMask = collBitmask
+                
+                # install geom property
+                ge.physics.geom = POM.createGeomForObject(ge.physics, ge.position)
+                
+            logger.debug("Game object %s succesfully created" % ge)
+        else:
+            logger.warning("Data was not valid, cannot create game object")
+            if logger.isEnabledFor(DEBUG):
+                logger.debug("Data was: %s", data)
+                
+        return ge
+                
+    
     def createEntity(self, params):
         """ 
         Create a new entity given the input data and the additional keyword
@@ -216,7 +275,6 @@ class GameEntityManager(object):
         """
         logger.debug("Creating a new game entity")
         
-        # TODO transform data to a dict of KeyValue objects
         # The empty dictionary is VERY important as otherwise it will be
         # cached with all the previous values !
         data = transformToKeyValue(params, {})
