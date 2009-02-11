@@ -5,3 +5,7 @@
 - Curve segments can't turn
   For instance, in a f-l-f curve, the 'l' segment can't have curves, I would
   need to modify idxStart and idxEnd in order to do this.
+
+- Consider empty tiles as holes !
+  If tiles at the border are empty don't consider them for vertex generation,
+  otherwise do as usual.
