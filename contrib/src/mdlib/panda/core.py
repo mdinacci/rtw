@@ -202,9 +202,13 @@ class AbstractScene(object):
             self._dirtyEntities[entity] = keypaths 
     
     def getDirtyActors(self):
-        return [entity for entity in self._dirtyEntities.keys() \
-                  if entity.render.entityType == EntityType.ACTOR] \
-                  + [self._player]
+        actors = [entity for entity in self._dirtyEntities.keys() \
+                  if entity.render.entityType == EntityType.ACTOR]
+        if self._player is not None:
+            actors.append(self._player)
+            
+        return actors
+                  
         
     def getActors(self):
         return [entity for entity in self._entities.values() \
@@ -338,15 +342,16 @@ class AbstractScene(object):
     def update(self):
         # FIXME the best thing to do is to call entity.update()
         # for now just hack the position
-        if self._player in self._dirtyEntities.keys():
+        if self._player is not None and self._player in self._dirtyEntities.keys():
             for entity, keypaths in self._dirtyEntities.items():
                 if entity.has_key("position"):
                     pos = entity.position
                     entity.render.nodepath.setPos(pos.x, pos.y, pos.z)
         else:
-            pos = self._player.position
-            self._player.render.nodepath.setPos(pos.x, pos.y, pos.z)
-            self._player.render.nodepath.setQuat(pos.rotation)
+            if self._player is not None:
+                pos = self._player.position
+                self._player.render.nodepath.setPos(pos.x, pos.y, pos.z)
+                self._player.render.nodepath.setQuat(pos.rotation)
         """
         for entity, keypaths in self._dirtyEntities.items():
             if len(keypaths) > 0:
