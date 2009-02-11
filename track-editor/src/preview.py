@@ -39,7 +39,7 @@ rotateMatrixAntiClockwise
 
 import echo
 
-from gui.qt.plugins.tileeditorview import Tile, Direction
+from gui.qt.plugins.tileeditorview import Tile, TileType, Direction
 
 from copy import deepcopy
 
@@ -125,7 +125,7 @@ class Camera(object):
 VERTEX_PER_ROW = 4
 
 class TrackGenerator(DirectObject):   
-    def __init__(self):
+    def __init__(self, width):
         self.isWireframe = False
         self.objectName = None
         
@@ -139,6 +139,8 @@ class TrackGenerator(DirectObject):
         self.selectedObject = None
         self.points = []
         self.surface = None
+        
+        self.width = width
         
         self.tempVertexes = []
         
@@ -202,6 +204,7 @@ class TrackGenerator(DirectObject):
         egg.writeEgg(Filename(fileName))
     
     def generate(self, grid):
+        self.rowCount = 0
         self.tempVertexes = []
         self.generateVertexes(grid)
         self.generateSurface(self.tempVertexes)
@@ -237,10 +240,9 @@ class TrackGenerator(DirectObject):
                     
                     idxStart = start
                     idxEnd = 0
-                    print idxStart, idxEnd
                     col = row.index(tiles[tileStr.rfind("2")]) -1
                     for i in range(1,6):
-                        if start +i < 80:
+                        if start +i < 100: # aargh, get it from outside
                             if grid[start+i][col] is None:
                                 tile = grid[start+i-1][col]
                                 idxEnd = start + i
@@ -294,7 +296,7 @@ class TrackGenerator(DirectObject):
                     idxEnd = len(row) - start +1
                     
                     for i in range(1,6):
-                        if start +i < 80:
+                        if start +i < 100:
                             if grid[start+i][s] is None:
                                 tile = grid[start+i-1][s]
                                 idxStart = len(row) - int(tile.y) -1
@@ -378,54 +380,68 @@ class TrackGenerator(DirectObject):
                     self.tempVertexes.insert(pos, vert)
                 else:
                     self.tempVertexes.append(vert)
+        
+        self.rowCount +=1
     
     
     def addVertexes(self, tileRow, verts):  
         """ Generate vertexes for a given row """              
         direction = tileRow[0].direction
-        firstTile = tileRow[0]
-        lastTile = tileRow[-1]
-        if direction == Direction.FORWARD:
-            xIncrement = (lastTile.x - firstTile.x+1) / float(VERTEX_PER_ROW)
-            if len(tileRow) == 1:
-                xIncrement = 1.0/ float(VERTEX_PER_ROW)
-            for i in range(VERTEX_PER_ROW):
-                x = firstTile.x + (i * xIncrement) + xIncrement/2.0
-                y, z = firstTile.y, firstTile.z
-                # FIXME
-                type = self._colorForTile(tileRow[0].type)
-                vert = {'node':None, 'point': (x,y,z), 
-                                'type' : type}
-                verts.append(vert)
-               
-        elif direction == Direction.LEFT:
-            yIncrement = abs(lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
-            if len(tileRow) == 1:
-                yIncrement = 1.0/ float(VERTEX_PER_ROW)
-            offset = len(verts)
-            for i in range(VERTEX_PER_ROW):
-                y = lastTile.y - (i * yIncrement) #- yIncrement/2.0
-                #y = firstTile.y + (i * yIncrement) #- yIncrement/2.0
-                x, z = firstTile.x, firstTile.z
-                type = self._colorForTile(tileRow[0].type)
-                vert = {'node':None, 'point': (x,y,z), 
-                                'type' : type}
-                verts.insert(offset,vert)
         
-        elif direction == Direction.RIGHT:
-            yIncrement = abs(lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
-            if len(tileRow) == 1:
-                yIncrement = 1.0/ float(VERTEX_PER_ROW)
+        firstTile = lastTile = None
+        for tile in tileRow:
+            if tile.type != TileType.HOLE:
+                firstTile = tile
+                break
+        for tile in reversed(tileRow):
+            if tile.type != TileType.HOLE:
+                lastTile = tile
+                break
+        
+        if firstTile is not None and lastTile is not None:
+            if direction == Direction.FORWARD:
+                xIncrement = (lastTile.x - firstTile.x+1) / float(VERTEX_PER_ROW)
+                if len(tileRow) == 1 or firstTile is lastTile:
+                    xIncrement = 1.0/ float(VERTEX_PER_ROW)
+                for i in range(VERTEX_PER_ROW):
+                    x = firstTile.x + (i * xIncrement) + xIncrement/2.0
+                    y, z = firstTile.y, firstTile.z
+                    # FIXME
+                    type = self._colorForTile(tileRow[0].type)
+                    vert = {'node':None, 'point': (x,y,z), 
+                                    'type' : type}
+                    verts.append(vert)
+                   
+            elif direction == Direction.LEFT:
+                yIncrement = abs(lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
+                if len(tileRow) == 1 or firstTile is lastTile:
+                    yIncrement = 1.0/ float(VERTEX_PER_ROW)
+                offset = len(verts)
+                for i in range(VERTEX_PER_ROW):
+                    y = lastTile.y - (i * yIncrement) #- yIncrement/2.0
+                    #y = firstTile.y + (i * yIncrement) #- yIncrement/2.0
+                    x, z = firstTile.x, firstTile.z
+                    type = self._colorForTile(tileRow[0].type)
+                    vert = {'node':None, 'point': (x,y,z), 
+                                    'type' : type}
+                    verts.insert(offset,vert)
             
-            offset = len(verts)
-            for i in range(VERTEX_PER_ROW):
-                y = lastTile.y + (i * yIncrement) + yIncrement/2.0
-                x, z = lastTile.x, lastTile.z
-                type = self._colorForTile(tileRow[0].type)
-                vert = {'node':None, 'point': (x,y,z), 
-                                'type' : type}
-                verts.insert(offset,vert)
-        
+            elif direction == Direction.RIGHT:
+                yIncrement = abs(lastTile.y -firstTile.y) / float(VERTEX_PER_ROW)
+                if len(tileRow) == 1 or firstTile is lastTile:
+                    yIncrement = 1.0/ float(VERTEX_PER_ROW)
+                
+                offset = len(verts)
+                for i in range(VERTEX_PER_ROW):
+                    y = lastTile.y + (i * yIncrement) + yIncrement/2.0
+                    x, z = lastTile.x, lastTile.z
+                    type = self._colorForTile(tileRow[0].type)
+                    vert = {'node':None, 'point': (x,y,z), 
+                                    'type' : type}
+                    verts.insert(offset,vert)
+                    
+            self.rowCount +=1
+            
         
     def generateSurface(self, verts):
         logger.debug("Generating surface")
