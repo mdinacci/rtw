@@ -100,89 +100,25 @@ class Track(GameEntity):
         super(Track, self).__init__(uid, data)
         
         # keep a list of cells here for easier management
-        self._cells = []
-        
-        self._subscribeToEvents()
-        
-        
-    def createRow(self):
-        rowID = len(self._cells)/self.physics.rowWidth +1
-        logger.debug("Creating row #%d" % rowID)
-        # TODO port row to GameEntity
-        rp = row_params.copy()
-        rp["render"]["parentNode"] = self.render.nodepath
-        row = GOM.createEntity(rp)
-        #rowNode = self.render.nodepath.attachNewNode("row-%d" % rowID)
-        
-        yield row
-        
-        for i in range(0, row.physics.width):
-            yield self._createCell(row.render.nodepath)
+        self._tiles = []
     
-    def changeNature(self, nature):
-        for cell in self._cells:
-            # TODO get entity and then change nature, can't do it on actor
-            #cell.changeNature(nature)
-            pass
-            
-    def _subscribeToEvents(self):
-        self.listener = SafeDirectObject()
-        self.listener.accept(event.CHANGE_NATURE, self.changeNature)
-    
-    def _createCell(self, parent):
-        # by default put a new cell close to the latest added
-        params = cell_params.copy()
-        
-        # some shortcuts
-        render = params["render"]
-        render["parentNode"] = parent
-        physics = params["physics"]
-        
-        if len(self._cells) > 0:
-            prevPos = self._cells[-1].position
-            if len(self._cells) % self.physics.rowWidth == 0: 
-                incX = - (self.physics.rowWidth-1) * physics["length"]
-                incY = physics["length"]
-            else:
-                incX = physics["length"]
-                incY = 0
-            pos = Point3(prevPos.x + incX, prevPos.y+ incY, prevPos.z)
-        else:
-            pos = Point3(0,0,1)
-        
-        # set row, column tag; it makes easy to identify the cell after
-        row = (len(self._cells)) / (self.physics.rowWidth)
-        col = (len(self._cells)) % (self.physics.rowWidth)
-        
-        params["position"]["x"] = pos.getX()
-        params["position"]["y"] = pos.getY() 
-        params["position"]["z"] = pos.getZ() 
-        
-        render["color"] = Types.Color.b_n_w[len(self._cells) % 2]
-        render["tags"]["pos"] = "%d %d" % (row, col)
-        
-        cell = GOM.createEntity(params)
-        
-        logger.debug("Created cell #%d at row,col,pos (%d,%d,%s)" 
-                     % (len(self._cells),row,col,pos))
-        self._cells.append(cell)
-        
-        return cell
+    def addTile(self, tile):
+        self._tiles.append(tile)
     
     def serialise(self):
         attrs = super(Track, self).serialise()
-        del attrs._cells
+        del attrs._tiles
         return attrs
 
     
-class TrackCell(GameEntity):
+class TrackTile(GameEntity):
     """ This entity represents a 3D cell in a track """
     
     def __init__(self, uid, data):
-        super(TrackCell, self).__init__(uid, data)
+        super(TrackTile, self).__init__(uid, data)
         
     def __str__(self):
-        return "Cell #%s at %s" % (self.UID, self.render.nodepath.getTag("pos"))
+        return "Tile #%s at %s" % (self.UID, self.render.nodepath.getTag("pos"))
 
     
 # Property schema: defines the existing properties and their type
@@ -231,6 +167,36 @@ property_schema = {
                      }
                 }
 
+entity_template_params = {
+                       "archetype": "General",
+                       "prettyName": "Entity",
+                       "position": 
+                            { 
+                             "x": 0,
+                             "y": 0,
+                             "z": 0,
+                             "rotation": (1,0,0,0)
+                             },
+                        "physics": 
+                                {
+                                 "collisionBitMask": 0x00000001,
+                                 "categoryBitMask" : 0x00000000,
+                                 "geomType": Types.Geom.SPHERE_GEOM_TYPE,
+                                 "radius": 1,
+                                 "hasBody": False
+                                 },
+                           "render": 
+                                {
+                                 "entityType": EntityType.ACTOR,
+                                 "scale": 1,
+                                 "modelPath": "",
+                                 "isDirty": True,
+                                 "color": None,
+                                 "tags" : {"pos":None}
+                                 }
+                           }
+                        
+
 ball_params = {
                "archetype": "Player",
                "prettyName": "Ball",
@@ -264,13 +230,48 @@ ball_params = {
                      }
                }
 
+tile_params = {
+               "archetype": "Tracks/Tiles",
+               "prettyName": "Tile",
+               "python":
+                    {
+                     "clazz": TrackTile
+                     },
+               "position":
+                    {
+                     "x": 0,
+                     "y": 0,
+                     "z": 1,
+                     "rotation": (0,0,0,0)
+                     },
+               "physics": 
+                    {
+                     "collisionBitMask": 0x00000001,
+                     "categoryBitMask" : 0x00000000,
+                     "geomType": Types.Geom.BOX_GEOM_TYPE,
+                     "length": 2.0,
+                     "width": 2.0,
+                     "height": 0.2,
+                     "hasBody": False
+                     },
+               "render": 
+                    {
+                     "entityType": EntityType.ACTOR,
+                     "scale": 1,
+                     "modelPath": "cell_normal",
+                     "isDirty": True,
+                     "color": None,
+                     #"tags" : {"pos":None}
+                     }
+               }
+
 # default parameters for the cell objects
 cell_params = {
                "archetype": "Tracks/Cells",
                "prettyName": "Cell",
                "python":
                     {
-                     "clazz": TrackCell
+                     "clazz": TrackTile
                      },
                "position":
                     {
@@ -313,6 +314,28 @@ row_params = {
                  "width":5
                  }
               }
+
+new_track_params = {
+                "archetype": "Tracks",
+                "prettyName": "Track2",
+                "position":
+                    {
+                     "x": 0,
+                     "y": 20,
+                     "z": -5,
+                     "rotation": (0,0,0,0)
+                     },
+                "python": 
+                    {
+                     "clazz": Track
+                     },
+                "render": #necessary even if empty in order to create a NodePath
+                    {
+                     "entityType": EntityType.ACTOR,
+                     "modelPath": "track2",
+                     "scale": 2,
+                     },
+                    }
 
 track_params = {
                 "archetype": "Tracks",
