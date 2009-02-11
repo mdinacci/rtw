@@ -1,0 +1,78 @@
+===============================================================================
+1. TRACK ORGANIZATION
+===============================================================================
+
+A TRACK is composed of SEGMENTS which are composed of ROWS which are composed
+of TILES
+
+A track has N segments, where N >= 1
+A segment has M rows, where M >=5
+A row has P tiles, where  1 < T < 5
+
+
+Track schema:
+
+
+Track 
+ |
+ |-- Segment 1
+ |     |
+ |     |-- Row 1
+ |     |   |
+ |     |   |- Tile 1
+ |     |   |- Tile 2
+ |     |   |- Tile 3
+ |     |   |- Tile 4
+ |     |   |- Tile 5
+ |     |
+ |     |-- Row 2
+ |     |   |
+ |     |   |-- Tile 1
+ |     |   |-- Tile 2
+ |     |   |-- Tile 3
+ |     |   |-- Tile 4
+ |     |   |-- Tile 5
+ |     |
+ |     |-- Row n
+ |     |   |
+ |     |   |-- Tile n
+ |
+ |-- Segment n
+ |     |
+ |     |-- Row 1
+ |     |   |
+ |     |   |- Tile 1
+ |     |   |- Tile 2
+ |     |   |- Tile 3
+ |     |   |- Tile 4
+ |     |   |- Tile 5
+ |     |
+ |     |-- Row n
+ |     |   |
+ |     |   |-- Tile n
+ 
+
+===============================================================================
+2. TRACK GENERATION
+===============================================================================
+
+1. From the track-editor the algorithm to generate the surface interpolate 4
+   vertices for row.
+2. A NURBS surface (sheet) is created 
+3. The NURBS surface is converted to EggNurbs in order to store it to file
+4. The exporter runs egg-qtess to tessellate the curves. It subdivides the
+   surface into 5 columns and a number of rows calculated from the track-editor
+5. The egg file generated is modified in order to create rows (group 
+   containing 5 polygons per row)
+6. Another tool checks the polygons marked as holes and remove them.
+
+===============================================================================
+3. TRACK HOLES
+===============================================================================
+
+A track *can't have interruptions* 
+A hole can be in the middle of the row or at the borders.
+Holes are implemented by removing polygons in a row once the tessellation and 
+"groupification" step have terminated.
+
+
