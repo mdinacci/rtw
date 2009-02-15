@@ -1,3 +1,11 @@
+# to know which texture is bind to a GeomNode
+for i in range(geomNode.getNumGeoms()):
+  state = geomNode.getGeomState(i)
+  texAttrib = state.getAttrib(TextureAttrib.getClassType())
+  if texAttrib:
+    tex = texAttrib.getTexture()
+    print i, tex
+    
 def generateVertexes(self, grid, x=0,y=0,z=0):
         stepOut = False
         
