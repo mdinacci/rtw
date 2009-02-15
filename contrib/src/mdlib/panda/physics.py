@@ -8,8 +8,9 @@ from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("physics", DEBUG)
 
 from pandac.PandaModules import OdeWorld, OdeSimpleSpace, OdeJointGroup
-from pandac.PandaModules import OdeBody, OdeMass, OdeBoxGeom, OdeSphereGeom, BitMask32
-from pandac.PandaModules import Quat, Point3
+from pandac.PandaModules import OdeBody, OdeMass, OdeBoxGeom, \
+    OdeSphereGeom, OdeTriMeshData, OdeTriMeshGeom
+from pandac.PandaModules import Quat, Point3, BitMask32
 
 from direct.task.TaskManagerGlobal import taskMgr
 from direct.task.Task import Task
@@ -18,9 +19,7 @@ from mdlib.panda.input import SafeDirectObject
 from mdlib.panda import event
 from mdlib.panda import math_utils as math
 from mdlib.patterns import singleton
-
-BOX_GEOM_TYPE = 0x1
-SPHERE_GEOM_TYPE = 0x2
+from mdlib.types import *
 
 
 __all__ = ["POM"]
@@ -39,7 +38,7 @@ class PhysicManager(object):
     
     def __init__(self):
         self.physWorld = OdeWorld()
-        self.physWorld.setGravity(0, 0, -4.81)
+        self.physWorld.setGravity(0, 0, -1.0)
         self.physWorld.initSurfaceTable(1)
         # surfID1, surfID2, friction coeff, bouncy, bounce_vel, erp, cfm, slip, dampen (oscillation reduction) 
         self.physWorld.setSurfaceEntry(0, 0, 150, 0.3, 9.1, 0.9, 0.00001, 0.0, 0.002)
@@ -67,31 +66,46 @@ class PhysicManager(object):
         self.space.remove(geom)
         del obj.physics.geom
  
-    def createGeomForObject(self, object, position):
+    def createGeomForObject(self, object, position, nodepath=None):
         """ Create a physical body and geometry for a game object """
         M = OdeMass()
         geometry = None
         geomType = object.geomType
-        if geomType == SPHERE_GEOM_TYPE:
+        if geomType == Types.Geom.SPHERE_GEOM_TYPE:
             logger.debug("Creating a sphere geometry with radius %s for \
                 object: %s" % (object.radius, object))
             geometry = OdeSphereGeom(self.space, object.radius)
+            rad = object.radius
             geometry.setPosition(position.x, position.y, position.z)
             
             if object.hasBody:
                 M.setSphere(object.density, object.radius)
         
-        elif geomType == BOX_GEOM_TYPE:
-            logger.debug("Creating sphere geom of size %s-%s-%s for object: %s"\
+        elif geomType == Types.Geom.BOX_GEOM_TYPE:
+            logger.debug("Creating box geom of size %s-%s-%s for object: %s"\
                           % (object.length, object.width, 
                                object.height, object))
             geometry = OdeBoxGeom(self.space, object.length, object.width, object.height)
             l, w, h = (object.length, object.width, object.height)
-            geometry.setPosition(position.x, position.y, position.z)
+            geometry.setPosition(position.x+l/2.0, position.y+w/2.0, position.z+h/2.0)
             
             if object.hasBody:
                 M.setBox(object.density, object.length, object.width, object.height)
                 #M.setBox(object.density, object.length, object.width, object.height)
+                
+        elif geomType == Types.Geom.TRIMESH_GEOM_TYPE:
+            logger.debug("Creating trimesh geom for object: %s" % nodepath)
+            #parent = nodepath.getParent()
+            #mesh = nodepath.copyTo(parent)
+            #mesh.hide()
+            #mesh.flattenStrong()
+            nodepath.flattenLight()
+            modelTrimesh = OdeTriMeshData(nodepath, True)
+            geometry = OdeTriMeshGeom(self.space, modelTrimesh)
+            l, w, h = (object.length, object.width, object.height)
+            geometry.setPosition(position.x, position.y, position.z)
+            #geometry.setPosition(position.x+l/2.0, position.y+w/2.0, position.z+h/2.0)
+
         else:
             logger.error("Invalid geometry type for object: %s" % object)
             return None
@@ -134,7 +148,7 @@ class PhysicManager(object):
             if phys.has_key("xForce") and phys.xForce != 999:
                 xf,yf,zf = (phys.xForce, phys.yForce, phys.zForce)
                 logger.debug("Applying force %d-%d-%d to actor %s" % \
-                             (xf,yf,zf,actor.UID))
+                             (xf,yf,zf,actor))
                 body = phys.geom.getBody()
                 speed = phys.linearSpeed
                 body.addForce(xf*speed, yf*speed, zf*speed)

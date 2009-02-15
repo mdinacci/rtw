@@ -58,20 +58,21 @@ def holeify(inputFile, outputFile, holesIndexes, prefix="row-"):
     lines = f.readlines()
     polyCount = -1
     linesToSkip = 0
-    for line in lines:
+    for i,line in enumerate(lines):
         if linesToSkip > 0:
             linesToSkip-=1
             continue
         
         if "Polygon" in line:
-            polyCount +=1
+            # WRONG
+            if i % 3 == 0: polyCount +=1
             if polyCount in holesIndexes:
                 linesToSkip = 3
                 continue
         f2.write(line)
     
     
-def groupify(modelFile, outputFile=None, polysPerGroup=5, 
+def groupify(modelFile, outputFile=None, polysPerGroup=5, duplicationFactor=3,
              rowPrefix="row", polyPrefix="tile-"):
     """ Organise polysPerGroup polygons in a group """
     
@@ -91,14 +92,14 @@ def groupify(modelFile, outputFile=None, polysPerGroup=5,
             if firstPolygon:
                 f2.write("}\n") # close previous group
                 f2.write("<Group> %s-%d {\n" % (rowPrefix, 
-                                                polysCount/polysPerGroup))
+                                polysCount/(polysPerGroup*duplicationFactor)))
                 f2.write("  <Model> { 1 }\n")
                 #f2.write("  <Collide> { Polyset keep descend }\n")
                 firstPolygon = False
             elif polysCount % polysPerGroup == 0:
                 f2.write("}\n")
                 f2.write("<Group> %s-%d {\n" % (rowPrefix, 
-                                                polysCount/polysPerGroup))
+                                polysCount/(polysPerGroup*duplicationFactor)))
                 #f2.write("  <Collide> { Polyset keep descend }\n")
                 f2.write("  <Model> { 1 }\n")
             

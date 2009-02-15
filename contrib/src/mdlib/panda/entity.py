@@ -124,16 +124,6 @@ class Track(GameEntity):
 class Player(GameEntity):
     def __init__(self, uid, data):
         super(Player, self).__init__(uid, data)
-    
-    
-class TrackTile(GameEntity):
-    """ This entity represents a 3D cell in a track """
-    
-    def __init__(self, uid, data):
-        super(TrackTile, self).__init__(uid, data)
-        
-    def __str__(self):
-        return "Tile #%s at %s" % (self.UID, self.render.nodepath.getTag("pos"))
 
     
 # Property schema: defines the existing properties and their type
@@ -228,12 +218,12 @@ player_params = {
                           },
                        "physics": 
                         {
-                         "collisionBitMask": 0x00000001,
-                         "categoryBitMask" : 0x00000000,
+                         "collisionBitMask": 0x00000002,
+                         "categoryBitMask" : 0x00000001,
                          "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                         "radius":  0.56,
+                         "radius":  0.1,
                          "hasBody": True,
-                         "linearSpeed": 3000,
+                         "linearSpeed": 50,
                          "density":400,
                          "xForce" : 0,
                          "yForce" : 0,
@@ -242,9 +232,9 @@ player_params = {
                         },
                        "position":
                         {
-                         "x": 0,
+                         "x": 2,
                          "y": 2,
-                         "z": 0,
+                         "z": 1,
                          "rotation": (1,0,0,0)
                          },
                          "render": 
@@ -254,7 +244,7 @@ player_params = {
                          }
                         }
 ball_params = {
-               "archetype": "Player",
+               "archetype": "Model",
                "prettyName": "Ball",
                "position": 
                     { 
@@ -265,52 +255,22 @@ ball_params = {
                      },
                "render": 
                     {
-                     "scale": 0.3,
+                     "entityType": EntityType.STATIC,
+                     "scale": 0.2,
                      "modelPath": "ball",
                      "isDirty": True,
                      }
                }
-
-row_params = {
-               "archetype": "Tracks/Row",
-               "prettyName": "Row",
-               "position":
-                    {
-                     "x": 0,
-                     "y": 0,
-                     "z": 1,
-                     "rotation": (0,0,0,0)
-                     },
-               "physics": 
-                    {
-                     "collisionBitMask": 0x00000010,
-                     "categoryBitMask" : 0x00000000,
-                     "geomType": Types.Geom.BOX_GEOM_TYPE,
-                     "length": 5.0,
-                     "width": 5.0,
-                     "height": 1,
-                     "hasBody": False
-                     },
-               "render": 
-                    {
-                     "entityType": EntityType.ACTOR,
-                     "scale": 1,
-                     "isDirty": True,
-                     "color": None,
-                     #"tags" : {"pos":None}
-                     }
-               }
-
 
 new_track_params = {
                 "archetype": "Tracks",
                 "prettyName": "Track",
                 "position":
                     {
-                     "x": -2,
+                     "x": 0,
                      "y": 0,
                      "z": 0,
-                     "rotation": (0,0,0,0)
+                     "rotation": (1,0,0,0)
                      },
                 "python": 
                     {
@@ -323,6 +283,16 @@ new_track_params = {
                      "isDirty": True,
                      "scale": 1,
                      },
+                "physics": 
+                    {
+                     "collisionBitMask": 0x00000001,
+                     "categoryBitMask" : 0x00000002,
+                     "geomType": Types.Geom.TRIMESH_GEOM_TYPE,
+                     "length": 8.875,
+                     "width": 15.5,
+                     "height": .1,
+                     "hasBody": False
+                     }
                     }
 
 environment_params = {
@@ -342,7 +312,7 @@ environment_params = {
                              "modelPath": "environment",
                              "isDirty": True,
                              }
-                     }
+                        }
 
 # create a global KeyValueObject to simplify the getPropertyType function 
 schema_kvo = transformToKeyValue(property_schema)

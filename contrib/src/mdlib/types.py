@@ -15,6 +15,8 @@ class Types:
     class Geom:
         BOX_GEOM_TYPE = 0x1
         SPHERE_GEOM_TYPE = 0x2
+        TRIMESH_GEOM_TYPE = 0x3
+        
         
     class Color(object):
         """ Some color constants """

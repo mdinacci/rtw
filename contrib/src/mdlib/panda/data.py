@@ -262,7 +262,8 @@ class GameEntityManager(object):
                 ge.physics.collisionBitMask = collBitmask
                 
                 # install geom property
-                ge.physics.geom = POM.createGeomForObject(ge.physics, ge.position)
+                ge.physics.geom = POM.createGeomForObject(ge.physics, 
+                                              ge.position, ge.render.nodepath)
                 
             logger.debug("Game object %s succesfully created" % ge)
         else:
@@ -363,10 +364,8 @@ class GameEntityManager(object):
                 ge.physics.collisionBitMask = collBitmask
                 
                 # install geom property
-                ge.physics.geom = POM.createGeomForObject(ge.physics, ge.position)
-                
-                #a = Point3(0,0,0); b = Point3(0,0,0); ge.physics.geom.getAABB(a,b)
-                #displayLines(a,b, go)
+                ge.physics.geom = POM.createGeomForObject(ge.physics, \
+                                                      ge.position, ge.nodepath)
                 
             logger.debug("Game object %s succesfully created" % ge)
         else:

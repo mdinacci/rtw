@@ -14,7 +14,7 @@ __all__= ["AbstractApplication", "ApplicationState", "AbstractView",
 from mdlib.log import ConsoleLogger, DEBUG
 logger = ConsoleLogger("core", DEBUG)
 
-from pandac.PandaModules import NodePath
+from pandac.PandaModules import NodePath, Point3, Quat
 
 from mdlib.panda import event
 from mdlib.panda.data import EntityType, KeyValueObject
@@ -197,7 +197,9 @@ class AbstractScene(object):
     
     
     def setSceneGraphNode(self, sgNode):
+        """ Set the parent node of all the scene node """
         self._rootNode.reparentTo(sgNode)
+    
     
     def setEntityAsDirty(self, entity, keypaths):
         if self._dirtyEntities.has_key(entity):
@@ -205,13 +207,15 @@ class AbstractScene(object):
         else:
             self._dirtyEntities[entity] = keypaths 
     
+    
     def getDirtyActors(self):
         actors = [entity for entity in self._dirtyEntities.keys() \
                   if entity.render.entityType == EntityType.ACTOR]
         if self._player is not None:
             actors.append(self._player)
-            
-        return actors
+         
+        return [self._player]
+        #return actors
                   
         
     def getActors(self):
@@ -346,6 +350,12 @@ class AbstractScene(object):
     def update(self):
         # FIXME the best thing to do is to call entity.update()
         # for now just hack the position
+
+        pos = self._player.position
+        quat = Quat(pos.rotation)
+        #self._player.nodepath.setPosQuat(self._rootNode, Point3(pos.x,pos.y,pos.z), quat)
+        self._player.nodepath.setPos(pos.x, pos.y, pos.z)
+        self._player.nodepath.setQuat(quat)
         
         """
         if self._player is not None and self._player in self._dirtyEntities.keys():
@@ -358,10 +368,10 @@ class AbstractScene(object):
                 pos = self._player.position
                 self._player.render.nodepath.setPos(pos.x, pos.y, pos.z)
                 self._player.render.nodepath.setQuat(pos.rotation)
-        """
         for entity, keypaths in self._dirtyEntities.items():
             if len(keypaths) > 0:
                 self._updaterDelegate.updateEntity(entity, keypaths)
+        """
         
     def render(self):
         # TODO step graphics engine
