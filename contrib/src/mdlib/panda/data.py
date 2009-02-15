@@ -11,7 +11,7 @@ from mdlib.patterns import singleton
 from mdlib.panda.physics import POM 
 
 from pandac.PandaModules import Point3, Quat, BitMask32, Vec4
-from pandac.PandaModules import NodePath, Filename, LoaderOptions
+from pandac.PandaModules import NodePath, Filename, LoaderOptions, ActorNode
 from direct.showbase.Loader import PandaLoader
 from direct.directtools.DirectGeometry import LineNodePath
 
@@ -173,6 +173,7 @@ class GameEntity(KeyValueObject):
         
         
     UID = property(fget=lambda self: self._uid, fset=None, fdel=None)
+    nodepath = property(fget=lambda self: self.render.nodepath)
     
 
 def transformToKeyValue(data, result={}):
@@ -241,6 +242,11 @@ class GameEntityManager(object):
             else:
                 # TODO iterate over tags and fill ge.render.tags
                 pass
+            
+            # set the position to the one owned by the node
+            ge.position.x = nodepath.getX()
+            ge.position.y = nodepath.getY()
+            ge.position.z = nodepath.getZ()
             
             # install UID tag, unfortunately must obligatory be a string
             nodepath.setTag("UID", str(ge.UID))
@@ -312,8 +318,9 @@ class GameEntityManager(object):
                     nodepath.setPos(Point3(ge.position.x,
                                                ge.position.y,
                                                ge.position.z))
-                    rot = ge.rotation
-                    nodepath.setQuat(Quat(rot[0],rot[1],rot[2],rot[3]))
+                    rot = ge.position.rotation
+                    # TODO
+                    #nodepath.setQuat(Quat(rot[0],rot[1],rot[2],rot[3]))
             
             
             # NOTE: attaching the node to the parent node is delegated to the 
