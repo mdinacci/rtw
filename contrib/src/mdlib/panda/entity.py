@@ -98,18 +98,33 @@ class Track(GameEntity):
         the cells here, let's delegate it to the GOM
         """
         super(Track, self).__init__(uid, data)
+        self._rows = []
         
-        # keep a list of cells here for easier management
-        self._tiles = []
-    
-    def addTile(self, tile):
-        self._tiles.append(tile)
+    def unfold(self):
+        n = self.render.nodepath
+        rows = n.findAllMatches("**/row*").asList()
+        rows.reverse()
+        
+        for row in rows:
+            ent = GOM.createEntityFromNodepath(row, row_params)
+            ent.render.parentNode = int(self.UID)
+            self._rows.append(ent)
+        
+        self.render.nodepath.hide()
+        
     
     def serialise(self):
         attrs = super(Track, self).serialise()
         del attrs._tiles
         return attrs
 
+    rows = property(fget=lambda self: self._rows)
+    
+
+class Player(GameEntity):
+    def __init__(self, uid, data):
+        super(Player, self).__init__(uid, data)
+    
     
 class TrackTile(GameEntity):
     """ This entity represents a 3D cell in a track """
@@ -167,6 +182,15 @@ property_schema = {
                      }
                 }
 
+dummy_template_params = {
+                       "archetype": "General",
+                       "prettyName": "Dummy",
+                         "render": 
+                        {
+                         "entityType": EntityType.NONE,
+                         }
+                        }
+
 entity_template_params = {
                        "archetype": "General",
                        "prettyName": "Entity",
@@ -196,47 +220,60 @@ entity_template_params = {
                                  }
                            }
                         
-
+player_params = {
+                       "archetype": "Player",
+                       "prettyName": "Ball Controller",
+                       "python": {
+                          "clazz": Player
+                          },
+                       "physics": 
+                        {
+                         "collisionBitMask": 0x00000001,
+                         "categoryBitMask" : 0x00000000,
+                         "geomType": Types.Geom.SPHERE_GEOM_TYPE,
+                         "radius":  0.56,
+                         "hasBody": True,
+                         "linearSpeed": 3000,
+                         "density":400,
+                         "xForce" : 0,
+                         "yForce" : 0,
+                         "zForce" : 0,
+                         "torque" : 0
+                        },
+                       "position":
+                        {
+                         "x": 0,
+                         "y": 2,
+                         "z": 0,
+                         "rotation": (1,0,0,0)
+                         },
+                         "render": 
+                        {
+                         "isDirty": True,
+                         "entityType": EntityType.PLAYER
+                         }
+                        }
 ball_params = {
                "archetype": "Player",
                "prettyName": "Ball",
                "position": 
                     { 
-                     "x": 4,
-                     "y": 2,
-                     "z": 50,
+                     "x": 0,
+                     "y": 0,
+                     "z": 0,
                      "rotation": (1,0,0,0)
-                     },
-               "physics": 
-                    {
-                     "collisionBitMask": 0x00000001,
-                     "categoryBitMask" : 0x00000001,
-                     "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                     "radius":  0.56,
-                     "hasBody": True,
-                     "linearSpeed": 3000,
-                     "density":400,
-                     "xForce" : 0,
-                     "yForce" : 0,
-                     "zForce" : 0,
-                     "torque" : 0
                      },
                "render": 
                     {
-                     "entityType": EntityType.PLAYER,
-                     "scale": 1,
-                     "modelPath": "golf-ball",
+                     "scale": 0.3,
+                     "modelPath": "ball",
                      "isDirty": True,
                      }
                }
 
-tile_params = {
-               "archetype": "Tracks/Tiles",
-               "prettyName": "Tile",
-               "python":
-                    {
-                     "clazz": TrackTile
-                     },
+row_params = {
+               "archetype": "Tracks/Row",
+               "prettyName": "Row",
                "position":
                     {
                      "x": 0,
@@ -246,83 +283,33 @@ tile_params = {
                      },
                "physics": 
                     {
-                     "collisionBitMask": 0x00000001,
+                     "collisionBitMask": 0x00000010,
                      "categoryBitMask" : 0x00000000,
                      "geomType": Types.Geom.BOX_GEOM_TYPE,
-                     "length": 2.0,
-                     "width": 2.0,
-                     "height": 0.2,
+                     "length": 5.0,
+                     "width": 5.0,
+                     "height": 1,
                      "hasBody": False
                      },
                "render": 
                     {
                      "entityType": EntityType.ACTOR,
                      "scale": 1,
-                     "modelPath": "cell_normal",
                      "isDirty": True,
                      "color": None,
                      #"tags" : {"pos":None}
                      }
                }
 
-# default parameters for the cell objects
-cell_params = {
-               "archetype": "Tracks/Cells",
-               "prettyName": "Cell",
-               "python":
-                    {
-                     "clazz": TrackTile
-                     },
-               "position":
-                    {
-                     "x": 0,
-                     "y": 0,
-                     "z": 1,
-                     "rotation": (0,0,0,0)
-                     },
-               "physics": 
-                    {
-                     "collisionBitMask": 0x00000001,
-                     "categoryBitMask" : 0x00000000,
-                     "geomType": Types.Geom.BOX_GEOM_TYPE,
-                     "length": 2.0,
-                     "width": 2.0,
-                     "height": 0.2,
-                     "hasBody": False
-                     },
-               "render": 
-                    {
-                     "entityType": EntityType.ACTOR,
-                     "scale": 1,
-                     "modelPath": "cell_normal",
-                     "isDirty": True,
-                     "color": None,
-                     "tags" : {"pos":None}
-                     }
-               }
-
-row_params = {
-              "archetype":"Tracks/Rows",
-              "prettyName": "Row",
-              "render": #necessary even if empty in order to create a NodePath
-                {
-                 # HACK should be NONE but row won't be displayed othw
-                 "entityType": EntityType.NONE 
-                },
-              "physics":
-                {
-                 "width":5
-                 }
-              }
 
 new_track_params = {
                 "archetype": "Tracks",
-                "prettyName": "Track2",
+                "prettyName": "Track",
                 "position":
                     {
-                     "x": 0,
-                     "y": 20,
-                     "z": -5,
+                     "x": -2,
+                     "y": 0,
+                     "z": 0,
                      "rotation": (0,0,0,0)
                      },
                 "python": 
@@ -331,29 +318,12 @@ new_track_params = {
                      },
                 "render": #necessary even if empty in order to create a NodePath
                     {
-                     "entityType": EntityType.ACTOR,
+                     "entityType": EntityType.STATIC,
                      "modelPath": "track2",
-                     "scale": 2,
+                     "isDirty": True,
+                     "scale": 1,
                      },
                     }
-
-track_params = {
-                "archetype": "Tracks",
-                "prettyName": "Track",
-                "python": 
-                    {
-                     "clazz": Track
-                     },
-                "render": #necessary even if empty in order to create a NodePath
-                    {
-                     # HACK should be NONE but TrackCell won't be displayed othw
-                     "entityType": EntityType.ACTOR 
-                     },
-                "physics":
-                    {
-                     "rowWidth": 5
-                     }
-                }
 
 environment_params = {
                       "archetype": "Background",
