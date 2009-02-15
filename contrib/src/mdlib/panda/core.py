@@ -195,6 +195,10 @@ class AbstractScene(object):
         
         self._player = None
     
+    
+    def setSceneGraphNode(self, sgNode):
+        self._rootNode.reparentTo(sgNode)
+    
     def setEntityAsDirty(self, entity, keypaths):
         if self._dirtyEntities.has_key(entity):
             self._dirtyEntities[entity] + keypaths 
@@ -342,6 +346,8 @@ class AbstractScene(object):
     def update(self):
         # FIXME the best thing to do is to call entity.update()
         # for now just hack the position
+        
+        """
         if self._player is not None and self._player in self._dirtyEntities.keys():
             for entity, keypaths in self._dirtyEntities.items():
                 if entity.has_key("position"):
@@ -356,7 +362,6 @@ class AbstractScene(object):
         for entity, keypaths in self._dirtyEntities.items():
             if len(keypaths) > 0:
                 self._updaterDelegate.updateEntity(entity, keypaths)
-        """
         
     def render(self):
         # TODO step graphics engine
