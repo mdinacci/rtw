@@ -19,7 +19,7 @@
    <string>Tools</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents" >
-   <widget class="QWidget" name="" >
+   <widget class="QWidget" name="layoutWidget" >
     <property name="geometry" >
      <rect>
       <x>0</x>
@@ -199,24 +199,6 @@
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
-     </item>
-     <item>
-      <layout class="QFormLayout" name="formLayout" >
-       <item row="0" column="0" >
-        <widget class="QLabel" name="label" >
-         <property name="text" >
-          <string>Size:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1" >
-        <widget class="QComboBox" name="tileSizeBox" >
-         <property name="maxVisibleItems" >
-          <number>5</number>
-         </property>
-        </widget>
-       </item>
-      </layout>
      </item>
     </layout>
    </widget>

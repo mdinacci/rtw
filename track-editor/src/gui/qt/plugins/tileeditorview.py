@@ -38,29 +38,26 @@ class TileType:
 
 
 class Tile(object):
-    def __init__(self, x, y, z, tileType, direction, size):
+    def __init__(self, x, y, z, tileType, direction):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
         self.type = tileType
         self.direction = direction
-        self.size = size
         
     def __repr__(self):
-        return "x: %s y: %s z: %s type: %s direction: %d size: %d"  \
-                % (self.x, self.y, self.z, self.type, self.direction, self.size)
+        return "x: %s y: %s z: %s type: %s direction: %d "  \
+                        % (self.x, self.y, self.z, self.type, self.direction)
 
 class TileEditorController(object):
     # TODO remove getters and setters...this is not java
     def __init__(self, view, model, defaultType=TileType.NEUTRAL, 
-                 defaultDirection=Direction.FORWARD,
-                 defaultTileSize=5):
+                 defaultDirection=Direction.FORWARD):
         self.view = view
         self.model = model
         self.mode = Mode.DIRECTION
         self.currentType = defaultType
         self.currentDirection = defaultDirection 
-        self.currentTileSize = defaultTileSize 
         
     def setCurrentType(self, type):
         self.currentType = type
@@ -207,7 +204,7 @@ class TileEditorView(QWidget):
         else:
             type = self.controller.currentType
             direction = self.controller.currentDirection
-            t = Tile(col,row,0,type,direction,self.controller.currentTileSize)
+            t = Tile(col,row,0,type,direction)
             self.controller.addTileAt(t, row, col)
     
     def mousePressEvent(self, event):

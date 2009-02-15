@@ -54,14 +54,6 @@ class GUI(QMainWindow):
         self._tools.setupUi(toolsDock)
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, toolsDock)
         
-        for i in range(5,0,-1): self._tools.tileSizeBox.addItem("%s"%i)
-        self._tools.tileSizeBox.setCurrentIndex(1)
-        self._tools.tileSizeBox.setCurrentIndex(0)
-        
-        self.connect(self._tools.tileSizeBox, 
-                 SIGNAL("currentIndexChanged (const QString&)"), 
-                 self.controller.tileSizeChanged)
-        
         # directions
         self.connect(self._tools.actionForward, \
                  SIGNAL("toggled(bool)"),self.controller.toggleDirectionForward)
@@ -110,6 +102,7 @@ class TrackEditor(object):
     SEPARATOR = '!'
     TEMP_FILE = '/tmp/test.egg'
     QTESS_FILE = '/tmp/qtess.egg'
+    GROUP_FILE = '/tmp/group.egg'
     MAP_FORMAT_VERSION = "1.1"
     TESSELLATION_CURVES = 5
     
@@ -138,12 +131,22 @@ class TrackEditor(object):
     def exportTrack(self):
         fileName = QFileDialog.getSaveFileName(self.gui, "Save track (*.egg)")
         if fileName != '':
+
+            for f in (self.TEMP_FILE, self.QTESS_FILE, self.GROUP_FILE):
+                if os.path.exists(f):
+                    os.remove(f)
+            
             # TODO to launch in a new thread, progress bar etc...
+            logger.debug("Generating track")
             self.trackGenerator.generate(self.tileModel.tiles)
+
             # FIXME the egg should be written here but for the moment I leave it 
             # in the track generator in order to save from the preview
+            logger.debug("Saving track to: %s" % self.TEMP_FILE)
             self.trackGenerator.saveTo(self.TEMP_FILE)
-            # tessellate
+            
+            logger.debug("Tessellating track, up = %d us = %d " % \
+                     (self.TESSELLATION_CURVES, self.trackGenerator.rowCount))
             tools.tessellate(self.TEMP_FILE, self.QTESS_FILE, 
                          self.TESSELLATION_CURVES, self.trackGenerator.rowCount)
             
@@ -151,12 +154,12 @@ class TrackEditor(object):
             while not os.path.exists(self.QTESS_FILE):
                 time.sleep(0.2)
             
-            # organize the polygons in rows
-            tools.groupify(self.QTESS_FILE, self.TEMP_FILE)
+            logger.debug("Reorganizing track in file: %s" % self.TEMP_FILE)
+            tools.groupify(self.QTESS_FILE, self.GROUP_FILE)
             
-            # get rid of holes
-            tools.holeify(self.TEMP_FILE, fileName, 
-                          self.tileModel.getHoleIndexes())
+            logger.debug("Removing holes from track, saving to %s", fileName)
+            tools.holeify(self.GROUP_FILE, fileName, 
+                          self.trackGenerator.holeIndexes)
             
             logger.info("Track succesfully exported to %s" % fileName)
         
@@ -208,11 +211,6 @@ class TrackEditor(object):
         tiles = self.tileModel.tiles
         self.trackGenerator.generate(tiles)
         self.trackGenerator.showTrack()
-        
-    def tileSizeChanged(self, size):    
-        s = str(size)
-        logger.info("Tile size changed to %s", s)
-        self.tileController.currentTileSize = int(s)
         
     def toggleNeutralType(self, toggled):
         if not self.tileController.currentType == TileType.NEUTRAL:
