@@ -143,6 +143,7 @@ class TrackGenerator(DirectObject):
         self.width = width
         
         self.tempVertexes = []
+        self.holeIndexes = []
         
     def toggleRenderMode(self):
         if self.isWireframe:
@@ -201,15 +202,16 @@ class TrackGenerator(DirectObject):
         
     def saveTo(self, fileName):
         egg = self.surface.toEgg()
+        egg.setCoordinateSystem(1) # z-up-right
         egg.writeEgg(Filename(fileName))
     
     def generate(self, grid):
         self.rowCount = 0
         self.tempVertexes = []
+        self.holeIndexes = []
         self.generateVertexes(grid)
         self.generateSurface(self.tempVertexes)
-    
-
+        
     def generateVertexes(self, grid, start=None, end=None, 
                          tileIndexStart=None, tileIndexEnd=None):
         if start == None: start = 0
@@ -388,6 +390,11 @@ class TrackGenerator(DirectObject):
         """ Generate vertexes for a given row """              
         direction = tileRow[0].direction
         
+        for i,tile in enumerate(tileRow):
+            if tile.type == TileType.HOLE:
+                self.holeIndexes.append(self.rowCount*5+i)
+        
+        # search for first and last non-HOLE tile
         firstTile = lastTile = None
         for tile in tileRow:
             if tile.type != TileType.HOLE:
