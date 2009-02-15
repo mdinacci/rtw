@@ -72,11 +72,13 @@ def displayLines(a,b, actor):
             halfHeight = actor.physics.height  / 2.0
             leng = actor.physics.length
             
-        lines.drawLines([((a[0]-leng, a[1]+halfLen-leng, a[2]),
+        lines.drawLines([(
+                          (a[0]-leng, a[1]+halfLen-leng, a[2]),
                           (b[0]-leng, a[1]+halfLen-leng, a[2]),
                           (b[0]-leng, a[1]-halfLen-leng, a[2]),
                           (a[0]-leng, a[1]-halfLen-leng, a[2]),
-                          (a[0]-leng, a[1]+halfLen-leng, a[2]))])
+                          (a[0]-leng, a[1]+halfLen-leng, a[2])
+                          )])
         lines.create()
         
         lines = LineNodePath(parent = np, thickness = 4.0, colorVec = Vec4(0, 0, 1, 1))

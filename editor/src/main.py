@@ -378,7 +378,7 @@ class EditorLogic(AbstractLogic):
         #self.view.addToScene(self._track)
         
         # create player
-        self._player = GOM.createEntity(ball_params.copy())
+        self._player = GOM.createEntity(golfball.copy())
         self.view.addToScene(self._player)
     
     def _subscribeToEvents(self):
