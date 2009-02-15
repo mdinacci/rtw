@@ -146,9 +146,9 @@ class TrackEditor(object):
             self.trackGenerator.saveTo(self.TEMP_FILE)
             
             logger.debug("Tessellating track, up = %d us = %d " % \
-                     (self.TESSELLATION_CURVES, self.trackGenerator.rowCount))
+                     (self.TESSELLATION_CURVES, self.trackGenerator.rowCount*3))
             tools.tessellate(self.TEMP_FILE, self.QTESS_FILE, 
-                         self.TESSELLATION_CURVES, self.trackGenerator.rowCount)
+                         self.TESSELLATION_CURVES, self.trackGenerator.rowCount*3)
             
             # sleep in order to give egg-qtess some time to run
             while not os.path.exists(self.QTESS_FILE):
