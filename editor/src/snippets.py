@@ -1,3 +1,53 @@
+self.velocityVector = self.model.getQuat().getForward() * self.speed 
+
+def simulationTask(self,task):
+        dt=globalClock.getDt()
+        
+        # face the ball in the turning direction
+        
+        if self.keyMap["right"] == 1:
+            self.ball.setH(self.ball.getH() - dt*15)
+            
+        if self.keyMap["left"] == 1:
+            self.ball.setH(self.ball.getH() + dt*15)
+        
+        # forward vector of the ball expressed in the world coordinate space 
+        forward = render.getRelativeVector(self.ballTarget,Vec3(0,-1,0)) 
+        forward.setZ(0)
+        forward.normalize()
+        
+        # accelerate
+        if self.keyMap["forward"] == 1:
+            if self.ACCEL < self.MAX_SPEED:
+                self.ACCEL += .3
+            else:
+                self.ACCEL = self.MAX_SPEED
+        else:
+            if self.ACCEL > 0:
+                self.ACCEL -= .4
+        
+        # brake
+        if self.keyMap["backward"] == 1:
+            if self.ACCEL > 0:
+                self.ACCEL -= 1
+            
+        if self.ACCEL < 0:
+            self.ACCEL = 0
+        
+        speed = forward * dt * self.ACCEL
+        self.ball.setPos(self.ball.getPos() + speed)
+        self.ball.setZ(0.4)
+
+        self.ball.setP(self.ball.getP() -1 * dt * self.ACCEL * 30)
+        self.ballTarget.setPos(self.ball.getPos())
+        self.ballTarget.setH(self.ball.getH())
+        
+        base.camera.setPos(self.ballTarget.getPos() - forward*6)
+        base.camera.setZ(self.ball.getZ() + 1)
+        base.camera.lookAt(self.ballTarget.getPos())
+        
+        return task.cont
+
 # to know which texture is bind to a GeomNode
 for i in range(geomNode.getNumGeoms()):
   state = geomNode.getGeomState(i)
