@@ -36,42 +36,88 @@ def tessellate(inputFile, outputFile, up, us):
     f = open(paramFile, "w")
     f.write("curve : %d %d" % (up, us))
     
-    cmd = "egg-qtess -tbnauto -cs z-up -f %s -o %s %s" % (paramFile,outputFile,inputFile)
+    cmd = "egg-qtess -cs z-up -f %s -o %s %s" % (paramFile,outputFile,inputFile)
     
     Popen(cmd.split())
     
 
-def holeify(inputFile, outputFile, holesIndexes, prefix="row-"):
+def holeify(inputFile, outputFile, holesIndexes, prefix="row-", 
+            polysPerRow=5, polyLines=4, linesPerRow=3):
     """ 
     Remove polygons from an egg file 
     TODO: it would be nice to remove vertexes too, but it's not trivial as I 
           have to check that they're not used by other polygons
     """
+    print holesIndexes
     
-    polysPerRow = 5
-    polyLines = 4
-
     f = open(inputFile)
     f2 = open(outputFile, "w")
+    
+    indexes = []
+    indexes += map(lambda x: (x/polysPerRow) * polysPerRow * linesPerRow - 
+                   linesPerRow + polysPerRow +1, holesIndexes)
+    indexes += map(lambda x: (x/polysPerRow) * polysPerRow * linesPerRow - 
+                   linesPerRow + polysPerRow*2 +1, holesIndexes)
+    indexes += map(lambda x: (x/polysPerRow) * polysPerRow * linesPerRow - 
+                   linesPerRow + polysPerRow*3 +1, holesIndexes)
+    
+    holesIndexes = indexes
+    print holesIndexes
     
     skipPolygon = False
     lines = f.readlines()
     polyCount = -1
     linesToSkip = 0
-    for i,line in enumerate(lines):
+    for line in lines:
         if linesToSkip > 0:
             linesToSkip-=1
             continue
         
         if "Polygon" in line:
-            # WRONG
-            if i % 3 == 0: polyCount +=1
+            polyCount +=1
             if polyCount in holesIndexes:
                 linesToSkip = 3
                 continue
         f2.write(line)
     
+
+def texturify(modelFile, outputFile, textures, tiles, startAtOffset=1):
+    """ Write down textures to an egg file """
     
+    if outputFile == None:
+        outputFile = "%s-textured.%s" % (modelFile[:modelFile.index(".")],
+                                        modelFile[modelFile.index(".")+1:])
+    f = open(modelFile)
+    f2 = open(outputFile, "w")
+    
+    # this is basically to skip the coordinate-system entry
+    lines = f.readlines() 
+    for i in range(startAtOffset):
+         f2.write(lines[i])
+    
+    # write now texture references
+    for texture in textures:
+        f2.write("<Texture> %s {\n" % texture)
+        f2.write("  %s.jpg\n" % texture)
+        f2.write("  <Scalar> format { rgb }\n")
+        f2.write("  <Scalar> wrap { repeat }\n")
+        f2.write("}\n\n")
+    
+    # now write the rest of the file, adding texture refs where needed
+    group = 0
+    tile = 0
+    for i,line in enumerate(lines[startAtOffset:]):
+        f2.write(line)
+        
+        if "row" in line:
+            group = line[line.index("-")+1:line.index("{")]
+            group = int(group.rstrip())
+        elif "Polygon" in line:
+            tile = line[line.index("-")+1:line.index("{")]
+            tile = int(tile.rstrip())
+            f2.write("    <TRef> { %s }\n" % tiles[group][tile])
+            
+   
 def groupify(modelFile, outputFile=None, polysPerGroup=5, duplicationFactor=3,
              rowPrefix="row", polyPrefix="tile-"):
     """ Organise polysPerGroup polygons in a group """
