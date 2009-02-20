@@ -13,9 +13,9 @@ from mdlib.panda.data import GOM, GameEntity, EntityType, \
         KeyValueObject, transformToKeyValue
 from mdlib.panda import event
 from mdlib.types import Types
-from mdlib.panda import math_utils as math
+from mdlib.panda import utils
 
-from pandac.PandaModules import NodePath, Point3, OdeGeom, Quat
+from pandac.PandaModules import NodePath, Point3, OdeGeom, Quat, Material, Vec4
 
 class EntityUpdaterDelegate(object): 
     def updateEntity(self, entity, keypaths):
@@ -121,10 +121,40 @@ class Track(GameEntity):
     rows = property(fget=lambda self: self._rows)
     
 
-class Player(GameEntity):
-    def __init__(self, uid, data):
-        super(Player, self).__init__(uid, data)
 
+class Player(GameEntity):
+    pass
+
+class Ball(GameEntity):
+    MAX_SPEED = 12
+    MAX_STEER = 30
+    
+    def __init__(self, uid, data):
+        super(Ball, self).__init__(uid, data)
+        self.steeringFactor = .5
+        self.spinningFactor = 90
+        self.speed = 0
+        
+    def setBall(self, ball):
+        self.ball = ball
+        self.ball.nodepath.setPos(self.nodepath.getPos())
+    
+    def update(self):
+        pass
+    
+    def turnRight(self):
+        currentH = self.nodepath.getH()
+        self.nodepath.setH(currentH - self.steeringFactor)
+    
+    def turnLeft(self):
+        currentH = self.nodepath.getH()
+        self.nodepath.setH(currentH + self.steeringFactor)
+    
+    def accelerate(self):
+        pass
+    
+    def brake(self):
+        pass
     
 # Property schema: defines the existing properties and their type
 property_schema = {
@@ -209,58 +239,54 @@ entity_template_params = {
                                  "tags" : {"pos":None}
                                  }
                            }
-                        
 player_params = {
-                       "archetype": "Player",
-                       "prettyName": "Ball Controller",
-                       "python": {
-                          "clazz": Player
-                          },
-                       "physics": 
-                        {
-                         "collisionBitMask": 0x00000002,
-                         "categoryBitMask" : 0x00000001,
-                         "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                         "radius":  0.1,
-                         "hasBody": True,
-                         "linearSpeed": 50,
-                         "density":400,
-                         "xForce" : 0,
-                         "yForce" : 0,
-                         "zForce" : 0,
-                         "torque" : 0
-                        },
-                       "position":
-                        {
-                         "x": 2,
-                         "y": 2,
-                         "z": 1,
-                         "rotation": (1,0,0,0)
-                         },
-                         "render": 
-                        {
-                         "isDirty": True,
-                         "entityType": EntityType.PLAYER
-                         }
-                        }
+                   "archetype": "Player",
+                   "prettyName": "Player",
+                   "python": 
+                   {
+                     "clazz": Player
+                    },
+                     "render": 
+                    {
+                     "entityType": EntityType.NONE,
+                     }
+                 }                       
 ball_params = {
-               "archetype": "Model",
-               "prettyName": "Ball",
-               "position": 
-                    { 
-                     "x": 0,
-                     "y": 0,
-                     "z": 0,
+                   "archetype": "Model",
+                   "prettyName": "Ball",
+                   "python":
+                   {
+                    "clazz": Ball
+                    },
+                   "physics": 
+                    {
+                     "collisionBitMask": 0x00000002,
+                     "categoryBitMask" : 0x00000001,
+                     "geomType": Types.Geom.SPHERE_GEOM_TYPE,
+                     "radius":  0.3,
+                     "hasBody": True,
+                     "linearSpeed": 15,
+                     "density":400,
+                     "xForce" : 0,
+                     "yForce" : 0,
+                     "zForce" : 0,
+                     "torque" : 0
+                    },
+                   "position":
+                    {
+                     "x": 7,
+                     "y": 7,
+                     "z": 0.13,
                      "rotation": (1,0,0,0)
                      },
-               "render": 
+                     "render": 
                     {
-                     "entityType": EntityType.STATIC,
-                     "scale": 0.2,
-                     "modelPath": "ball",
                      "isDirty": True,
+                     "modelPath": "ball",
+                     "scale":.3,
+                     "entityType": EntityType.PLAYER
                      }
-               }
+                    }
 
 new_track_params = {
                 "archetype": "Tracks",
@@ -288,8 +314,8 @@ new_track_params = {
                      "collisionBitMask": 0x00000001,
                      "categoryBitMask" : 0x00000002,
                      "geomType": Types.Geom.TRIMESH_GEOM_TYPE,
-                     "length": 8.875,
-                     "width": 15.5,
+                     "length": 1,
+                     "width": 1,
                      "height": .1,
                      "hasBody": False
                      }

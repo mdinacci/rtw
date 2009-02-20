@@ -17,7 +17,7 @@ from direct.task.Task import Task
 
 from mdlib.panda.input import SafeDirectObject
 from mdlib.panda import event
-from mdlib.panda import math_utils as math
+from mdlib.panda import utils
 from mdlib.patterns import singleton
 from mdlib.types import *
 
@@ -79,39 +79,41 @@ class PhysicManager(object):
             geometry.setPosition(position.x, position.y, position.z)
             
             if object.hasBody:
-                M.setSphere(object.density, object.radius)
+                M.setSphereTotal(object.density, object.radius)
         
         elif geomType == Types.Geom.BOX_GEOM_TYPE:
             logger.debug("Creating box geom of size %s-%s-%s for object: %s"\
                           % (object.length, object.width, 
                                object.height, object))
-            geometry = OdeBoxGeom(self.space, object.length, object.width, object.height)
+            #geometry = OdeBoxGeom(self.space, object.length, object.width, object.height)
+            #geometry.setPosition(position.x+l/2.0, position.y+w/2.0, position.z+h/2.0)
+            geometry = OdeBoxGeom(self.space, 1.0, 1.0, 1.0)
             l, w, h = (object.length, object.width, object.height)
-            geometry.setPosition(position.x+l/2.0, position.y+w/2.0, position.z+h/2.0)
+            geometry.setPosition(0,0,0)
             
             if object.hasBody:
-                M.setBox(object.density, object.length, object.width, object.height)
+                p1 = Point3()
+                p2 = Point3()
+                geometry.getAABB(p1,p2)
+                width = (p2.getX() - p1.getX()) / 2.0
+                length = (p2.getY() - p1.getY()) / 2.0
+                height = (p2.getZ() - p1.getZ()) / 2.0
+                M.setBox(object.density,width,length,height)
                 #M.setBox(object.density, object.length, object.width, object.height)
                 
         elif geomType == Types.Geom.TRIMESH_GEOM_TYPE:
             logger.debug("Creating trimesh geom for object: %s" % nodepath)
-            #parent = nodepath.getParent()
-            #mesh = nodepath.copyTo(parent)
-            #mesh.hide()
-            #mesh.flattenStrong()
             nodepath.flattenLight()
             modelTrimesh = OdeTriMeshData(nodepath, True)
             geometry = OdeTriMeshGeom(self.space, modelTrimesh)
-            l, w, h = (object.length, object.width, object.height)
-            geometry.setPosition(position.x, position.y, position.z)
-            #geometry.setPosition(position.x+l/2.0, position.y+w/2.0, position.z+h/2.0)
+            geometry.setPosition(0,0,0)
 
         else:
             logger.error("Invalid geometry type for object: %s" % object)
             return None
         
         #geometry.setPosition(position.x, position.y, position.z)
-        geometry.setQuaternion(math.vec4ToQuat(position.rotation))
+        geometry.setQuaternion(utils.vec4ToQuat(position.rotation))
         geometry.setCollideBits(object.collisionBitMask)
         geometry.setCategoryBits(object.categoryBitMask)
 
@@ -127,7 +129,7 @@ class PhysicManager(object):
             geometry.setPosition(oldPos)
             geometry.setQuaternion(oldRot)
             #geometry.setPosition(position.x, position.y, position.z)
-            #geometry.setQuaternion(math.vec4ToQuat(position.rotation))
+            #geometry.setQuaternion(utils.vec4ToQuat(position.rotation))
             
             body.setPosition(geometry.getPosition())
             body.setQuaternion(geometry.getQuaternion())

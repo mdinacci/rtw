@@ -13,9 +13,7 @@ import math, string
 from random import randint 
 
 __all__ = ['TileEditorModel', 'TileEditorController', 'TileEditorView', 'Mode',
-           'Direction', 'Tile', 'TileType']
-
-colors = [Qt.white, Qt.green, Qt.red, Qt.yellow, Qt.blue]
+           'Direction', 'Tile', 'TileType', "colorForType"]
 
 class Mode:
     DIRECTION = 0x1
@@ -28,13 +26,22 @@ class Direction:
     BACKWARD = 0x8
 
 class TileType:
-    NEUTRAL = Qt.gray
-    JUMP = Qt.blue
-    SPEED = Qt.green
-    SLOW = Qt.red
-    INVERT = Qt.yellow
-    HOLE = Qt.black
-    #BOUNCE_BACK = Qt.black
+    NEUTRAL = "neutral"
+    SPEED = "accelerate"
+    INVERT = "invert"
+    JUMP = "jump"
+    SLOW = "slow"
+    HOLE = "fall"
+    BOUNCE_BACK = "bounceback"
+
+
+qtColorForType = {TileType.HOLE: Qt.black, TileType.NEUTRAL: Qt.gray, 
+                TileType.JUMP: Qt.blue, TileType.INVERT : Qt.yellow, \
+                TileType.SLOW : Qt.red, TileType.SPEED : Qt.green}
+
+colorForType = {TileType.HOLE: (1,1,1,0), TileType.NEUTRAL: (0.4,0.4,0.4), 
+                TileType.JUMP: (0,0,1,0), TileType.INVERT : (1,1,0,0), \
+                TileType.SLOW : (1,0,0,0), TileType.SPEED : (0,1,0,0)}
 
 
 class Tile(object):
@@ -269,7 +276,8 @@ class TileEditorView(QWidget):
                 for colIdx, tile in enumerate(row):
                     if tile is not None:
                         painter.save()
-                        painter.setPen(tile.type)
+                        color = qtColorForType[tile.type]
+                        painter.setPen(color)
                         
                         x = colIdx*tileWidth
                         y = self.height()-rowIdx*tileHeight
@@ -330,6 +338,7 @@ class TileEditorView(QWidget):
                                              % int(tile.z))
                             
                         painter.restore()
+        
         
     tilesNumX = pyqtProperty("int", lambda self: self.TILES_NUM_X, 
                          lambda self, x: setattr(self,"TILES_NUM_X", x), 

@@ -33,13 +33,13 @@ Filename, CollisionTraverser,CollisionHandlerQueue, CollisionNode, GeomNode, \
 CollisionRay
 
 from mdlib.panda.sheet import Sheet
-from mdlib.panda.math_utils import pointAtZ
+from mdlib.panda.utils import pointAtZ
 from mdlib.math import transpose2DMatrix, rotateMatrixClockwise, \
 rotateMatrixAntiClockwise
 
 import echo
 
-from gui.qt.plugins.tileeditorview import Tile, TileType, Direction
+from gui.qt.plugins.tileeditorview import Tile,TileType,Direction,colorForType
 
 from copy import deepcopy
 
@@ -123,6 +123,7 @@ class Camera(object):
 
 # TODO put in conf file ?
 VERTEX_PER_ROW = 4
+VERTEX_MULTIPLIER = 3
 
 class TrackGenerator(DirectObject):   
     def __init__(self, width):
@@ -132,7 +133,7 @@ class TrackGenerator(DirectObject):
         self.accept("mouse1", self.grabPoint)
         self.accept("mouse1-up", self.releasePoint)
         self.accept("p", self.saveTo, ["/tmp/test.egg"])
-        self.accept("b", self.toggleOobe)
+        self.accept("b", base.oobe)
         self.accept("r", self.toggleRenderMode)
         self.accept("escape", self.hideTrack)
         
@@ -144,6 +145,7 @@ class TrackGenerator(DirectObject):
         
         self.tempVertexes = []
         self.holeIndexes = []
+        self.texIndexes = []
         
     def toggleRenderMode(self):
         if self.isWireframe:
@@ -151,9 +153,6 @@ class TrackGenerator(DirectObject):
             self.isWireframe = False
         else:
             base.wireframeOn()
-    
-    def toggleOobe(self):
-        base.oobe()
     
     def grabPoint(self):
         logger.debug("Dragging point")
@@ -209,6 +208,7 @@ class TrackGenerator(DirectObject):
         self.rowCount = 0
         self.tempVertexes = []
         self.holeIndexes = []
+        self.texIndexes = []
         self.generateVertexes(grid)
         self.generateSurface(self.tempVertexes)
         
@@ -352,6 +352,10 @@ class TrackGenerator(DirectObject):
         heightDirection can be backward or forward. Forward means that the 
         points grow starting from the inside of the curve going to the outside  
         """ 
+        
+        # well, this is a limitation, I can't customise rows in straight curves
+        self.texIndexes.append([TileType.NEUTRAL]*5)
+        
         # 4 is the number of control points
         pos = len(self.tempVertexes)
         if horizDirection == Direction.LEFT:
@@ -362,7 +366,7 @@ class TrackGenerator(DirectObject):
             for i in range(VERTEX_PER_ROW):
                 x,y,z = vertex[0]+i*xIncrement,vertex[1]+ i*yIncrement,vertex[2]
                 vert = {'node':None, 'point': (x,y,z), 
-                                     'type' : 1}
+                                     'type' : TileType.NEUTRAL}
                 if heightDirection == Direction.BACKWARD:
                     self.tempVertexes.insert(pos, vert)
                 else:
@@ -377,7 +381,7 @@ class TrackGenerator(DirectObject):
             for i in range(VERTEX_PER_ROW):
                 x,y,z = vertex[0]+i*xIncrement,vertex[1]+ i*yIncrement,vertex[2]
                 vert = {'node':None, 'point': (x,y,z), 
-                                     'type' : 1}
+                                     'type' : TileType.NEUTRAL}
                 if heightDirection == Direction.FORWARD:
                     self.tempVertexes.insert(pos, vert)
                 else:
@@ -390,9 +394,12 @@ class TrackGenerator(DirectObject):
         """ Generate vertexes for a given row """              
         direction = tileRow[0].direction
         
+        texList = []
         for i,tile in enumerate(tileRow):
             if tile.type == TileType.HOLE:
                 self.holeIndexes.append(self.rowCount*5+i)
+            texList.append(tile.type)
+        self.texIndexes.append(texList)
         
         # search for first and last non-HOLE tile
         firstTile = lastTile = None
@@ -414,7 +421,7 @@ class TrackGenerator(DirectObject):
                     x = firstTile.x + (i * xIncrement) + xIncrement/2.0
                     y, z = firstTile.y, firstTile.z
                     # FIXME
-                    type = self._colorForTile(tileRow[0].type)
+                    type = colorForType[tileRow[0].type]
                     vert = {'node':None, 'point': (x,y,z), 
                                     'type' : type}
                     verts.append(vert)
@@ -428,7 +435,7 @@ class TrackGenerator(DirectObject):
                     y = lastTile.y - (i * yIncrement) #- yIncrement/2.0
                     #y = firstTile.y + (i * yIncrement) #- yIncrement/2.0
                     x, z = firstTile.x, firstTile.z
-                    type = self._colorForTile(tileRow[0].type)
+                    type = colorForType[tileRow[0].type]
                     vert = {'node':None, 'point': (x,y,z), 
                                     'type' : type}
                     verts.insert(offset,vert)
@@ -442,7 +449,7 @@ class TrackGenerator(DirectObject):
                 for i in range(VERTEX_PER_ROW):
                     y = lastTile.y + (i * yIncrement) + yIncrement/2.0
                     x, z = lastTile.x, lastTile.z
-                    type = self._colorForTile(tileRow[0].type)
+                    type = colorForType[tileRow[0].type]
                     vert = {'node':None, 'point': (x,y,z), 
                                     'type' : type}
                     verts.insert(offset,vert)
@@ -452,6 +459,12 @@ class TrackGenerator(DirectObject):
         
     def generateSurface(self, verts):
         logger.debug("Generating surface")
+        
+        # increase the distances between vertexes in order to make the
+        # track bigger
+        for vert in verts:
+            vert['point'] = tuple(map(lambda n: n*VERTEX_MULTIPLIER, 
+                                      vert['point']))
         
         surface = Sheet("curve")
         surface.setup(4,4,VERTEX_PER_ROW, verts)
@@ -509,21 +522,6 @@ class TrackGenerator(DirectObject):
             taskMgr.step()
             time.sleep(0.001)
             
-    def _colorForTile(self, tileColor):
-        color = (0,0,0,0)
-        if tileColor <= 3:
-            color = (1,1,1,0)
-        elif tileColor == 7:
-            color = (1,0,1,0)
-        elif tileColor == 8:
-            color = (0,1,0,0)
-        elif tileColor == 9:
-            color = (0,0,1,0)
-        elif tileColor == 12:
-            color = (1,1,0,0)
-        
-        return color   
-        
     def _setupCollisionDetection(self):
         self.picker = CollisionTraverser()
         self.pq = CollisionHandlerQueue();

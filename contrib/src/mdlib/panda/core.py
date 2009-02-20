@@ -351,11 +351,7 @@ class AbstractScene(object):
         # FIXME the best thing to do is to call entity.update()
         # for now just hack the position
 
-        pos = self._player.position
-        quat = Quat(pos.rotation)
-        #self._player.nodepath.setPosQuat(self._rootNode, Point3(pos.x,pos.y,pos.z), quat)
-        self._player.nodepath.setPos(pos.x, pos.y, pos.z)
-        self._player.nodepath.setQuat(quat)
+        self._player.update()
         
         """
         if self._player is not None and self._player in self._dirtyEntities.keys():

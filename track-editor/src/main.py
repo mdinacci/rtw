@@ -103,8 +103,10 @@ class TrackEditor(object):
     TEMP_FILE = '/tmp/test.egg'
     QTESS_FILE = '/tmp/qtess.egg'
     GROUP_FILE = '/tmp/group.egg'
-    MAP_FORMAT_VERSION = "1.1"
+    TEXTURE_FILE = '/tmp/texture.egg'
+    MAP_FORMAT_VERSION = "1.2"
     TESSELLATION_CURVES = 5
+    TEXTURES = ("neutral","jump", "accelerate", "slow")
     
     def __init__(self, argv):
         self.app = QApplication(argv)
@@ -132,7 +134,8 @@ class TrackEditor(object):
         fileName = QFileDialog.getSaveFileName(self.gui, "Save track (*.egg)")
         if fileName != '':
 
-            for f in (self.TEMP_FILE, self.QTESS_FILE, self.GROUP_FILE):
+            for f in (self.TEMP_FILE, self.QTESS_FILE, self.GROUP_FILE, 
+                      self.TEXTURE_FILE):
                 if os.path.exists(f):
                     os.remove(f)
             
@@ -152,14 +155,18 @@ class TrackEditor(object):
             
             # sleep in order to give egg-qtess some time to run
             while not os.path.exists(self.QTESS_FILE):
-                time.sleep(0.2)
+                time.sleep(0.3)
             
-            logger.debug("Reorganizing track in file: %s" % self.TEMP_FILE)
+            logger.debug("Reorganizing track, saving to: %s" % self.GROUP_FILE)
             tools.groupify(self.QTESS_FILE, self.GROUP_FILE)
             
             logger.debug("Removing holes from track, saving to %s", fileName)
-            tools.holeify(self.GROUP_FILE, fileName, 
+            tools.holeify(self.GROUP_FILE, self.TEXTURE_FILE, 
                           self.trackGenerator.holeIndexes)
+            
+            logger.debug("Adding textures on polygons, saving to %s", fileName)
+            tools.texturify(self.TEXTURE_FILE, fileName, self.TEXTURES, \
+                            self.trackGenerator.texIndexes)
             
             logger.info("Track succesfully exported to %s" % fileName)
         
