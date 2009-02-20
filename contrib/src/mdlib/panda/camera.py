@@ -178,12 +178,30 @@ class TheBallCamera(WASDCamera):
     
     def setTarget(self, target):
         self._target = target
+        base.camera.setPos(self._target, 0, -10, 1)
     
     def enable(self):
         super(TheBallCamera, self).enable()
         base.disableMouse()
         
     def update(self):
+        self.move()
+        target = self._target
+        camvec = target.getPos() - base.camera.getPos()
+        #camvec.setZ(0)
+        camdist = camvec.length()
+        camvec.normalize()
+        if(camdist > self._maxDistance):
+            base.camera.setPos(base.camera.getPos() + 
+                               camvec*(camdist-self._maxDistance))
+            camdist = self._maxDistance
+        if(camdist < self._minDistance):
+            base.camera.setPos(base.camera.getPos() + 
+                               camvec*(self._minDistance*camdist))
+            camdist = self._minDistance
+            
+        
+    def update2(self):
         self.move()
         target = self._target
         camvec = target.getPos() - base.camera.getPos()

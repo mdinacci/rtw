@@ -1,5 +1,12 @@
 MAP FORMAT GUIDE
 
+0. Changelog
+
+    1.0 Original format
+    1.1 Added tiletype  (not sure)
+    1.2 Moved tiletype to string
+
+
 1. Description
 
 Maps are written down as ascii files, then compressed (with zip ?)

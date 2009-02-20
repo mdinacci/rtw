@@ -1,52 +1,23 @@
+# convert textures to internal optimized format
+#egg2bam -txo -ctex model.egg -o model.bam
+        
+"""self.cameraRay = CollisionSegment()
+
+a = self.player.nodepath.getPos()
+b = base.camera.getPos()
+c = math.sqrt(b.getY()**2 + (a.getY() - b.getY()) **2) + \
+                                                self.cam.TARGET_DISTANCE
+p = Point3(a-b)
+p.setY(c)
+self.cameraRay.setPointA(Point3(0,0,0))
+self.cameraRay.setPointB(p)
+"""
+#steering = 7
+            #right.setZ(0)
+            #right.normalize()
+            #self.player.nodepath.setPos(self.player.nodepath.getPos() + (right*steering*dt))
 self.velocityVector = self.model.getQuat().getForward() * self.speed 
 
-def simulationTask(self,task):
-        dt=globalClock.getDt()
-        
-        # face the ball in the turning direction
-        
-        if self.keyMap["right"] == 1:
-            self.ball.setH(self.ball.getH() - dt*15)
-            
-        if self.keyMap["left"] == 1:
-            self.ball.setH(self.ball.getH() + dt*15)
-        
-        # forward vector of the ball expressed in the world coordinate space 
-        forward = render.getRelativeVector(self.ballTarget,Vec3(0,-1,0)) 
-        forward.setZ(0)
-        forward.normalize()
-        
-        # accelerate
-        if self.keyMap["forward"] == 1:
-            if self.ACCEL < self.MAX_SPEED:
-                self.ACCEL += .3
-            else:
-                self.ACCEL = self.MAX_SPEED
-        else:
-            if self.ACCEL > 0:
-                self.ACCEL -= .4
-        
-        # brake
-        if self.keyMap["backward"] == 1:
-            if self.ACCEL > 0:
-                self.ACCEL -= 1
-            
-        if self.ACCEL < 0:
-            self.ACCEL = 0
-        
-        speed = forward * dt * self.ACCEL
-        self.ball.setPos(self.ball.getPos() + speed)
-        self.ball.setZ(0.4)
-
-        self.ball.setP(self.ball.getP() -1 * dt * self.ACCEL * 30)
-        self.ballTarget.setPos(self.ball.getPos())
-        self.ballTarget.setH(self.ball.getH())
-        
-        base.camera.setPos(self.ballTarget.getPos() - forward*6)
-        base.camera.setZ(self.ball.getZ() + 1)
-        base.camera.lookAt(self.ballTarget.getPos())
-        
-        return task.cont
 
 # to know which texture is bind to a GeomNode
 for i in range(geomNode.getNumGeoms()):
@@ -56,89 +27,8 @@ for i in range(geomNode.getNumGeoms()):
     tex = texAttrib.getTexture()
     print i, tex
     
-def generateVertexes(self, grid, x=0,y=0,z=0):
-        stepOut = False
-        
-        for i,row in enumerate(grid):
-            for j,col in enumerate(row):
-                # iterate the row until we find a column which is not None
-                if col is not None:
-                    tileRow = []
-                    # read 5 (maximum number of tiles per row) +1 columns
-                    # HACK change with constants from tileeditorview
-                    tileRow = [grid[i][j+w] for w in range(5+1) if (j+w) < 80]
-                    tileRow = filter(lambda x: x is not None, tileRow)
-                    
-                    if len(tileRow) > 0:
-                        # detect if there is a curve (direction changes)
-                        isCurve = False
-                        curveOffset = 0
-                        firstDir = tileRow[0].direction
-                        for tile in tileRow:
-                            if tile.direction != firstDir:
-                                isCurve = True
-                                curveDir = tile.direction
-                                curveOffset = grid[i].index(tile)
-                                break
-                            
-                        if isCurve:
-                                
-                            logger.debug("Detected a curve, direction is: %s" \
-                                         % tile.direction)
-                            
-                            # TODO interpolate some vertexes to make the 
-                            # curve smoother
-                            
-                            # transpose matrix
-                            newgrid = deepcopy(grid)
-                            newgrid.reverse()
-                            newgrid = map(lambda *row: list(row), *grid)[curveOffset:]
-                            
-                            # call generate with the new matrix
-                            self.generateVertexes(newgrid)
-                            stepOut = True
-                            
-                        else:
-                            self.addVertexes(tileRow, self.tempVertexes)
-                    # read another row
-                    break
-            if stepOut:
-                break
-
 #============================================
 loader.loadModelCopy("models/misc/xyzAxis").reparentTo(render)
-
-def displayLines(a,b, actor):
-        np = actor.render.nodepath
-        lines = LineNodePath(parent = np, thickness = 4.0, colorVec = Vec4(1, 0, 0, 1))
-        lines.reset()
-        
-        if actor.physics.geomType == Types.Geom.SPHERE_GEOM_TYPE:
-            halfHeight = actor.physics.radius / 2.0
-            halfLen = halfHeight
-            leng = actor.physics.radius
-        else:
-            halfLen = actor.physics.length / 2.0
-            halfHeight = actor.physics.height  / 2.0
-            leng = actor.physics.length
-            
-        lines.drawLines([(
-                          (a[0]-leng, a[1]+halfLen-leng, a[2]),
-                          (b[0]-leng, a[1]+halfLen-leng, a[2]),
-                          (b[0]-leng, a[1]-halfLen-leng, a[2]),
-                          (a[0]-leng, a[1]-halfLen-leng, a[2]),
-                          (a[0]-leng, a[1]+halfLen-leng, a[2])
-                          )])
-        lines.create()
-        
-        lines = LineNodePath(parent = np, thickness = 4.0, colorVec = Vec4(0, 0, 1, 1))
-        lines.reset()
-        lines.drawLines([((a[0], a[1]+halfLen, b[2]),
-                          (b[0], a[1]+halfLen, b[2]),
-                          (b[0], a[1]-halfLen, b[2]),
-                          (a[0], a[1]-halfLen, b[2]),
-                          (a[0], a[1]+halfLen, b[2]))])
-        lines.create()
 
 
 #from pandac.PandaModules import ClockObject
@@ -153,23 +43,3 @@ def displayLines(a,b, actor):
             #while self.dta > self.REFRESH_RATE:
             #    self.dta -= self.REFRESH_RATE
                 # run all processes
-                
-def displayLinesAroundObject():
-            lines = LineNodePath(parent = masterNode, thickness = 5.0, colorVec = Vec4(1, 0, 0, 1))
-            lines.reset()
-            
-            np = cell.getNodePath()
-            halfLen = Cell.LENGTH/2
-            halfHeight = Cell.HEIGHT/2
-            lines.drawLines([((np.getX()-halfLen, np.getY()-halfLen, np.getZ()-halfHeight),
-                              (np.getX()+halfLen, np.getY()-halfLen, np.getZ()-halfHeight),
-                              (np.getX()+halfLen, np.getY()+halfLen, np.getZ()-halfHeight),
-                              (np.getX()-halfLen, np.getY()+halfLen, np.getZ()-halfHeight),
-                              (np.getX()-halfLen, np.getY()-halfLen, np.getZ()-halfHeight))])
-            lines.drawLines([((np.getX()-halfLen, np.getY()-halfLen, np.getZ()+halfHeight),
-                              (np.getX()+halfLen, np.getY()-halfLen, np.getZ()+halfHeight),
-                              (np.getX()+halfLen, np.getY()+halfLen, np.getZ()+halfHeight),
-                              (np.getX()-halfLen, np.getY()+halfLen, np.getZ()+halfHeight),
-                              (np.getX()-halfLen, np.getY()-halfLen, np.getZ()+halfHeight))])
-            
-            lines.create()
