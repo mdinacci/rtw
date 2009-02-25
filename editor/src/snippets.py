@@ -1,3 +1,6 @@
+# forward vector of the ball expressed in the world coordinate space 
+        #forward = self.ball.nodepath.getParent().getRelativeVector(self.player.nodepath,
+        
 # convert textures to internal optimized format
 #egg2bam -txo -ctex model.egg -o model.bam
         

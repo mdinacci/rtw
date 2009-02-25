@@ -100,10 +100,12 @@ class GUI(QMainWindow):
 class TrackEditor(object):
 
     SEPARATOR = '!'
-    TEMP_FILE = '/tmp/test.egg'
-    QTESS_FILE = '/tmp/qtess.egg'
-    GROUP_FILE = '/tmp/group.egg'
-    TEXTURE_FILE = '/tmp/texture.egg'
+    TEMP_FILE = '/tmp/1_test.egg'
+    QTESS_FILE = '/tmp/2_qtess.egg'
+    GROUP_FILE = '/tmp/3_group.egg'
+    HOLE_FILE = '/tmp/4_hole.egg'
+    ENLARGED_FILE = "/tmp/5_enlarged.egg"
+    MODEL_FILE = '/tmp/6_model.egg'
     MAP_FORMAT_VERSION = "1.2"
     TESSELLATION_CURVES = 5
     TEXTURES = ("neutral","jump", "accelerate", "slow")
@@ -135,7 +137,7 @@ class TrackEditor(object):
         if fileName != '':
 
             for f in (self.TEMP_FILE, self.QTESS_FILE, self.GROUP_FILE, 
-                      self.TEXTURE_FILE):
+                      self.HOLE_FILE, self.ENLARGED_FILE, self.MODEL_FILE):
                 if os.path.exists(f):
                     os.remove(f)
             
@@ -148,24 +150,41 @@ class TrackEditor(object):
             logger.debug("Saving track to: %s" % self.TEMP_FILE)
             self.trackGenerator.saveTo(self.TEMP_FILE)
             
+            # - for each row without holes, create two other rows.
+            # - for each row with a hole, do not create other rows
+            # - calculate the total number of rows 
+            totRows = self.trackGenerator.rowCount * 3
+            rowsWithHoles = set()
+            for holeIndex in self.trackGenerator.holeIndexes:
+                rowsWithHoles.add(holeIndex / 5)
+            totRows -= len(rowsWithHoles)*2
+            
+            
             logger.debug("Tessellating track, up = %d us = %d " % \
-                     (self.TESSELLATION_CURVES, self.trackGenerator.rowCount*3))
+                     (self.TESSELLATION_CURVES, totRows))
             tools.tessellate(self.TEMP_FILE, self.QTESS_FILE, 
-                         self.TESSELLATION_CURVES, self.trackGenerator.rowCount*3)
+                         self.TESSELLATION_CURVES, self.trackGenerator.rowCount)
+                         #self.TESSELLATION_CURVES, totRows)
             
             # sleep in order to give egg-qtess some time to run
             while not os.path.exists(self.QTESS_FILE):
                 time.sleep(0.3)
             
             logger.debug("Reorganizing track, saving to: %s" % self.GROUP_FILE)
-            tools.groupify(self.QTESS_FILE, self.GROUP_FILE)
+            tools.groupify(self.QTESS_FILE, self.GROUP_FILE, polysPerGroup=5)
             
-            logger.debug("Removing holes from track, saving to %s", fileName)
-            tools.holeify(self.GROUP_FILE, self.TEXTURE_FILE, 
+            logger.debug("Removing holes from track, saving to %s", self.HOLE_FILE)
+            tools.holeify(self.GROUP_FILE, self.HOLE_FILE, 
                           self.trackGenerator.holeIndexes)
             
+            #logger.debug("Enlarging track, saving to %s", self.ENLARGED_FILE)
+            #tools.enlarge(self.HOLE_FILE, self.ENLARGED_FILE)
+            
+            logger.debug("Adding model tag, saving to %s, " % self.MODEL_FILE)
+            tools.modelify(self.HOLE_FILE, self.MODEL_FILE, "Model", "1")
+            
             logger.debug("Adding textures on polygons, saving to %s", fileName)
-            tools.texturify(self.TEXTURE_FILE, fileName, self.TEXTURES, \
+            tools.texturify(self.MODEL_FILE, fileName, self.TEXTURES, \
                             self.trackGenerator.texIndexes)
             
             logger.info("Track succesfully exported to %s" % fileName)
@@ -193,7 +212,6 @@ class TrackEditor(object):
                        self.MAP_FORMAT_VERSION)
             
             
-    
     def openTrack(self):
         self.tileModel.reset()
         fileName = QFileDialog.getOpenFileName(self.gui, "Map file (*.map)")

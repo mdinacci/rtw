@@ -123,7 +123,7 @@ class Camera(object):
 
 # TODO put in conf file ?
 VERTEX_PER_ROW = 4
-VERTEX_MULTIPLIER = 3
+VERTEX_MULTIPLIER = 5
 
 class TrackGenerator(DirectObject):   
     def __init__(self, width):
@@ -462,13 +462,18 @@ class TrackGenerator(DirectObject):
         
         # increase the distances between vertexes in order to make the
         # track bigger
+        
         for vert in verts:
-            vert['point'] = tuple(map(lambda n: n*VERTEX_MULTIPLIER, 
-                                      vert['point']))
+            point = list(vert["point"])
+            point[0] *= VERTEX_MULTIPLIER
+            point[1] *= VERTEX_MULTIPLIER
+            vert["point"] = tuple(point)
+        
         
         surface = Sheet("curve")
         surface.setup(4,4,VERTEX_PER_ROW, verts)
-        surface.sheetNode.setNumUSubdiv(VERTEX_PER_ROW)
+        surface.sheetNode.setNumUSubdiv(10)
+        #surface.sheetNode.setNumUSubdiv(VERTEX_PER_ROW)
         surface.sheetNode.setNumVSubdiv(5)
         #surface.setTwoSided(True)
         
