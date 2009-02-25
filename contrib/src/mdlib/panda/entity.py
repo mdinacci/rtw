@@ -14,8 +14,13 @@ from mdlib.panda.data import GOM, GameEntity, EntityType, \
 from mdlib.panda import event
 from mdlib.types import Types
 from mdlib.panda import utils
+from direct.interval.LerpInterval import LerpFuncNS, LerpPosInterval
+from direct.interval.IntervalGlobal import Sequence
+from direct.interval.FunctionInterval import Wait
+from direct.showbase.PythonUtil import Functor
 
 from pandac.PandaModules import NodePath, Point3, OdeGeom, Quat, Material, Vec4
+
 
 class EntityUpdaterDelegate(object): 
     def updateEntity(self, entity, keypaths):
@@ -121,19 +126,27 @@ class Track(GameEntity):
     rows = property(fget=lambda self: self._rows)
     
 
-
-class Player(GameEntity):
-    pass
-
 class Ball(GameEntity):
-    MAX_SPEED = 12
+    MAX_SPEED = 15
     MAX_STEER = 30
+    FALLING_SPEED = 250
+    FALLING_Z = 5
     
     def __init__(self, uid, data):
         super(Ball, self).__init__(uid, data)
         self.steeringFactor = .5
         self.spinningFactor = 90
+        self.jumpHeight = .6
         self.speed = 0
+        self.jumpZ = 0
+        
+        jumpUp = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
+                    blendType="easeOut",duration=.2, 
+                    fromData=self.jumpZ, toData=self.jumpHeight)
+        jumpDown = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
+                      blendType="easeIn",duration=.2, 
+                      fromData=self.jumpHeight, toData=0)
+        self.jumpingSequence = Sequence(jumpUp, jumpDown, name="jumping")
         
     def setBall(self, ball):
         self.ball = ball
@@ -150,11 +163,47 @@ class Ball(GameEntity):
         currentH = self.nodepath.getH()
         self.nodepath.setH(currentH + self.steeringFactor)
     
+    def isJumping(self):
+        return self.jumpZ > 0.1
+    
+    def neutral(self):
+        self.MAX_SPEED= 15
+    
+    def sprint(self):
+        self.MAX_SPEED = 25
+    
+    def slowDown(self):
+        self.MAX_SPEED = 5
+    
+    def jump(self):
+        if not self.isJumping():
+            self.jumpingSequence.start()
+    
+    def getLost(self):
+        # for some reasons the interval doesn't set the value to zero but
+        # to something close
+        targetPos = self.nodepath.getPos() + self.speedVec * \
+                                            self.FALLING_SPEED
+        targetPos.setZ(targetPos.getZ() - self.FALLING_Z)
+        fallDown = LerpPosInterval(self.nodepath, 1.0, 
+                                   pos=targetPos,
+                                   blendType = 'easeIn')
+       # TODO send event
+    
     def accelerate(self):
-        pass
+        if self.speed < self.MAX_SPEED:
+                self.speed += .2
+        else:
+            self.speed = self.MAX_SPEED
+    
+    def decelerate(self):
+        if self.speed > 0:
+            self.speed -= .1
     
     def brake(self):
-        pass
+        if self.speed > 0:
+            self.speed -= .5
+            
     
 # Property schema: defines the existing properties and their type
 property_schema = {
@@ -179,7 +228,7 @@ property_schema = {
                      "geom": OdeGeom,
                      "radius": Types.float2,
                      "hasBody": bool,
-                     "linearSpeed": int,
+                     "speed": int,
                      "density":int,
                      "xForce" : Types.float1,
                      "yForce" : Types.float1,
@@ -242,10 +291,6 @@ entity_template_params = {
 player_params = {
                    "archetype": "Player",
                    "prettyName": "Player",
-                   "python": 
-                   {
-                     "clazz": Player
-                    },
                      "render": 
                     {
                      "entityType": EntityType.NONE,
@@ -263,9 +308,9 @@ ball_params = {
                      "collisionBitMask": 0x00000002,
                      "categoryBitMask" : 0x00000001,
                      "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                     "radius":  0.3,
+                     "radius":  0.13,
                      "hasBody": True,
-                     "linearSpeed": 15,
+                     "speed": 0,
                      "density":400,
                      "xForce" : 0,
                      "yForce" : 0,
@@ -274,7 +319,7 @@ ball_params = {
                     },
                    "position":
                     {
-                     "x": 7,
+                     "x": 12,
                      "y": 7,
                      "z": 0.13,
                      "rotation": (1,0,0,0)

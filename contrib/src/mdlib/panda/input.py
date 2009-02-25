@@ -7,8 +7,8 @@ Copyright © 2008-2009
 Code to deal with user input, via mouse, keyboard and joysticks
 """
 
-from mdlib.log import ConsoleLogger, DEBUG, SPAM
-logger = ConsoleLogger("input", DEBUG)
+from mdlib.log import ConsoleLogger, DEBUG, INFO
+logger = ConsoleLogger("input", INFO)
 
 from pandac.PandaModules import ModifierButtons
 from direct.showbase.DirectObject import DirectObject
@@ -53,6 +53,7 @@ class InputScheme(object):
     """
     def __init__(self, name):
         self._name = name
+        self._enabled = True
         self._commands = {}
     
     def __repr__(self):
