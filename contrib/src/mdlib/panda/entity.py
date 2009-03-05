@@ -103,38 +103,75 @@ class Track(GameEntity):
         the cells here, let's delegate it to the GOM
         """
         super(Track, self).__init__(uid, data)
-        self._rows = []
+        self._segments = []
+        self.currentSegmentNum = 0
         
     def unfold(self):
+        def sortBySegmentNumber(x,y):
+            nameX = x.getName()
+            nameY = y.getName()
+            numX = int(nameX[nameX.index("@")+1:])
+            numY = int(nameY[nameY.index("@")+1:])
+            
+            if numX > numY: return 1
+            elif numX < numY: return -1
+            else: return 0
+            
         n = self.render.nodepath
-        rows = n.findAllMatches("**/row*").asList()
-        rows.reverse()
+        rows = n.findAllMatches("**/straight*").asList()
+        curves = n.findAllMatches("**/curve*").asList()
         
-        for row in rows:
-            ent = GOM.createEntityFromNodepath(row, row_params)
-            ent.render.parentNode = int(self.UID)
-            self._rows.append(ent)
+        segments = rows + curves
+        segments.sort(cmp=sortBySegmentNumber)
         
-        self.render.nodepath.hide()
+        #for segment in segments:
+        #    segment.flattenLight()
         
+        self._segments = segments
+        
+        self._updateSegments()
+        
+        self.render.nodepath.setTwoSided(False)
+            
+    def _updateSegments(self):    
+        #print self.currentSegmentNum
+        if self.currentSegmentNum > 0:
+            for segment in self._segments[0:self.currentSegmentNum-1]:
+                segment.hide()
+        
+        offset = min(self.currentSegmentNum+5, len(self._segments))
+        for segment in self._segments[offset:]:
+            segment.hide()
+            
+        for i in range(self.currentSegmentNum, offset):
+            self._segments[i].reparentTo(self.render.nodepath)
+            self._segments[i].show()
+            
+    
+    def setCurrentSegment(self, segment):
+        #print segment
+        name = segment.getParent().getParent().getName()
+        #name = segment.getParent().getName()
+        self.currentSegmentNum = int(name[name.index("@")+1:])
+        self._updateSegments()
     
     def serialise(self):
         attrs = super(Track, self).serialise()
         del attrs._tiles
         return attrs
 
-    rows = property(fget=lambda self: self._rows)
+    segments = property(fget=lambda self: self._segments)
     
 
 class Ball(GameEntity):
-    MAX_SPEED = 15
+    MAX_SPEED = 30
     MAX_STEER = 30
     FALLING_SPEED = 250
     FALLING_Z = 5
     
     def __init__(self, uid, data):
         super(Ball, self).__init__(uid, data)
-        self.steeringFactor = .5
+        self.steeringFactor = .6
         self.spinningFactor = 90
         self.jumpHeight = .6
         self.speed = 0
@@ -167,13 +204,24 @@ class Ball(GameEntity):
         return self.jumpZ > 0.1
     
     def neutral(self):
-        self.MAX_SPEED= 15
+        self.MAX_SPEED= 30
     
     def sprint(self):
-        self.MAX_SPEED = 25
+        return
+        if not self.isJumping():
+            self.MAX_SPEED = 40
+            self.speed *= 2
+            if self.speed == 0:
+                self.speed = self.MAX_SPEED / 2
+            if self.speed > self.MAX_SPEED:
+                self.speed = self.MAX_SPEED
     
     def slowDown(self):
-        self.MAX_SPEED = 5
+        if not self.isJumping():
+            self.MAX_SPEED = 10
+            self.speed /= 2
+            if self.speed < self.MAX_SPEED:
+                self.speed = self.MAX_SPEED
     
     def jump(self):
         if not self.isJumping():
@@ -185,9 +233,10 @@ class Ball(GameEntity):
         targetPos = self.nodepath.getPos() + self.speedVec * \
                                             self.FALLING_SPEED
         targetPos.setZ(targetPos.getZ() - self.FALLING_Z)
-        fallDown = LerpPosInterval(self.nodepath, 1.0, 
+        fallDown = LerpPosInterval(self.nodepath, 15.0/self.speed, 
                                    pos=targetPos,
                                    blendType = 'easeIn')
+        fallDown.start()
        # TODO send event
     
     def accelerate(self):
@@ -308,7 +357,7 @@ ball_params = {
                      "collisionBitMask": 0x00000002,
                      "categoryBitMask" : 0x00000001,
                      "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                     "radius":  0.13,
+                     "radius":  0.4,
                      "hasBody": True,
                      "speed": 0,
                      "density":400,
@@ -319,16 +368,16 @@ ball_params = {
                     },
                    "position":
                     {
-                     "x": 12,
-                     "y": 7,
-                     "z": 0.13,
+                     "x": 6,
+                     "y": 0,
+                     "z": 0,
                      "rotation": (1,0,0,0)
                      },
                      "render": 
                     {
                      "isDirty": True,
                      "modelPath": "ball",
-                     "scale":.3,
+                     "scale":1,
                      "entityType": EntityType.PLAYER
                      }
                     }
@@ -350,9 +399,9 @@ new_track_params = {
                 "render": #necessary even if empty in order to create a NodePath
                     {
                      "entityType": EntityType.STATIC,
-                     "modelPath": "track2",
+                     "modelPath": "track.bam",
                      "isDirty": True,
-                     "scale": 1,
+                     "scale": .4,
                      },
                 "physics": 
                     {
@@ -371,16 +420,16 @@ environment_params = {
                       "prettyName": "Environment",
                       "position":
                             {
-                             "x": -10,
-                             "y": 35,
-                             "z": -5,
+                             "x": 0,
+                             "y": 0,
+                             "z": -30,
                              "rotation": (0,0,0,0)
                              },
                       "render": 
                             {
                              "entityType": EntityType.BACKGROUND,
-                             "scale": 0.25,
-                             "modelPath": "environment",
+                             "scale": 200,
+                             "modelPath": "env",
                              "isDirty": True,
                              }
                         }
