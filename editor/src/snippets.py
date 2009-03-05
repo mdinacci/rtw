@@ -1,3 +1,35 @@
+"""
+        rbc = RigidBodyCombiner("rbc")
+        rbcnp = NodePath(rbc)
+        rbcnp.reparentTo(self.view._rootNode)
+        self.track.nodepath.reparentTo(rbcnp)
+        rbc.collect()
+        """
+        """
+        colour = (0.5,0.8,0.8)
+        expfog = Fog("Scene-wide exponential Fog object")
+        expfog.setColor(*colour)
+        expfog.setExpDensity(0.008)
+        self.track.nodepath.setFog(expfog)
+        base.setBackgroundColor(*colour)
+        """
+        
+#self.env.nodepath.hprInterval(2000, Point3(360, 0,0)).loop()
+
+import sys
+
+def enable_vsync():
+    if sys.platform != 'darwin':
+        return
+    try:
+        import ctypes
+        import ctypes.util
+        ogl = ctypes.cdll.LoadLibrary(ctypes.util.find_library("OpenGL"))
+        # set v to 1 to enable vsync, 0 to disable vsync
+        v = ctypes.c_int(1)
+        ogl.CGLSetParameter(ogl.CGLGetCurrentContext(), ctypes.c_int(222), ctypes.pointer(v))
+    except:
+        print "Unable to set vsync mode, using driver defaults"
 # forward vector of the ball expressed in the world coordinate space 
         #forward = self.ball.nodepath.getParent().getRelativeVector(self.player.nodepath,
         

@@ -30,7 +30,7 @@ import sys, math
 
 class Camera(object):
     ZOOM = 30
-    TARGET_DISTANCE = 4
+    TARGET_DISTANCE = 10
     
     def __init__(self):
         base.disableMouse()
@@ -58,8 +58,10 @@ class Camera(object):
         pos = self.target.nodepath.getPos()
         pos.setZ(pos.getZ() -z)
         base.camera.lookAt(pos)
-        base.camera.setZ(self.target.nodepath.getZ() -z + 2)
+        base.camera.setZ(self.target.nodepath.getZ() -z + 3)
     
+
+HEIGHT_TRACK = 0.5
 
 class GameLogic(AbstractLogic):
     DUMMY_VALUE = -999
@@ -67,6 +69,9 @@ class GameLogic(AbstractLogic):
     # the view is not really the view but just the scene for now.
     def __init__(self, view):
         super(GameLogic, self).__init__(view)
+        
+        self.env = GOM.createEntity(environment_params)
+        self.view.addEntity(self.env)
         
         self.track = GOM.createEntity(new_track_params)
         self.track.nodepath.setCollideMask(BitMask32(1))
@@ -192,7 +197,7 @@ class GameLogic(AbstractLogic):
 
         self.player.nodepath.setPos(self.player.nodepath.getPos() + speedVec)
         self.player.nodepath.setZ(self.ball.RayGroundZ + self.ball.jumpZ + \
-                                  self.ball.physics.radius)
+                                  self.ball.physics.radius + HEIGHT_TRACK)
            
         # rotate the ball
         self.ball.nodepath.setP(self.ball.nodepath.getP() -1 * dt * \
@@ -244,10 +249,8 @@ class GameLogic(AbstractLogic):
             if self.lastTileType != "jump":
                 self.ball.jump()
         elif self.tileType == "accelerate":
-            print "sprint"
             self.ball.sprint()
         elif self.tileType == "slow":
-            print "slow"
             self.ball.slowDown()
         
         self.lastTileType = self.tileType
@@ -397,7 +400,14 @@ class GameApplication(AbstractApplication):
     def shutdown(self):
         sys.exit()
        
-       
+# set a fixed frame rate 
+from pandac.PandaModules import ClockObject
+FPS = 40
+globalClock = ClockObject.getGlobalClock()
+#globalClock.setMode(ClockObject.MLimited)
+#globalClock.setFrameRate(FPS)
+
+      
 if __name__ == '__main__':
     GameApplication().start()
     run()
