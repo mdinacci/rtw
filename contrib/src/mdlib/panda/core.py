@@ -61,21 +61,18 @@ class AbstractApplication(object):
     def run(self):
         raise NotImplementedError()
     
-    def shutdown(self):
+    def destroy(self):
         raise NotImplementedError()
     
 
 # use Panda FSM
 class ApplicationState(object):
     """ 
-    Manage the application state, which can be:
-    - Initialise
-    - Run
-    - Pause
-    - Quit
-    - Debug (?)
+    Manage the application state
     """
-    pass
+    
+    def transitionTo(self, fromState, toState, effect):
+        pass
 
 
 class AbstractView(object):
@@ -88,7 +85,7 @@ class AbstractView(object):
     that are sent to the game logic.
     """
     
-    def __init__(self, inputManager):
+    def __init__(self, inputManager=None):
         self._inputMgr = inputManager
         self._setupCamera()
         self._registerToCommands()

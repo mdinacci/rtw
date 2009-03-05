@@ -12,6 +12,7 @@ logger = ConsoleLogger("input", INFO)
 
 from pandac.PandaModules import ModifierButtons
 from direct.showbase.DirectObject import DirectObject
+from direct.task.Task import Task
 
 import event
 
@@ -86,9 +87,10 @@ class InputManager(SafeDirectObject):
         
         # get rid of alt button
         buttons = base.mouseWatcherNode.getModifierButtons()
-        buttons.removeButton(buttons.getButton(2))
-        base.mouseWatcherNode.setModifierButtons(buttons)
-        base.buttonThrowers[0].node().setModifierButtons(buttons)
+        if buttons.getNumButtons() > 2:
+            buttons.removeButton(buttons.getButton(2))
+            base.mouseWatcherNode.setModifierButtons(buttons)
+            base.buttonThrowers[0].node().setModifierButtons(buttons)
         
         base.buttonThrowers[0].node().setButtonDownEvent('button')
         base.buttonThrowers[0].node().setButtonUpEvent('buttonUp')
@@ -121,7 +123,7 @@ class InputManager(SafeDirectObject):
     def getCurrentScheme(self):
         return self._currentScheme
     
-    def update(self):
+    def update(self, Task = None):
         """ 
         Check pressed keys and send corresponding events. 
         XXX The problem with this approach is that events are sent only 
@@ -143,6 +145,9 @@ class InputManager(SafeDirectObject):
                         logger.debug("Executing callback %s with args  %s" 
                                      % (command.name.__name__, command.args))
                         command.name(*command.args)
+                        
+        return Task.cont
+    
 
     def bind(self, key, cmdName, cmdType, args=[], schemeName=BASE_SCHEME):
         scheme = self._schemes[schemeName]

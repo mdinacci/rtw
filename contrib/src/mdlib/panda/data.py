@@ -11,6 +11,7 @@ from mdlib.patterns import singleton
 from mdlib.panda.physics import POM 
 
 from pandac.PandaModules import Point3, Quat, BitMask32, Vec4
+from pandac.PandaModules import TexturePool
 from pandac.PandaModules import NodePath, Filename, LoaderOptions, ActorNode
 from direct.showbase.Loader import PandaLoader
 from direct.directtools.DirectGeometry import LineNodePath
@@ -48,21 +49,37 @@ class ResourceLoader(object):
     """
     def __init__(self):
         self.loader = PandaLoader()
+    
+    def loadTexture(self, path):
+        return TexturePool.loadTexture(path)
         
-    def loadModel(self, path, scale, pos):
+    def loadModel(self, path, scale=1, pos=None, **kwargs):
         """ SYNCHRONOUSLY load a model from disk """
-        node = self.loader.loadSync(Filename(path), LoaderOptions())
+        options = LoaderOptions()
+        if kwargs.has_key("noCache"):
+            noCache = kwargs["noCache"]
+            if noCache:
+                options.setFlags(options.getFlags() | LoaderOptions.LFNoCache)
+            else:
+                options.setFlags(options.getFlags() & ~LoaderOptions.LFNoCache)
+        node = self.loader.loadSync(Filename(path), options)
         if node != None:
             model = NodePath(node)
         else:
             raise ModelNotFoundException()
+        
         model.setScale(scale)
-        model.setPos(pos)
+        
+        if pos is not None:
+            model.setPos(pos)
         
         return model
     
-    def loadModelAndReparent(self, path, scale, pos, parentNode):
-        self.loadModel(path, scale, pos).reparentTo(parentNode)
+    def loadModelAndReparent(self, path, parentNode, scale=1, pos=None, noCache=False):
+        np = self.loadModel(path, scale, pos, noCache=noCache)
+        np.reparentTo(parentNode)
+        
+        return np
 
 
 class ModelNotFoundException(Exception):

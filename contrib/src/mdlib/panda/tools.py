@@ -9,7 +9,6 @@ from pandac.PandaModules import EggData, EggGroup, Filename
 from subprocess import Popen
 from os import unlink
 
-
 def modelify(inputFile, outputFile, tagKey, tagValue):
     """ Add the <Model> entry for each group in the file """
     

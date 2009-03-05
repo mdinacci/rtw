@@ -7,6 +7,14 @@ Copyright © 2008-2009
 Events from the game and the editor.
 """
 
+GAME_START="start-game"
+GAME_EXIT="exit-game"
+GAME_DESTROY="destroy-game"
+
+
+
+
+
 #NEW_ACTOR="new-actor"
 REQUEST_SHUTDOWN="request_shutdown"
 MOVE_PLAYER="move-player"
