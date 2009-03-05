@@ -1,0 +1,29 @@
+States:
+    - Introduction
+    - Main Menu
+    - Option Menu
+    - Championship mode menu
+    - Time battle mode menu
+    - Track start
+    - Track countdown
+    - Gameplay 
+    - In-game pause
+    - Exit menu
+
+
+Transitions:
+    - Introduction -> Main Menu
+    - Main Menu <-> Options 
+    - Main Menu <-> Exit Menu
+    - Main Menu <-> Championship mode menu
+    - Main Menu <-> Time battle mode menu
+    - Championship mode menu -> Track Start
+    - Time battle mode menu -> Track Start
+    - Track Start -> Track countdown
+    - Track countdown -> Gameplay
+    - Gameplay <-> In-game pause
+    - In-game pause <-> Exit menu
+    - In-game pause <-> Options 
+    - In-game pause <-> Championship mode menu 
+    - In-game pause <-> Time battle mode menu 
+    
