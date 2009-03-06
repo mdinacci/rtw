@@ -14,12 +14,15 @@ from mdlib.panda.data import GOM, GameEntity, EntityType, \
 from mdlib.panda import event
 from mdlib.types import Types
 from mdlib.panda import utils
-from direct.interval.LerpInterval import LerpFuncNS, LerpPosInterval
+
+from direct.interval.LerpInterval import LerpFuncNS, LerpPosInterval, LerpScaleInterval
 from direct.interval.IntervalGlobal import Sequence
-from direct.interval.FunctionInterval import Wait
+from direct.interval.FunctionInterval import Wait, Func
+from direct.interval.MetaInterval import Parallel
 from direct.showbase.PythonUtil import Functor
 
 from pandac.PandaModules import NodePath, Point3, OdeGeom, Quat, Material, Vec4
+from pandac.PandaModules import AntialiasAttrib
 
 
 class EntityUpdaterDelegate(object): 
@@ -117,43 +120,38 @@ class Track(GameEntity):
             elif numX < numY: return -1
             else: return 0
             
+
+        # create a copy of the track that will be shown to the player
+        self.trackCopy = NodePath("trackCopy")
+        self.render.nodepath.copyTo(self.trackCopy)
+        self.trackCopy.reparentTo(render)
+        
+        # flatten all tiles but keep the segment intact
+        self.trackCopy.flattenStrong()
+        self.trackCopy.show()
+        #self.trackCopy.setAntialias(AntialiasAttrib.MLine)
+        
+        # this will be used for checkpoints
         n = self.render.nodepath
         rows = n.findAllMatches("**/straight*").asList()
         curves = n.findAllMatches("**/curve*").asList()
-        
         segments = rows + curves
         segments.sort(cmp=sortBySegmentNumber)
-        
-        #for segment in segments:
-        #    segment.flattenLight()
-        
         self._segments = segments
         
-        self._updateSegments()
-        
         self.render.nodepath.setTwoSided(False)
-            
-    def _updateSegments(self):    
-        #print self.currentSegmentNum
-        if self.currentSegmentNum > 0:
-            for segment in self._segments[0:self.currentSegmentNum-1]:
-                segment.hide()
+        self.render.nodepath.flattenMedium()
+        self.render.nodepath.hide()
         
-        offset = min(self.currentSegmentNum+5, len(self._segments))
-        for segment in self._segments[offset:]:
-            segment.hide()
-            
-        for i in range(self.currentSegmentNum, offset):
-            self._segments[i].reparentTo(self.render.nodepath)
-            self._segments[i].show()
-            
     
-    def setCurrentSegment(self, segment):
-        #print segment
-        name = segment.getParent().getParent().getName()
-        #name = segment.getParent().getName()
+    # this will be used for checkpoints
+    def setCurrentTile(self, tile):
+        segment = tile.getParent().getParent()
+        name = segment.getName()
         self.currentSegmentNum = int(name[name.index("@")+1:])
-        self._updateSegments()
+        
+        if segment.getTag("endpoint") == "1":
+            messenger.send(event.END_TRACK)
     
     def serialise(self):
         attrs = super(Track, self).serialise()
@@ -176,6 +174,7 @@ class Ball(GameEntity):
         self.jumpHeight = .6
         self.speed = 0
         self.jumpZ = 0
+        self.frozen = False
         
         jumpUp = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
                     blendType="easeOut",duration=.2, 
@@ -206,6 +205,26 @@ class Ball(GameEntity):
     def neutral(self):
         self.MAX_SPEED= 30
     
+    def minimize(self):
+        originalScale = self.render.scale
+        scaleDown = LerpScaleInterval(self.nodepath, .5, .3, 
+                                      originalScale)
+        
+        scaleUp = LerpScaleInterval(self.nodepath, .5, originalScale, 
+                                      .3)
+        
+        originalMaxSpeed = self.MAX_SPEED
+        newSpeed = self.MAX_SPEED / 3.0 * 2
+        slowDown = LerpFuncNS(Functor(self.__setattr__,"MAX_SPEED"), 
+                    blendType="easeOut",duration=.5, 
+                    fromData=originalMaxSpeed, toData=newSpeed)
+        fastenUp = LerpFuncNS(Functor(self.__setattr__,"MAX_SPEED"), 
+                      blendType="easeIn",duration=.5, 
+                      fromData=newSpeed, toData=originalMaxSpeed)
+        Sequence(Parallel(scaleDown, slowDown), Wait(3), 
+                 Parallel(scaleUp, fastenUp)).start()
+
+    
     def sprint(self):
         return
         if not self.isJumping():
@@ -222,6 +241,18 @@ class Ball(GameEntity):
             self.speed /= 2
             if self.speed < self.MAX_SPEED:
                 self.speed = self.MAX_SPEED
+
+    def freeze(self):
+        # TODO disable commands
+        if self.frozen == False:
+            self.frozen = True
+            self.speed = 0
+            delay = Wait(2)
+            Sequence(delay, Func(self.__setattr__, "frozen", False)).start()
+        else:
+            print "setting speed to 0"
+            self.speed = 0
+        
     
     def jump(self):
         if not self.isJumping():
@@ -241,7 +272,7 @@ class Ball(GameEntity):
     
     def accelerate(self):
         if self.speed < self.MAX_SPEED:
-                self.speed += .2
+            self.speed += .2
         else:
             self.speed = self.MAX_SPEED
     

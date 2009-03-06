@@ -25,6 +25,7 @@ from mdlib.panda.data import GOM
 from mdlib.panda.input import *
 from mdlib.panda.utils import *
 from mdlib.types import Types
+from mdlib.panda import event
 
 import sys, math
 
@@ -75,7 +76,7 @@ class Camera(object):
         base.camera.setZ(self.target.nodepath.getZ() -z + 6)
     
 
-HEIGHT_TRACK = 0.5
+HEIGHT_TRACK = 0.0
 
 class GameLogic(AbstractLogic):
     DUMMY_VALUE = -999
@@ -90,7 +91,7 @@ class GameLogic(AbstractLogic):
         self.track = GOM.createEntity(new_track_params)
         self.track.unfold()
         self.track.nodepath.setCollideMask(BitMask32(1))
-        self.track.nodepath.setAntialias(AntialiasAttrib.MLine)
+        #self.track.nodepath.setAntialias(AntialiasAttrib.MLine)
         self.view.addEntity(self.track)
         
         self.ball = GOM.createEntity(ball_params)
@@ -126,8 +127,8 @@ class GameLogic(AbstractLogic):
         expfog = Fog("fog")
         expfog.setColor(*colour)
         expfog.setExpDensity(0.004)
-        self.track.nodepath.setFog(expfog)
-        base.setBackgroundColor(*colour)
+        #self.track.nodepath.setFog(expfog)
+        #base.setBackgroundColor(*colour)
     
         
     def updatePhysics(self, task):
@@ -161,11 +162,17 @@ class GameLogic(AbstractLogic):
                 # check ball's ray collision with ground
                 elif entry.getFromNodePath() == self.ballCollNodeNp:
                     np = entry.getIntoNodePath()
+                    print np.getName()
                     # tell the track which segment the ball is on
-                    self.track.setCurrentSegment(np)
+                    #self.track.setCurrentTile(np)
                     
                     # find out the tile type from the texture
-                    self.tileType = np.findAllTextures().getTexture(0).getName()
+                    textures = np.findAllTextures()
+                    if textures.getNumTextures() > 1:
+                        self.tileType = textures.getTexture(1).getName()
+                    else:
+                        self.tileType = textures.getTexture(0).getName()
+                    #self.tileType = np.findAllTextures().getTexture(0).getName()
                     
                     self.ball.RayGroundZ = z
                     
@@ -275,9 +282,13 @@ class GameLogic(AbstractLogic):
             self.ball.sprint()
         elif self.tileType == "slow":
             self.ball.slowDown()
+        elif self.tileType == "freeze":
+            self.ball.freeze()
+            #self.ball.minimize()
+        else:
+            print "unknown type: " , self.tileType
         
         self.lastTileType = self.tileType
-        
         
         if self.ball.speed < 0:
             self.ball.speed = 0
@@ -314,7 +325,11 @@ class GameLogic(AbstractLogic):
         self.picker.addCollider(self.ballCollNodeNp, self.pq)
         self.picker.addCollider(self.cameraCollNodeNp, self.pq)
         
-       
+    
+    def endTrack(self):
+        self.ball.slowDown()
+        self.view.stopTimer() 
+    
     def _subscribeToEvents(self):
         self.keyMap = {"left":False, "right":False, "forward":False, \
                        "backward":False, "jump": False}
@@ -335,6 +350,8 @@ class GameLogic(AbstractLogic):
         self.inputMgr.bindCallback("c", self.view.switchCamera)
         self.inputMgr.bindCallback("a", render.analyze)
         
+        base.accept(event.END_TRACK, self.endTrack)
+        
     
 class GameView(AbstractView):
     pass
@@ -344,6 +361,9 @@ class World(AbstractScene):
     
     def __init__(self):
         super(World, self).__init__()
+        
+        #render.setShaderAuto()
+        
         self.time = "0:0.0"
         self.timerText = OnscreenText(text="%s" % self.time, style=1, fg=(1,1,1,1),
                               pos=(1.2,0.90),shadow= (1,0,0,.8), 
@@ -353,11 +373,13 @@ class World(AbstractScene):
         loader.loadModelCopy("models/misc/xyzAxis").reparentTo(render)
         
         self.setSceneGraphNode(render)
-        self._setupLights()
+        #self._setupLights()
         self.gameIsAlive = True
         
         taskMgr.doMethodLater(0.1, self.tickTimer, 'timer-task') 
-        
+    
+    def stopTimer(self):    
+        taskMgr.remove("timer-task")
         
     def tickTimer(self, task):
         self.elapsedTime +=1
@@ -388,7 +410,7 @@ class World(AbstractScene):
     def _setupLights(self):
         lAttrib = LightAttrib.makeAllOff()
         ambientLight = AmbientLight( "ambientLight" )
-        ambientLight.setColor( Vec4(1, 1, 1, 0) )
+        ambientLight.setColor( Vec4(10, 10, 10, 0) )
         lAttrib = lAttrib.addLight( ambientLight )
         render.attachNewNode( ambientLight.upcastToPandaNode() )
         render.node().setAttrib( lAttrib )
