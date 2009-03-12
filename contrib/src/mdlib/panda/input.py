@@ -68,6 +68,16 @@ class InputScheme(object):
     
     name = property(fget=lambda self: self._name, fset=None)
     
+
+class InputWatcher(object):
+    """ An InputWatcher receives raw input events from the InputManager """
+    
+    def acceptUp(self, key):
+        pass
+    
+    def acceptDown(self, key):
+        pass
+    
         
 class InputManager(SafeDirectObject):
     """
@@ -83,18 +93,19 @@ class InputManager(SafeDirectObject):
     Each key can be bound to an unlimited number of commands.
     """
     
-    def __init__(self, base):
+    def __init__(self, base=None):
         
         # get rid of alt button
-        buttons = base.mouseWatcherNode.getModifierButtons()
-        if buttons.getNumButtons() > 2:
-            buttons.removeButton(buttons.getButton(2))
-            base.mouseWatcherNode.setModifierButtons(buttons)
-            base.buttonThrowers[0].node().setModifierButtons(buttons)
-        
-        base.buttonThrowers[0].node().setButtonDownEvent('button')
-        base.buttonThrowers[0].node().setButtonUpEvent('buttonUp')
-        base.buttonThrowers[0].node().setButtonRepeatEvent('buttonRepeat')
+        if base is not None:
+            buttons = base.mouseWatcherNode.getModifierButtons()
+            if buttons.getNumButtons() > 2:
+                buttons.removeButton(buttons.getButton(2))
+                base.mouseWatcherNode.setModifierButtons(buttons)
+                base.buttonThrowers[0].node().setModifierButtons(buttons)
+            
+            base.buttonThrowers[0].node().setButtonDownEvent('button')
+            base.buttonThrowers[0].node().setButtonUpEvent('buttonUp')
+            base.buttonThrowers[0].node().setButtonRepeatEvent('buttonRepeat')
         
         self.accept("button", self._onButtonDown)
         self.accept("buttonRepeat", self._onButtonRepeat)
@@ -103,6 +114,15 @@ class InputManager(SafeDirectObject):
         self._currentScheme = InputScheme(BASE_SCHEME)
         self._schemes = {BASE_SCHEME: self._currentScheme}
         self._lastCmdTime = 0
+        self._watchers = []
+    
+    
+    def addWatcher(self, watcher):
+        self._watchers.append(watcher)
+
+    def removeWatcher(self, watcher):
+        if watcher in self._watchers:
+            self._watchers.remove(watcher)
     
     def switchSchemeTo(self, name):
         if name in self._schemes.keys():
@@ -196,6 +216,10 @@ class InputManager(SafeDirectObject):
         
     def _onButtonUp(self, key):
         logger.debug("Button %s up" % key)
+        
+        for watcher in self._watchers:
+            watcher.acceptUp("%s-%s" % (key, "up"))
+        
         # certain keys can consist of multiple combination of buttons
         # for instance shift-x. The problem here is that there is no event
         # "shift-x-up" so the command will never be terminated. 
@@ -227,4 +251,6 @@ class InputManager(SafeDirectObject):
         if key in self._schemes[BASE_SCHEME].getCommands().keys():
             for command in self._schemes[BASE_SCHEME].getCommands()[key]:
                 command.pressed = True
+                
+        self.keyUp = key
      
