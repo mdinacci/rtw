@@ -1,0 +1,50 @@
+In Championship mode only one ball can be chosen.
+In Time Battle mode the ball can be changed for each track
+
+
+Three parameters:
+
+- speed
+- control
+- jump
+- acceleration
+
+Interesting combinations:
+
+1. "Photon"
+
+speed = 90
+control = 20
+jump = 20
+
+2. "Shark"
+
+speed = 70
+control = 40
+jump = 40
+
+3. "Average Joe"
+
+speed = 50
+control = 70
+jump = 60
+
+4. "Turtle King"
+
+speed = 20
+control = 90
+jump = 90
+
+
+Ball codes:
+
+Photon=0
+Shark=1
+Average Joe=2
+Turtle King=3
+
+
+maxSpeed: 0-50
+steeringFactor: 0-1
+jumpHeight: 0-1
+

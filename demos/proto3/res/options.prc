@@ -1,0 +1,16 @@
+options_fullscreen 1
+options_aspect options_aspect_normal
+options_resolution 800x600
+options_video_quality options_video_quality_high
+options_online_mode 1
+options_sound_on_off 1
+options_sound_volume 3
+options_accelerate arrow_up
+options_brake arrow_down
+options_steer_right arrow_right
+options_steer_left arrow_left
+options_jump space
+key_arrow_left arrow_left
+key_arrow_right arrow_right
+key_arrow_up arrow_up
+key_arrow_down arrow_down

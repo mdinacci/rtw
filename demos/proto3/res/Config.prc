@@ -1,28 +1,7 @@
-###########################################################
-###                                                     ###
-### Panda3D Configuration File -  User-Editable Portion ###
-###                                                     ###
-###########################################################
-
-# Uncomment one of the following lines to choose whether you should
-# run using OpenGL or DirectX rendering.
-
 load-display pandagl
-
-# These control the placement and size of the default rendering window.
-
 win-origin 150 50
 win-size 800 600
-
-# Uncomment this line if you want to run Panda fullscreen instead of
-# in a window.
-
 fullscreen #f
-
-# The framebuffer-hardware flag forces it to use an accelerated driver.
-# The framebuffer-software flag forces it to use a software renderer.
-# If you don't set either, it will use whatever's available.
-
 framebuffer-hardware #t
 framebuffer-software #f
 
@@ -62,9 +41,6 @@ texture-path  /usr/share/panda3d/models
 texture-path    $THIS_PRC_DIR
 
 
-# This enable the automatic creation of a TK window when running
-# Direct.
-
 want-directtools  f
 want-tk           f
 
@@ -73,32 +49,56 @@ want-tk           f
 want-pstats            f
 show-frame-rate-meter  t
 
-# Enable audio using the OpenAL audio library by default:
-
+# Audio
 audio-library-name p3openal_audio
+audio-buffering-seconds 1.0
+audio-cache-limit 15    
+audio-play-mp3 f
 
 # Enable the use of the new movietexture class.
-
 use-movietexture #t
 
 # The new version of panda supports hardware vertex animation, but it's not quite ready
-
 hardware-animated-vertices 0
 
-# Enable the model-cache, but only for models, not textures.
-
+# Enable the model-cache
 # model-cache-dir /usr/share/panda3d/modelcache
 # model-cache-textures #t
 
 # Limit the use of advanced shader profiles.
 # Currently, advanced profiles are not reliable under Cg.
-
 basic-shaders-only #t
+
+# OTHERS
 
 # forget about v-sync
 sync-video 0
 
-#compressed-textures t
+# trigger a core dump on first assertion
+assert-abort 1
+#notify-output filename
+#plugin-path search-path
+
+#egg-suppress-hidden 1
+#icon-filename
+
+#lock-to-one-cpu f
+vertex-data-compression-level 3
+ 
+
+# if video card is intel, set it to false
+# in general put all video card related config in a different config file
+auto-generate-mipmaps t 
+compressed-textures t
+
 # Available only in 1.6
 #model-cache-dir /c/temp/panda-cache
 #model-cache-compressed-textures 1
+
+
+window-type none
+text-encoding utf8
+
+
+# CUSTOM
+lang fr_FR

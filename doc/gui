@@ -1,0 +1,50 @@
+##############
+MAIN MENU
+##############
+
+Championship mode
+Time battle mode
+
+Profiles
+
+Options
+
+Exit
+
+
+##############
+OPTIONS MENU
+##############
+
+Audio - Video - Controls - Network
+
+VIDEO
+
+fullscreen: yes,no
+screen-aspect: wide, normal
+resolution (normal): 640x480, 800x600,1024x768, 1280x1024, 1400x1050, 1600x1200
+resolution (wide):   1280x800, 1440x900, 1680x1050, 1920x1200
+video quality: normal,high
+
+
+AUDIO
+
+audio: on,off
+audio-volume: 1-5
+
+
+CONTROLS
+
+accelerate:  arrow-up
+brake:       arrow-down
+steer left:  arrow-left
+steer right: arrow-right
+jump:        space
+
+
+NETWORK
+online mode: on,off
+proxy server: none
+
+
+reset to default
