@@ -9,7 +9,7 @@ Copyright © 2008-2009
 from pandac.PandaModules import *
 loadPrcFile("../res/Config.prc")
 
-from pandac.PandaModules import Point3, NodePath
+from pandac.PandaModules import Point3, NodePath, CullFaceAttrib
 from mdlib.panda.data import ResourceLoader
 
 __all__ = ["convert"]
@@ -17,6 +17,33 @@ __all__ = ["convert"]
 rl = ResourceLoader()
 direction = 1
 
+TILE_TYPES = ("A","J","S", "F")
+ITEM_TYPES = ("M","I","+","-", "?")
+
+def applyEffect(tileType, tileNode, parent):
+    newPos = tileNode.getPos(parent)
+    newPos.setZ(newPos.getZ()+1.3)
+    
+    model = rl.loadModel("point.egg", pos=newPos)
+    model.reparentTo(parent)
+    name = "%s-%s" % (model.getName(), tileNode.getName())
+    model.setName(name)
+    model.setScale(.3)
+    model.flattenStrong()
+    
+    print "adding item %s to %s at pos %s" % (tileType, tileNode, newPos) 
+    
+    if tileType == "M" :
+        model.setTag("effect","M")
+    elif tileType == "I":
+        model.setTag("effect","I")
+    elif tileType == "+":
+        model.setTag("effect","+")
+    elif tileType == "-":
+        model.setTag("effect","-")
+    elif tileType == "?":
+        model.setTag("effect","?")
+    
 def modelPathForType(type):
     path = ""
     if type == 0:
@@ -29,6 +56,8 @@ def modelPathForType(type):
         path = "curve-right-down.egg"
     elif type == 4:
         path = "curve-left-down.egg"
+    elif type == 7:
+        path = "curve-right-left-up.egg"
     
     return path
     
@@ -42,7 +71,7 @@ def posForType(currentPos, prevType, type):
         newPos += Point3(0, 30*direction, 0)
     # straight-curve right
     elif prevType == 0 and type == 1:
-        newPos += Point3(0, 0, 0)
+        newPos += Point3(0, 30*direction, 0)
     # curve right-curve left
     elif prevType == 1 and type == 2:
         newPos += Point3(55.1, 0, 0)
@@ -59,12 +88,40 @@ def posForType(currentPos, prevType, type):
     elif prevType == 4 and type == 0:
         direction = 1
         newPos += Point3(-75.7,27.5,0)
+    
+    # straight-chicane right
+    elif prevType == 0 and type == 7:
+        if direction == 1:
+            newPos += Point3(0,30*direction,0)
+        elif direction == -1:
+            newPos += Point3(-15,30*direction,0)
+    # chicane right - straight
+    elif prevType == 7 and type == 0:
+        if direction == 1:
+            newPos += Point3(15*direction,30*direction,0)
+        elif direction == -1:
+            newPos += Point3(0,30*direction,0)
 
     return currentPos + newPos
 
-counter = 0
+
+def applyColor(tileType, tileNode):
+    
+    if tileType == "N":
+        tileNode.setColor(0,0,0)
+    if tileType == "A":
+        tileNode.setColor(0,1,0)
+    elif tileType == "J":
+        tileNode.setColor(0,0,1)
+    elif tileType == "S":
+        tileNode.setColor(1,0,0)
+    elif tileType == "F":
+        tileNode.setColor(1,1,0.5)
+    else:
+        return
+
+    
 def applyTexture(tileType, tileNode):
-    global counter
     
     tex = None
     if tileType == "N":
@@ -75,6 +132,8 @@ def applyTexture(tileType, tileNode):
         tex = rl.loadTexture("jump.jpg")
     elif tileType == "S":
         tex = rl.loadTexture("slow.jpg")
+    elif tileType == "F":
+        tex = rl.loadTexture("freeze.png")
     else:
         return
     
@@ -89,14 +148,6 @@ def applyTexture(tileType, tileNode):
     ts.setMode(TextureStage.MModulate)
     
     tileNode.setTexture(ts, tex)
-    
-    """
-    if counter % 2 == 0:
-        tileNode.setColor(1,1,1)
-    else:
-        tileNode.setColor(0,0,0)
-    """
-    counter +=1
     
 
 def cmpTiles(first, second):
@@ -123,7 +174,13 @@ def cmpTiles(first, second):
 
 
 def convert(track, outputFile):
+    
     trackNode = NodePath("track")
+    tilesRoot = NodePath("tiles")
+    itemsRoot = NodePath("items")
+    
+    tilesRoot.reparentTo(trackNode)
+    itemsRoot.reparentTo(trackNode)
     
     track = __import__(track).track
     
@@ -134,9 +191,12 @@ def convert(track, outputFile):
     for i, segment in enumerate(track):
         type = segment["type"]
         path = modelPathForType(type)
-        pos = posForType(pos, prevType, type)    
-        np = rl.loadModelAndReparent(path, trackNode, scale, pos, noCache=True)
-        np.setName("%s@%d" % (np.getName(), i))
+        pos = posForType(pos, prevType, type) 
+        np = rl.loadModelAndReparent(path, tilesRoot, scale, pos, noCache=True)
+        segmentName = "%s@%d" % (np.getName(), i)
+        np.setName(segmentName)
+        
+        #applyTexture("N", np)
         
         tiles = segment["tiles"]
         geomTiles = np.findAllMatches("**/tile*").asList()
@@ -146,10 +206,18 @@ def convert(track, outputFile):
         for tileType, tileNode in tilesTuple:
             if tileType == "H":
                 tileNode.removeNode()
-            else:
-                applyTexture(tileType, tileNode)
+            elif tileType in TILE_TYPES:
+                #applyTexture(tileType, tileNode)
+                applyColor(tileType, tileNode)
+            elif tileType in ITEM_TYPES:
+                applyEffect(tileType, tileNode, itemsRoot)
         
         prevType = type
+    
+    # add endpoint to last segment
+    np.setTag("endpoint", "1")
+    
+    itemsRoot.flattenStrong()
         
     trackNode.writeBamFile(outputFile)
     
@@ -163,6 +231,7 @@ if __name__ == '__main__':
     output = "/home/mdinacci/Work/MD/rtw/track-editor/res/models/track.bam"
     
     convert(map, output)
-    print "file succesfully written to ", output
+    
+    print "Finished."
 
     
