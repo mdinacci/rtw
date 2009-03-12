@@ -5,19 +5,23 @@ Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
 """
 
-from direct.showbase.DirectObject import DirectObject
-
-from pandac.PandaModules import *
+from pandac.PandaModules import loadPrcFile
 loadPrcFile("../res/Config.prc")
 
+from mdlib.panda import config as cfg
+cfg.loadFile("options.prc")
+
+#from direct.showbase.ShowBase import ShowBase
+from direct.showbase.DirectObject import DirectObject
 import direct.directbase.DirectStart
+
+from pandac.PandaModules import *
+
 from direct.gui.OnscreenText import OnscreenText
 from direct.directtools.DirectGeometry import LineNodePath
-from direct.showbase.DirectObject import DirectObject
 from pandac.PandaModules import *
 from direct.task.Task import Task
 from direct.fsm import FSM
-from direct.gui.DirectGui import *
 
 from mdlib.panda.entity import *
 from mdlib.panda.core import *
@@ -27,7 +31,11 @@ from mdlib.panda.utils import *
 from mdlib.types import Types
 from mdlib.panda import event
 
+from mdlib.patterns import singleton
+
 import sys, math
+
+from gui import *
 
 #base.wireframeOn()
 
@@ -68,12 +76,12 @@ class Camera(object):
         base.camera.setPos(self.target.nodepath.getPos() - \
                            self.target.forward * self.TARGET_DISTANCE)
 
-        z = self.target.jumpZ
-        base.camera.setZ(self.target.nodepath.getZ() -z + 4)
+        z = self.target.physics.jumpZ
+        base.camera.setZ(self.target.nodepath.getZ() -z + 3)
         pos = self.target.nodepath.getPos()
         pos.setZ(pos.getZ() -z)
         base.camera.lookAt(pos)
-        base.camera.setZ(self.target.nodepath.getZ() -z + 6)
+        base.camera.setZ(self.target.nodepath.getZ() -z + 5)
     
 
 HEIGHT_TRACK = 0.0
@@ -88,29 +96,7 @@ class GameLogic(AbstractLogic):
         self.env = GOM.createEntity(environment_params)
         self.view.addEntity(self.env)
         
-        self.track = GOM.createEntity(new_track_params)
-        self.track.unfold()
-        self.track.nodepath.setCollideMask(BitMask32(1))
-        #self.track.nodepath.setAntialias(AntialiasAttrib.MLine)
-        self.view.addEntity(self.track)
-        
-        self.ball = GOM.createEntity(ball_params)
-        collSphere = self.ball.nodepath.find("**/ball")
-        collSphere.node().setIntoCollideMask(BitMask32(2))
-        collSphere.node().setFromCollideMask(BitMask32.allOff())
-        self.view.addEntity(self.ball)
-        
-        self.player = GOM.createEntity(player_params)
-        self.player.nodepath.setPos(self.ball.nodepath.getPos())
-        self.player.nodepath.setQuat(self.track.nodepath,Quat(1,0,0,0))
-        self.ball.forward = Vec3(0,1,0)
-        self.view.addEntity(self.player)
-        
-        # normally the view should create it 
-        self.cam = Camera()
-        self.cam.followTarget(self.ball)
-        self.camGroundZ = -999
-        self.view.cam = self.cam
+        self._setupEntities()
         
         # HACK
         self.view.player = self.player
@@ -130,6 +116,51 @@ class GameLogic(AbstractLogic):
         #self.track.nodepath.setFog(expfog)
         #base.setBackgroundColor(*colour)
     
+        self.controlInverted = False
+    
+    def _setupEntities(self):
+        self.track = GOM.createEntity(new_track_params)
+        self.track.unfold()
+        self.track.nodepath.setCollideMask(BitMask32(1))
+        #self.track.nodepath.setAntialias(AntialiasAttrib.MLine)
+        self.view.addEntity(self.track)
+        
+        self.ball = GOM.createEntity(avg_joe_ball_params)
+        collSphere = self.ball.nodepath.find("**/ball")
+        collSphere.node().setIntoCollideMask(BitMask32(2))
+        collSphere.node().setFromCollideMask(BitMask32.allOff())
+        self.view.addEntity(self.ball)
+        
+        dlight = DirectionalLight('dlight')
+        alight = AmbientLight('alight')
+        dlnp = render.attachNewNode(dlight)
+        alnp = render.attachNewNode(alight)
+        dlight.setColor(Vec4(0.6, 0.6, 0.9, 1))
+        alight.setColor(Vec4(0.2, 0.2, 0.2, 1))
+        dlnp.setHpr(0, -60, 0)
+        render.setLight(dlnp)
+        render.setLight(alnp)
+        
+        """
+        render.setShaderAuto()
+        from direct.filter.CommonFilters import CommonFilters
+        filters = CommonFilters(base.win, base.cam)
+        #filters.setCartoonInk(separation=2)
+        filters.setBloom(blend=(0.9,0.9,0.9,0), desat=-0.5, intensity=1.0)
+        """
+        
+        self.player = GOM.createEntity(player_params)
+        self.player.nodepath.setPos(self.ball.nodepath.getPos())
+        self.player.nodepath.setQuat(self.track.nodepath,Quat(1,0,0,0))
+        self.ball.forward = Vec3(0,1,0)
+        self.view.addEntity(self.player)
+        
+        # normally the view should create it 
+        self.cam = Camera()
+        self.cam.followTarget(self.ball)
+        self.camGroundZ = -999
+        self.view.cam = self.cam
+        
         
     def updatePhysics(self, task):
         dt = globalClock.getDt()
@@ -162,17 +193,21 @@ class GameLogic(AbstractLogic):
                 # check ball's ray collision with ground
                 elif entry.getFromNodePath() == self.ballCollNodeNp:
                     np = entry.getIntoNodePath()
-                    print np.getName()
-                    # tell the track which segment the ball is on
-                    #self.track.setCurrentTile(np)
-                    
-                    # find out the tile type from the texture
-                    textures = np.findAllTextures()
-                    if textures.getNumTextures() > 1:
-                        self.tileType = textures.getTexture(1).getName()
-                    else:
-                        self.tileType = textures.getTexture(0).getName()
-                    #self.tileType = np.findAllTextures().getTexture(0).getName()
+                    rootNode = np.getParent().getParent().getParent()
+                    if rootNode.hasTag("effect"):
+                        self.ball.setSpecialItem(rootNode.getTag("effect"))
+                        rootNode.removeNode()
+                    else:    
+                        # tell the track which segment the ball is on
+                        self.track.setCurrentTile(np)
+                        
+                        # find out the tile type from the texture
+                        textures = np.findAllTextures()
+                        if textures.getNumTextures() > 1:
+                            self.tileType = textures.getTexture(1).getName()
+                        else:
+                            self.tileType = textures.getTexture(0).getName()
+                        #self.tileType = np.findAllTextures().getTexture(0).getName()
                     
                     self.ball.RayGroundZ = z
                     
@@ -218,17 +253,19 @@ class GameLogic(AbstractLogic):
                                                    Vec3(0,1,0)) 
         forward.setZ(0)
         forward.normalize()
-        speedVec = forward * dt * self.ball.speed
+        speedVec = forward * dt * self.ball.physics.speed
         self.ball.forward = forward
-        self.ball.speedVec = speedVec
+        self.ball.physics.speedVec = speedVec
 
         self.player.nodepath.setPos(self.player.nodepath.getPos() + speedVec)
-        self.player.nodepath.setZ(self.ball.RayGroundZ + self.ball.jumpZ + \
+        self.player.nodepath.setZ(self.ball.RayGroundZ + 
+                                  self.ball.physics.jumpZ + \
                                   self.ball.physics.radius + HEIGHT_TRACK)
            
         # rotate the ball
         self.ball.nodepath.setP(self.ball.nodepath.getP() -1 * dt * \
-                                  self.ball.speed * self.ball.spinningFactor)
+                                  self.ball.physics.speed * 
+                                  self.ball.physics.spinningFactor)
         # set the ball to the position of the controller node
         self.ball.nodepath.setPos(self.player.nodepath.getPos())
         # rotate the controller to follow the direction of the ball
@@ -241,7 +278,8 @@ class GameLogic(AbstractLogic):
         self.player.nodepath.setPos(Point3(6,0,0))
         self.ball.nodepath.setPos(Point3(6,0,0))
         self.ball.nodepath.setQuat(Quat(1,0,0,0))
-        self.ball.speed = 0
+        self.ball.physics.speed = 0
+
         self.view.gameIsAlive = True
         self.view.time = "0:0.0"
     
@@ -251,22 +289,32 @@ class GameLogic(AbstractLogic):
         # steer
         
         if self.keyMap["right"] == True:
-            right = self.view._rootNode.getRelativeVector(self.player.nodepath, 
-                                                     Vec3(1,0,0))
-            if self.ball.speed > 0:
-                self.ball.turnRight()
+            if self.ball.physics.speed > 0:
+                if self.controlInverted:
+                    self.ball.turnLeft()
+                else:
+                    self.ball.turnRight()
             
         if self.keyMap["left"] == True:
-            if self.ball.speed > 0:
-                self.ball.turnLeft()
+            if self.ball.physics.speed > 0:
+                if self.controlInverted:
+                    self.ball.turnRight()
+                else:
+                    self.ball.turnLeft()
         
         if self.keyMap["forward"] == True:
-            self.ball.accelerate()
+            if self.controlInverted:
+                self.ball.brake()
+            else:
+                self.ball.accelerate()
         else:
             self.ball.decelerate()
         
         if self.keyMap["backward"] == True:
-            self.ball.brake()
+            if self.controlInverted:
+                self.ball.accelerate()
+            else:
+                self.ball.brake()
         
         if self.keyMap["jump"] == True:
             self.ball.jump()
@@ -283,15 +331,37 @@ class GameLogic(AbstractLogic):
         elif self.tileType == "slow":
             self.ball.slowDown()
         elif self.tileType == "freeze":
-            self.ball.freeze()
-            #self.ball.minimize()
+            if self.lastTileType != "freeze":
+                self.ball.freeze()
         else:
             print "unknown type: " , self.tileType
         
         self.lastTileType = self.tileType
         
-        if self.ball.speed < 0:
-            self.ball.speed = 0
+        # special items
+        if self.ball.hasSpecialItem():
+            item = self.ball.specialItem
+            if item == "M":
+                self.ball.minimize()
+            elif item == "I":
+                self.ball.invisibleMode()
+            elif item == "+":
+                self.view.raceTimer.addTime(30)
+                self.view.raceTimer.flash()
+            elif item == "-":
+                self.view.raceTimer.removeTime(30)
+                self.view.raceTimer.flash()
+            elif item == "?":
+                delay = Wait(3)
+                f = Func(self.__setattr__,"controlInverted", True)
+                f1 = Func(self.__setattr__,"controlInverted", False)
+                Sequence(f, delay, f1).start()
+                
+                
+            self.ball.specialItem = None
+        
+        if self.ball.physics.speed < 0:
+            self.ball.physics.speed = 0
             
         return Task.cont
     
@@ -328,7 +398,7 @@ class GameLogic(AbstractLogic):
     
     def endTrack(self):
         self.ball.slowDown()
-        self.view.stopTimer() 
+        self.view.raceTimer.stop() 
     
     def _subscribeToEvents(self):
         self.keyMap = {"left":False, "right":False, "forward":False, \
@@ -337,51 +407,66 @@ class GameLogic(AbstractLogic):
         self.inputMgr = InputManager(base)
         self.inputMgr.createSchemeAndSwitch("game")
         
-        self.inputMgr.bindCallback("arrow_left", self.setKey, ["left",True], scheme="game")
-        self.inputMgr.bindCallback("arrow_right", self.setKey, ["right",True])
-        self.inputMgr.bindCallback("arrow_up", self.setKey, ["forward",True])
-        self.inputMgr.bindCallback("arrow_left-up", self.setKey, ["left",False])
-        self.inputMgr.bindCallback("arrow_right-up", self.setKey, ["right",False])
-        self.inputMgr.bindCallback("arrow_up-up", self.setKey, ["forward",False])
-        self.inputMgr.bindCallback("arrow_down", self.setKey, ["backward",True])
-        self.inputMgr.bindCallback("arrow_down-up", self.setKey, ["backward",False])
-        self.inputMgr.bindCallback("space", self.setKey, ["jump",True])
+        self.inputMgr.bindCallback(cfg.strValueForKey("options_steer_left"), 
+                                   self.setKey, ["left",True], scheme="game")
+        self.inputMgr.bindCallback(cfg.strValueForKey("options_steer_right"), 
+                                   self.setKey, ["right",True])
+        self.inputMgr.bindCallback(cfg.strValueForKey("options_accelerate")
+                                   , self.setKey, ["forward",True])
+        self.inputMgr.bindCallback(cfg.strValueForKey("options_brake"), 
+                                   self.setKey, ["backward",True])
+        self.inputMgr.bindCallback(cfg.strValueForKey("options_jump"), 
+                                   self.setKey, ["jump",True])
+        
+        key = cfg.strValueForKey("options_steer_left") + "-up"
+        self.inputMgr.bindCallback(key, self.setKey, ["left",False])
+        key = cfg.strValueForKey("options_steer_right") + "-up"
+        self.inputMgr.bindCallback(key, self.setKey, ["right",False])
+        key = cfg.strValueForKey("options_accelerate") + "-up"
+        self.inputMgr.bindCallback(key, self.setKey, ["forward",False])
+        key = cfg.strValueForKey("options_brake") + "-up"
+        self.inputMgr.bindCallback(key, self.setKey, ["backward",False])
         
         self.inputMgr.bindCallback("c", self.view.switchCamera)
-        self.inputMgr.bindCallback("a", render.analyze)
+        self.inputMgr.bindCallback("o", render.analyze)
         
         base.accept(event.END_TRACK, self.endTrack)
         
     
-class GameView(AbstractView):
-    pass
 
-
-class World(AbstractScene):
-    
+class RaceTimer(object):
     def __init__(self):
-        super(World, self).__init__()
-        
-        #render.setShaderAuto()
-        
-        self.time = "0:0.0"
-        self.timerText = OnscreenText(text="%s" % self.time, style=1, fg=(1,1,1,1),
-                              pos=(1.2,0.90),shadow= (1,0,0,.8), 
-                              scale = .08, mayChange=True)
         self.elapsedTime = 0
-        
-        loader.loadModelCopy("models/misc/xyzAxis").reparentTo(render)
-        
-        self.setSceneGraphNode(render)
-        #self._setupLights()
-        self.gameIsAlive = True
-        
-        taskMgr.doMethodLater(0.1, self.tickTimer, 'timer-task') 
+        self.time = "0:0.0"
+        self.textScale = .08
+        self.timerText = OnscreenText(text="%s" % self.time, style=1, 
+                              fg=(1,1,1,1),pos=(1.2,0.90),shadow= (1,0,0,.8), 
+                              scale = self.textScale, mayChange=True)
     
-    def stopTimer(self):    
-        taskMgr.remove("timer-task")
+    def flash(self):
+        scaleUp = Func(self.__setattr__, "textScale", 0.12)
+        wait = Wait(1)
+        scaleDown = Func(self.__setattr__, "textScale", 0.08)
         
-    def tickTimer(self, task):
+        Sequence(scaleUp, wait, scaleDown).start()
+        
+    def start(self):
+        taskMgr.doMethodLater(0.1, self.update, "timer-task")
+    
+    def stop(self):
+        taskMgr.remove("timer-task")
+    
+    def addTime(self, tenths):
+        self.elapsedTime += tenths
+        
+    def removeTime(self, tenths):
+        self.elapsedTime -= tenths
+    
+    def render(self):
+        self.timerText.setScale(self.textScale)
+        self.timerText.setText(self.time)
+    
+    def update(self, task):
         self.elapsedTime +=1
         tens = self.elapsedTime % 10
         seconds = (self.elapsedTime / 10) % 60
@@ -394,12 +479,27 @@ class World(AbstractScene):
         self.time = "%d:%s.%s" % (minutes, seconds, tens)
         
         return task.again
+
+
+class World(AbstractScene):
     
+    def __init__(self):
+        super(World, self).__init__()
+        
+        loader.loadModelCopy("models/misc/xyzAxis").reparentTo(render)
+        
+        self.setSceneGraphNode(render)
+        #self._setupLights()
+        self.gameIsAlive = True
+        
+        self.raceTimer = RaceTimer()
+        self.raceTimer.start()
+        
     
     def update(self, task):
         if self.gameIsAlive:
             self.cam.update()
-        self.timerText.setText(self.time)
+            self.raceTimer.render()
             
         return Task.cont
         
@@ -416,81 +516,8 @@ class World(AbstractScene):
         render.node().setAttrib( lAttrib )
         
 
-from mdlib.panda import event
-
-class MainScreen(object):
-    
-    name = "main"
-    
-    def __init__(self):
-        self.startButton = DirectButton(text = ("Start Game"), 
-                                        scale = .05,
-                                        pos = (-0.1,0,0), 
-                                        command=self.startPressed)
-        self.exitButton = DirectButton(text = ("Exit"), 
-                                       scale = .05,
-                                       pos = (0.1,0,0), 
-                                       command=self.exitPressed)
-        
-    def startPressed(self):
-        messenger.send(event.GAME_START)
-    
-    def exitPressed(self):
-        messenger.send(event.GAME_EXIT)
-        
-    def destroy(self):
-        self.startButton.destroy()
-        self.exitButton.destroy()
-        
-    def hide(self):
-        self.startButton.hide()
-        self.exitButton.hide()
-        
-
-class ExitRequestScreen(object):
-    name = "exit"
-    
-    def __init__(self, prevScreenName):
-        self.dialog = YesNoDialog(dialogName="YesNoCancelDialog", \
-                          text="Quitting game ?:", command=self.dialogCallback)
-        self.prevScreenName = prevScreenName
-
-    def dialogCallback(self, yes):
-        if yes:
-            messenger.send(event.GAME_DESTROY)
-        else:
-            messenger.send("display-screen", [self.prevScreenName])
-    
-    def destroy(self):
-        self.dialog.cleanup()
-
-
-class ScreenManager(object):
-    def __init__(self):
-        self.previousScreen = None
-        self.currentScreen = None
-        
-        
-    def displayScreen(self, name):
-        self.previousScreen = self.currentScreen
-        
-        if name == "main":
-            self.currentScreen = MainScreen()
-        elif name == "exit":
-            self.currentScreen = ExitRequestScreen(self.previousScreen.name)
-        
-        return self.currentScreen
-
-    def destroyCurrent(self):
-        print "destroying: ", self.currentScreen
-        self.currentScreen.destroy()
-        
-
 class ApplicationState(FSM.FSM):
     
-    "BORDEL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-
-
     def __init__(self, app):
         FSM.FSM.__init__(self, "app")
         self.app = app
@@ -510,8 +537,8 @@ class ApplicationState(FSM.FSM):
             self.app.show()
         elif self.oldState == "Game":
             taskMgr.add(self.app.logic.inputMgr.update, "update-input")
-            taskMgr.add(self.app.logic.updateLogic, "update-logic")
             taskMgr.add(self.app.logic.updatePhysics, "update-physics")
+            taskMgr.add(self.app.logic.updateLogic, "update-logic")
         
     def enterMenus(self):
         render.hide()
@@ -528,6 +555,21 @@ class ApplicationState(FSM.FSM):
         
     def exitDestroy(self):
         pass
+    
+    def enterPause(self):
+        taskMgr.remove("update-input")
+        taskMgr.remove("update-logic")
+        taskMgr.remove("update-physics")
+        taskMgr.remove("update-scene")
+        self.app.scene.cam.showCursor(True)
+        self.screenMgr.displayScreen("pause")
+    
+    def exitPause(self):
+        taskMgr.add(self.app.logic.inputMgr.update, "update-input")
+        taskMgr.add(self.app.logic.updateLogic, "update-logic")
+        taskMgr.add(self.app.logic.updatePhysics, "update-physics")
+        taskMgr.add(self.app.scene.update, "update-scene")
+        self.app.scene.cam.showCursor(False)
     
     def enterGame(self):
         if not self.app.gameCreated: 
@@ -548,10 +590,8 @@ class ApplicationState(FSM.FSM):
         taskMgr.remove("update-logic")
         taskMgr.remove("update-physics")
         taskMgr.remove("update-scene")
-        
         #self.app.shutdown()
-    
-    
+        
 
 class GameApplication(AbstractApplication):
 
@@ -562,29 +602,50 @@ class GameApplication(AbstractApplication):
         super(GameApplication, self).__init__()
         
         vfs = VirtualFileSystem.getGlobalPtr()
-        vfs.mount(Filename("../res/scene.mf"), ".", VirtualFileSystem.MFReadOnly)
+        vfs.mount(Filename("../res/scene.mf"),".",VirtualFileSystem.MFReadOnly)
+        
+        wp = WindowProperties().getDefault()
+        wp.setOrigin(0,0)
+        wp.setFullscreen(cfg.boolValueForKey("options_fullscreen"))
+        if not wp.getFullscreen():
+            w,h = cfg.strValueForKey("options_resolution").split("x")
+            wp.setSize(int(w),int(h))
+        base.openDefaultWindow(startDirect=False, props=wp)
         
         self.state = ApplicationState(self)
         self.inputMgr = InputManager(base)
         self.inputMgr.createScheme("app")
         
         self.gameCreated = False
-
+        
     def startGame(self):
         self.state.request("Game")
+
+    def pauseGame(self):
+        self.state.request("Pause")
+
+    def unpauseGame(self):
+        self.state.request("Off")
 
     def exitGame(self):
         self.state.request("Exit")
 
     def destroyGame(self):
         self.state.request("Destroy")
+        
+    def showOptionsMenu(self):
+        self.state.request("OptionsMenu")
 
     def _subscribeToEvents(self):
-        base.accept("escape", self.exitGame)
-        base.accept("r", self.restartGame)
+        base.accept("escape", self.pauseGame)
         base.accept("start-game", self.startGame)
         base.accept("exit-game", self.exitGame)
         base.accept("destroy-game", self.destroyGame)
+        base.accept(event.RESTART_TRACK, self.restartTrack)
+        base.accept(event.UNPAUSE_GAME, self.unpauseGame)
+        base.accept(event.PROFILE_MENU_REQUEST, self.destroyGame)
+        base.accept(event.OPTIONS_MENU_REQUEST, self.showOptionsMenu)
+        
     
     def _createLogicAndView(self):
         pass
@@ -592,26 +653,29 @@ class GameApplication(AbstractApplication):
     def continueGame(self):
         self.state.request("")
     
-    def restartGame(self):
+    def restartTrack(self):
         self.logic.resetGame()
         self.state.request("Game")
     
     def show(self):
         self.state.request("Menus")
+        taskMgr.run()
 
     def destroy(self):
+        import sys
         sys.exit()
-       
+   
+     
+"""             
 # set a fixed frame rate 
 from pandac.PandaModules import ClockObject
 FPS = 70
 globalClock = ClockObject.getGlobalClock()
-#globalClock.setMode(ClockObject.MLimited)
-#globalClock.setFrameRate(FPS)
+globalClock.setMode(ClockObject.MLimited)
+globalClock.setFrameRate(FPS)
+"""    
 
-      
 if __name__ == '__main__':
     GameApplication().show()
     
-    run()
-    
+    #run()    
