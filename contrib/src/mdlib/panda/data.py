@@ -147,9 +147,9 @@ class GameEntity(KeyValueObject):
         return "%s (%d)" % (self.prettyName, self.UID)
     
     def update(self):
-        if self.has_key("physics") and self.physics.has_key("geom"):
+        if self.has_key("odephysics") and self.odephysics.has_key("geom"):
             # the position is updated by the physics manager
-            pos = self.physics.geom.getPosition()
+            pos = self.odephysics.geom.getPosition()
             self.render.nodepath.setPos(pos)
     
     def serialise(self):
@@ -176,15 +176,15 @@ class GameEntity(KeyValueObject):
                 c = self.render.color
                 attrs["render"]["color"] = (c[0], c[1], c[2], c[3]) 
                 
-        if self.has_key("physics"):
-            if self.physics.has_key("geom"):
-                attrs["physics"]["geom"] = None
-            if self.physics.has_key("collisionBitMask"):
-                attrs["physics"]["collisionBitMask"] = \
-                    bitMaskToInt(self.physics.collisionBitMask)
-            if self.physics.has_key("categoryBitMask"):
-                attrs["physics"]["categoryBitMask"] = \
-                    bitMaskToInt(self.physics.categoryBitMask)
+        if self.has_key("odephysics"):
+            if self.odephysics.has_key("geom"):
+                attrs["odephysics"]["geom"] = None
+            if self.odephysics.has_key("collisionBitMask"):
+                attrs["odephysics"]["collisionBitMask"] = \
+                    bitMaskToInt(self.odephysics.collisionBitMask)
+            if self.odephysics.has_key("categoryBitMask"):
+                attrs["odephysics"]["categoryBitMask"] = \
+                    bitMaskToInt(self.odephysics.categoryBitMask)
                 
         return attrs
         
@@ -271,15 +271,15 @@ class GameEntityManager(object):
             # finally install the nodepath in the game object    
             ge.render.nodepath = nodepath
             
-            if ge.has_key("physics") and ge.physics.has_key("geomType"):
+            if ge.has_key("odephysics") and ge.odephysics.has_key("geomType"):
                 # replace bitmask numbers with appropriate objects
-                catBitmask = BitMask32.bit(ge.physics.categoryBitMask)
-                collBitmask = BitMask32.bit(ge.physics.collisionBitMask)
-                ge.physics.categoryBitMask = catBitmask
-                ge.physics.collisionBitMask = collBitmask
+                catBitmask = BitMask32.bit(ge.odephysics.categoryBitMask)
+                collBitmask = BitMask32.bit(ge.odephysics.collisionBitMask)
+                ge.odephysics.categoryBitMask = catBitmask
+                ge.odephysics.collisionBitMask = collBitmask
                 
                 # install geom property
-                ge.physics.geom = POM.createGeomForObject(ge.physics, 
+                ge.odephysics.geom = POM.createGeomForObject(ge.odephysics, 
                                               ge.position, ge.render.nodepath)
                 
             logger.debug("Game object %s succesfully created" % ge)
@@ -373,15 +373,15 @@ class GameEntityManager(object):
             # if geometry is enabled, I need to create a geometry and eventually
             # a body for the game object. The task is delegated to the Physic
             # Object Manager
-            if ge.has_key("physics") and ge.physics.has_key("geomType"):
+            if ge.has_key("odephysics") and ge.odephysics.has_key("geomType"):
                 # replace bitmask numbers with appropriate objects
-                catBitmask = BitMask32.bit(ge.physics.categoryBitMask)
-                collBitmask = BitMask32.bit(ge.physics.collisionBitMask)
-                ge.physics.categoryBitMask = catBitmask
-                ge.physics.collisionBitMask = collBitmask
+                catBitmask = BitMask32.bit(ge.odephysics.categoryBitMask)
+                collBitmask = BitMask32.bit(ge.odephysics.collisionBitMask)
+                ge.odephysics.categoryBitMask = catBitmask
+                ge.odephysics.collisionBitMask = collBitmask
                 
                 # install geom property
-                ge.physics.geom = POM.createGeomForObject(ge.physics, \
+                ge.odephysics.geom = POM.createGeomForObject(ge.odephysics, \
                                                       ge.position, ge.nodepath)
                 
             logger.debug("Game object %s succesfully created" % ge)
