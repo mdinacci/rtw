@@ -120,10 +120,17 @@ class Track(GameEntity):
             elif numX < numY: return -1
             else: return 0
             
+        self.render.nodepath.setTwoSided(False)
+        
+        # XXX
+        # flattening is fundamental, I don't know why but otherwise the 
+        # track is not scaled, so it looks much bigger :O
+        self.render.nodepath.flattenMedium()
 
         # create a copy of the track that will be shown to the player
+        # only the tiles are copied
         self.trackCopy = NodePath("trackCopy")
-        self.render.nodepath.copyTo(self.trackCopy)
+        self.render.nodepath.find("**/tiles").copyTo(self.trackCopy)
         self.trackCopy.reparentTo(render)
         
         # flatten all tiles but keep the segment intact
@@ -139,9 +146,9 @@ class Track(GameEntity):
         segments.sort(cmp=sortBySegmentNumber)
         self._segments = segments
         
-        self.render.nodepath.setTwoSided(False)
-        self.render.nodepath.flattenMedium()
-        self.render.nodepath.hide()
+        
+        # hide the tiles but not the other items
+        self.render.nodepath.find("**/tiles").hide()
         
     
     # this will be used for checkpoints
@@ -162,28 +169,31 @@ class Track(GameEntity):
     
 
 class Ball(GameEntity):
-    MAX_SPEED = 30
-    MAX_STEER = 30
+    #maxSpeed = 30
     FALLING_SPEED = 250
     FALLING_Z = 5
     
     def __init__(self, uid, data):
         super(Ball, self).__init__(uid, data)
-        self.steeringFactor = .6
-        self.spinningFactor = 90
-        self.jumpHeight = .6
-        self.speed = 0
-        self.jumpZ = 0
         self.frozen = False
+        self.specialItem = None
         
         jumpUp = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
                     blendType="easeOut",duration=.2, 
-                    fromData=self.jumpZ, toData=self.jumpHeight)
+                    fromData=self.physics.jumpZ, toData=self.physics.jumpHeight)
         jumpDown = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
                       blendType="easeIn",duration=.2, 
-                      fromData=self.jumpHeight, toData=0)
+                      fromData=self.physics.jumpHeight, toData=0)
         self.jumpingSequence = Sequence(jumpUp, jumpDown, name="jumping")
         
+        self.originalMaxSpeed = self.physics.maxSpeed
+    
+    def setSpecialItem(self, item):
+        self.specialItem = item
+    
+    def hasSpecialItem(self):
+        return self.specialItem is not None
+    
     def setBall(self, ball):
         self.ball = ball
         self.ball.nodepath.setPos(self.nodepath.getPos())
@@ -193,17 +203,17 @@ class Ball(GameEntity):
     
     def turnRight(self):
         currentH = self.nodepath.getH()
-        self.nodepath.setH(currentH - self.steeringFactor)
+        self.nodepath.setH(currentH - self.physics.steeringFactor)
     
     def turnLeft(self):
         currentH = self.nodepath.getH()
-        self.nodepath.setH(currentH + self.steeringFactor)
+        self.nodepath.setH(currentH + self.physics.steeringFactor)
     
     def isJumping(self):
-        return self.jumpZ > 0.1
+        return self.physics.jumpZ > 0.1
     
     def neutral(self):
-        self.MAX_SPEED= 30
+        self.physics.maxSpeed= self.originalMaxSpeed
     
     def minimize(self):
         originalScale = self.render.scale
@@ -213,12 +223,12 @@ class Ball(GameEntity):
         scaleUp = LerpScaleInterval(self.nodepath, .5, originalScale, 
                                       .3)
         
-        originalMaxSpeed = self.MAX_SPEED
-        newSpeed = self.MAX_SPEED / 3.0 * 2
-        slowDown = LerpFuncNS(Functor(self.__setattr__,"MAX_SPEED"), 
+        originalMaxSpeed = self.physics.maxSpeed
+        newSpeed = self.physics.maxSpeed / 3.0 * 2
+        slowDown = LerpFuncNS(Functor(self.__setattr__,"maxSpeed"), 
                     blendType="easeOut",duration=.5, 
                     fromData=originalMaxSpeed, toData=newSpeed)
-        fastenUp = LerpFuncNS(Functor(self.__setattr__,"MAX_SPEED"), 
+        fastenUp = LerpFuncNS(Functor(self.__setattr__,"maxSpeed"), 
                       blendType="easeIn",duration=.5, 
                       fromData=newSpeed, toData=originalMaxSpeed)
         Sequence(Parallel(scaleDown, slowDown), Wait(3), 
@@ -228,31 +238,34 @@ class Ball(GameEntity):
     def sprint(self):
         return
         if not self.isJumping():
-            self.MAX_SPEED = 40
-            self.speed *= 2
-            if self.speed == 0:
-                self.speed = self.MAX_SPEED / 2
-            if self.speed > self.MAX_SPEED:
-                self.speed = self.MAX_SPEED
+            self.physics.maxSpeed = 40
+            self.physics.speed *= 2
+            if self.physics.speed == 0:
+                self.physics.speed = self.physics.maxSpeed / 2
+            if self.physics.speed > self.physics.maxSpeed:
+                self.physics.speed = self.physics.maxSpeed
     
     def slowDown(self):
         if not self.isJumping():
-            self.MAX_SPEED = 10
-            self.speed /= 2
-            if self.speed < self.MAX_SPEED:
-                self.speed = self.MAX_SPEED
+            self.physics.maxSpeed = 10
+            self.physics.speed /= 2
+            if self.physics.speed < self.physics.maxSpeed:
+                self.physics.speed = self.physics.maxSpeed
 
     def freeze(self):
-        # TODO disable commands
         if self.frozen == False:
-            self.frozen = True
-            self.speed = 0
-            delay = Wait(2)
-            Sequence(delay, Func(self.__setattr__, "frozen", False)).start()
+            if not self.isJumping():
+                self.frozen = True
+                self.physics.speed = 0
+                delay = Wait(2)
+                Sequence(delay, Func(self.__setattr__, "frozen", False)).start()
         else:
-            print "setting speed to 0"
             self.speed = 0
-        
+    
+    def invisibleMode(self):
+        delay = Wait(3)
+        Sequence(Func(self.nodepath.hide), delay, 
+                 Func(self.nodepath.show)).start()
     
     def jump(self):
         if not self.isJumping():
@@ -261,33 +274,35 @@ class Ball(GameEntity):
     def getLost(self):
         # for some reasons the interval doesn't set the value to zero but
         # to something close
-        targetPos = self.nodepath.getPos() + self.speedVec * \
+        targetPos = self.nodepath.getPos() + self.physics.speedVec * \
                                             self.FALLING_SPEED
         targetPos.setZ(targetPos.getZ() - self.FALLING_Z)
-        fallDown = LerpPosInterval(self.nodepath, 15.0/self.speed, 
+        fallDown = LerpPosInterval(self.nodepath, 15.0/self.physics.speed, 
                                    pos=targetPos,
                                    blendType = 'easeIn')
         fallDown.start()
        # TODO send event
     
     def accelerate(self):
-        if self.speed < self.MAX_SPEED:
-            self.speed += .2
-        else:
-            self.speed = self.MAX_SPEED
+        if not self.frozen:
+            if self.physics.speed < self.physics.maxSpeed:
+                self.physics.speed += .2
+            else:
+                self.physics.speed = self.physics.maxSpeed
     
     def decelerate(self):
-        if self.speed > 0:
-            self.speed -= .1
+        if self.physics.speed > 0:
+            self.physics.speed -= .1
     
     def brake(self):
-        if self.speed > 0:
-            self.speed -= .5
+        if self.physics.speed > 0:
+            self.physics.speed -= .5
             
+
+
     
 # Property schema: defines the existing properties and their type
 property_schema = {
-                 "archetype": str,
                  "prettyName": str,
                  "python": 
                     {
@@ -300,7 +315,7 @@ property_schema = {
                      "z": float,
                      "rotation": Types.tuple4
                      },
-                 "physics": 
+                 "ode": 
                     {
                      "collisionBitMask": int, # unsigned
                      "categoryBitMask" : int, # unsigned
@@ -331,72 +346,37 @@ property_schema = {
                      }
                 }
 
-dummy_template_params = {
-                       "archetype": "General",
-                       "prettyName": "Dummy",
-                         "render": 
-                        {
-                         "entityType": EntityType.NONE,
-                         }
-                        }
-
-entity_template_params = {
-                       "archetype": "General",
-                       "prettyName": "Entity",
-                       "position": 
-                            { 
-                             "x": 0,
-                             "y": 0,
-                             "z": 0,
-                             "rotation": (1,0,0,0)
-                             },
-                        "physics": 
-                                {
-                                 "collisionBitMask": 0x00000001,
-                                 "categoryBitMask" : 0x00000000,
-                                 "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                                 "radius": 1,
-                                 "hasBody": False
-                                 },
-                           "render": 
-                                {
-                                 "entityType": EntityType.ACTOR,
-                                 "scale": 1,
-                                 "modelPath": "",
-                                 "isDirty": True,
-                                 "color": None,
-                                 "tags" : {"pos":None}
-                                 }
-                           }
 player_params = {
-                   "archetype": "Player",
                    "prettyName": "Player",
                      "render": 
                     {
                      "entityType": EntityType.NONE,
                      }
-                 }                       
-ball_params = {
-                   "archetype": "Model",
-                   "prettyName": "Ball",
+                 }       
+                
+shark_ball_params = {
+                   "prettyName": "Shark",
                    "python":
                    {
                     "clazz": Ball
                     },
-                   "physics": 
+                    "props": 
                     {
-                     "collisionBitMask": 0x00000002,
-                     "categoryBitMask" : 0x00000001,
-                     "geomType": Types.Geom.SPHERE_GEOM_TYPE,
-                     "radius":  0.4,
-                     "hasBody": True,
-                     "speed": 0,
-                     "density":400,
-                     "xForce" : 0,
-                     "yForce" : 0,
-                     "zForce" : 0,
-                     "torque" : 0
+                     "speed":70,
+                     "control":40,
+                     "jump":40,
+                     "acceleration":70,
                     },
+                    "physics":
+                    {
+                     "radius":  0.4,
+                     "maxSpeed": 42,
+                     "steeringFactor" : .5,
+                     "spinningFactor" : 80,
+                     "jumpHeight" : .6,
+                     "speed" : 0,
+                     "jumpZ" : 0
+                     },
                    "position":
                     {
                      "x": 6,
@@ -413,8 +393,125 @@ ball_params = {
                      }
                     }
 
+photon_ball_params = {
+                   "prettyName": "Photon",
+                   "python":
+                   {
+                    "clazz": Ball
+                    },
+                    "props": 
+                    {
+                     "speed":80,
+                     "control":70,
+                     "jump":60,
+                     "acceleration":80,
+                    },
+                    "physics":
+                    {
+                     "radius":  0.4,
+                     "maxSpeed": 50,
+                     "steeringFactor" : .4,
+                     "spinningFactor" : 80,
+                     "jumpHeight" : .6,
+                     "speed" : 0,
+                     "jumpZ" : 0
+                     },
+                   "position":
+                    {
+                     "x": 6,
+                     "y": 0,
+                     "z": 0,
+                     "rotation": (1,0,0,0)
+                     },
+                     "render": 
+                    {
+                     "isDirty": True,
+                     "modelPath": "ball",
+                     "scale":1,
+                     "entityType": EntityType.PLAYER
+                     }
+        }
+
+avg_joe_ball_params = {
+                   "prettyName": "Average Joe",
+                   "python":
+                   {
+                    "clazz": Ball
+                    },
+                    "props": 
+                    {
+                     "speed":50,
+                     "control":70,
+                     "jump":60,
+                     "acceleration":60,
+                    },
+                    "physics":
+                    {
+                     "radius":  0.4,
+                     "maxSpeed": 32,
+                     "steeringFactor" : .6,
+                     "spinningFactor" : 80,
+                     "jumpHeight" : .6,
+                     "speed" : 0,
+                     "jumpZ" : 0
+                     },
+                   "position":
+                    {
+                     "x": 6,
+                     "y": 0,
+                     "z": 0,
+                     "rotation": (1,0,0,0)
+                     },
+                     "render": 
+                    {
+                     "isDirty": True,
+                     "modelPath": "ball",
+                     "scale":1,
+                     "entityType": EntityType.PLAYER
+                     }
+        }
+
+turtle_king_ball_params = {
+                   "prettyName": "Turtle King",
+                   "python":
+                   {
+                    "clazz": Ball
+                    },
+                    "props": 
+                    {
+                     "speed":30,
+                     "control":70,
+                     "jump":60,
+                     "acceleration":30,
+                    },
+                    "physics":
+                    {
+                     "radius":  0.4,
+                     "maxSpeed": 25,
+                     "steeringFactor" : .7,
+                     "spinningFactor" : 80,
+                     "jumpHeight" : .6,
+                     "speed" : 0,
+                     "jumpZ" : 0
+                     },
+                   "position":
+                    {
+                     "x": 6,
+                     "y": 0,
+                     "z": 0,
+                     "rotation": (1,0,0,0)
+                     },
+                     "render": 
+                    {
+                     "isDirty": True,
+                     "modelPath": "ball",
+                     "scale":1,
+                     "entityType": EntityType.PLAYER
+                     }
+        }
+
+
 new_track_params = {
-                "archetype": "Tracks",
                 "prettyName": "Track",
                 "position":
                     {
@@ -447,7 +544,6 @@ new_track_params = {
                     }
 
 environment_params = {
-                      "archetype": "Background",
                       "prettyName": "Environment",
                       "position":
                             {
