@@ -71,6 +71,7 @@ class PhysicManager(object):
         M = OdeMass()
         geometry = None
         geomType = object.geomType
+        
         if geomType == Types.Geom.SPHERE_GEOM_TYPE:
             logger.debug("Creating a sphere geometry with radius %s for \
                 object: %s" % (object.radius, object))
@@ -83,7 +84,7 @@ class PhysicManager(object):
         
         elif geomType == Types.Geom.BOX_GEOM_TYPE:
             logger.debug("Creating box geom of size %s-%s-%s for object: %s"\
-                          % (object.length, object.width, 
+                          % (object.length, object.width,
                                object.height, object))
             #geometry = OdeBoxGeom(self.space, object.length, object.width, object.height)
             #geometry.setPosition(position.x+l/2.0, position.y+w/2.0, position.z+h/2.0)
@@ -112,7 +113,7 @@ class PhysicManager(object):
             logger.error("Invalid geometry type for object: %s" % object)
             return None
         
-        #geometry.setPosition(position.x, position.y, position.z)
+        geometry.setPosition(position.x, position.y, position.z)
         geometry.setQuaternion(utils.vec4ToQuat(position.rotation))
         geometry.setCollideBits(object.collisionBitMask)
         geometry.setCategoryBits(object.categoryBitMask)
@@ -142,7 +143,6 @@ class PhysicManager(object):
         Run the physical simulation and update the actors with their
         new positions.
         """
-        
         actors = scene.getDirtyActors()
         # apply forces if necessary
         for actor in actors:
