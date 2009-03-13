@@ -27,18 +27,11 @@ default-directnotify-level warning
 # a special variable that indicates the same directory as this
 # particular Config.prc file.
 
-model-path    $MAIN_DIR
-model-path    /usr/share/panda3d
-model-path    /usr/share/panda3d/models
 model-path    $THIS_PRC_DIR
 model-path    $THIS_PRC_DIR/scene.mf
-sound-path    $MAIN_DIR
-sound-path    /usr/share/panda3d
-sound-path    /usr/share/panda3d/models
-texture-path  $MAIN_DIR
-texture-path  /usr/share/panda3d
-texture-path  /usr/share/panda3d/models
-texture-path    $THIS_PRC_DIR
+sound-path    $THIS_PRC_DIR
+texture-path  $THIS_PRC_DIR/scene.mf
+texture-path  $THIS_PRC_DIR
 
 
 want-directtools  f

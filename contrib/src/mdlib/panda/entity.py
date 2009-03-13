@@ -386,6 +386,7 @@ shark_ball_params = {
                      },
                      "render": 
                     {
+                     "texture": "shark_texture.jpg",
                      "isDirty": True,
                      "modelPath": "ball",
                      "scale":1,
@@ -425,6 +426,7 @@ photon_ball_params = {
                      },
                      "render": 
                     {
+                     "texture": "photon_texture.jpg",
                      "isDirty": True,
                      "modelPath": "ball",
                      "scale":1,
@@ -464,6 +466,7 @@ avg_joe_ball_params = {
                      },
                      "render": 
                     {
+                     "texture": "avg_joe_texture.jpg",
                      "isDirty": True,
                      "modelPath": "ball",
                      "scale":1,
@@ -503,6 +506,7 @@ turtle_king_ball_params = {
                      },
                      "render": 
                     {
+                     "texture": "turtle_king_texture.jpg",
                      "isDirty": True,
                      "modelPath": "ball",
                      "scale":1,
@@ -560,6 +564,11 @@ environment_params = {
                              "isDirty": True,
                              }
                         }
+
+ballsMap = {"Turtle King": turtle_king_ball_params,
+         "Average Joe": avg_joe_ball_params,
+         "Shark": shark_ball_params,
+         "Photon": photon_ball_params}
 
 # create a global KeyValueObject to simplify the getPropertyType function 
 schema_kvo = transformToKeyValue(property_schema)

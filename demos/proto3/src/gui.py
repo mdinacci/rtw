@@ -120,11 +120,11 @@ class MainScreen(Screen):
         self.screenMgr.displayScreen("profile")
     
     def champModePressed(self):
-        messenger.send(event.GAME_START)
+        #messenger.send(event.GAME_START)
+        self.screenMgr.displayScreen("ball-selection")
         
     def timeModePressed(self):
         self.screenMgr.displayScreen("ball-selection")
-        #messenger.send(event.GAME_START)
 
 
 class RenameProfileMenuScreen(Screen):

@@ -347,7 +347,7 @@ class AbstractScene(object):
     def update(self):
         # FIXME the best thing to do is to call entity.update()
         # for now just hack the position
-
+        print "ioioo"
         self._player.update()
         
         """

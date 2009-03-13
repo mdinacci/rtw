@@ -97,40 +97,58 @@ class GameLogic(AbstractLogic):
         self.view.addEntity(self.env)
         
         self._setupEntities()
+        self._setupLights()
         
         # HACK
-        self.view.player = self.player
-        self.view.ball = self.ball
         self.view.track = self.track
 
+        self.cam = Camera()
+        self.camGroundZ = -999
+        self.view.cam = self.cam
+        
         self.lastTile = ""
         self.tileType = "neutral"
         self.lastTileType = "neutral"
         
-        self._setupCollisionDetection()
         
-        colour = (0.2,0.4,0.6)
+        colour = (0.2,0.2,0.2)
         expfog = Fog("fog")
         expfog.setColor(*colour)
-        expfog.setExpDensity(0.004)
-        #self.track.nodepath.setFog(expfog)
-        #base.setBackgroundColor(*colour)
+        expfog.setExpDensity(0.001)
+        self.track.nodepath.setFog(expfog)
+        base.setBackgroundColor(*colour)
     
         self.controlInverted = False
     
-    def _setupEntities(self):
-        self.track = GOM.createEntity(new_track_params)
-        self.track.unfold()
-        self.track.nodepath.setCollideMask(BitMask32(1))
-        #self.track.nodepath.setAntialias(AntialiasAttrib.MLine)
-        self.view.addEntity(self.track)
-        
-        self.ball = GOM.createEntity(avg_joe_ball_params)
+    def setupBall(self, ball):
+        params = ballsMap[ball]
+        self.ball = GOM.createEntity(params)
         collSphere = self.ball.nodepath.find("**/ball")
         collSphere.node().setIntoCollideMask(BitMask32(2))
         collSphere.node().setFromCollideMask(BitMask32.allOff())
         self.view.addEntity(self.ball)
+        self.player = GOM.createEntity(player_params)
+        self.player.nodepath.setPos(self.ball.nodepath.getPos())
+        self.player.nodepath.setQuat(self.track.nodepath,Quat(1,0,0,0))
+        self.ball.forward = Vec3(0,1,0)
+        self.view.addEntity(self.player)
         
+        # normally the view should create it 
+        self.cam.followTarget(self.ball)
+        
+        # HACK
+        self.view.player = self.player
+        self.view.ball = self.ball
+        
+        self.ball.nodepath.setShaderAuto()
+        from direct.filter.CommonFilters import CommonFilters
+        filters = CommonFilters(base.win, base.cam)
+        #filters.setCartoonInk(separation=2)
+        filters.setBloom(blend=(0.0,0.0,0.6,0), desat=-0.5, intensity=1.0)
+        self._setupCollisionDetection()
+        
+     
+    def _setupLights(self):   
         dlight = DirectionalLight('dlight')
         alight = AmbientLight('alight')
         dlnp = render.attachNewNode(dlight)
@@ -140,27 +158,15 @@ class GameLogic(AbstractLogic):
         dlnp.setHpr(0, -60, 0)
         render.setLight(dlnp)
         render.setLight(alnp)
-        
-        """
-        render.setShaderAuto()
-        from direct.filter.CommonFilters import CommonFilters
-        filters = CommonFilters(base.win, base.cam)
-        #filters.setCartoonInk(separation=2)
-        filters.setBloom(blend=(0.9,0.9,0.9,0), desat=-0.5, intensity=1.0)
-        """
-        
-        self.player = GOM.createEntity(player_params)
-        self.player.nodepath.setPos(self.ball.nodepath.getPos())
-        self.player.nodepath.setQuat(self.track.nodepath,Quat(1,0,0,0))
-        self.ball.forward = Vec3(0,1,0)
-        self.view.addEntity(self.player)
-        
-        # normally the view should create it 
-        self.cam = Camera()
-        self.cam.followTarget(self.ball)
-        self.camGroundZ = -999
-        self.view.cam = self.cam
-        
+
+    
+    def _setupEntities(self):
+        self.track = GOM.createEntity(new_track_params)
+        self.track.unfold()
+        self.track.nodepath.setCollideMask(BitMask32(1))
+        #self.track.nodepath.setAntialias(AntialiasAttrib.MLine)
+        self.view.addEntity(self.track)
+                
         
     def updatePhysics(self, task):
         dt = globalClock.getDt()
@@ -401,6 +407,8 @@ class GameLogic(AbstractLogic):
         self.view.raceTimer.stop() 
     
     def _subscribeToEvents(self):
+        base.accept(event.END_TRACK, self.endTrack)
+        
         self.keyMap = {"left":False, "right":False, "forward":False, \
                        "backward":False, "jump": False}
         
@@ -430,7 +438,6 @@ class GameLogic(AbstractLogic):
         self.inputMgr.bindCallback("c", self.view.switchCamera)
         self.inputMgr.bindCallback("o", render.analyze)
         
-        base.accept(event.END_TRACK, self.endTrack)
         
     
 
@@ -575,6 +582,7 @@ class ApplicationState(FSM.FSM):
         if not self.app.gameCreated: 
             self.app.scene = World()
             self.app.logic = GameLogic(self.app.scene)
+            self.app.logic.setupBall(self.app._selectedBall)
             self.app.scene.cam.showCursor(False)
             self.app.gameCreated = True
         
@@ -636,6 +644,9 @@ class GameApplication(AbstractApplication):
     def showOptionsMenu(self):
         self.state.request("OptionsMenu")
 
+    def setSelectedBall(self, ball):
+        self._selectedBall = ball
+
     def _subscribeToEvents(self):
         base.accept("escape", self.pauseGame)
         base.accept("start-game", self.startGame)
@@ -645,6 +656,7 @@ class GameApplication(AbstractApplication):
         base.accept(event.UNPAUSE_GAME, self.unpauseGame)
         base.accept(event.PROFILE_MENU_REQUEST, self.destroyGame)
         base.accept(event.OPTIONS_MENU_REQUEST, self.showOptionsMenu)
+        base.accept(event.BALL_SELECTED, self.setSelectedBall)
         
     
     def _createLogicAndView(self):

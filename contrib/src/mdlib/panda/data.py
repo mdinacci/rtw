@@ -351,6 +351,10 @@ class GameEntityManager(object):
             #    if type(ge.render.parentNode) is type: # a nodepath 
             #        nodepath.reparentTo(ge.render.parentNode)
             
+            if ge.render.has_key("texture"):
+                tex = self._resourceLoader.loadTexture(ge.render.texture)
+                nodepath.setTexture(tex)
+            
             # got color ?
             if ge.render.has_key("color"):
                 # needs conversion from tuple to Vec4
