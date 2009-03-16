@@ -1,0 +1,6 @@
+start=Gioca
+options=Opzioni
+exit=Esci
+quit_game_question=Uscire dal gioco ?
+yes=Si
+no=No
