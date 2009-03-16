@@ -10,10 +10,9 @@ logger = ConsoleLogger("data", DEBUG)
 from mdlib.patterns import singleton
 from mdlib.panda.physics import POM 
 
-from pandac.PandaModules import Point3, Quat, BitMask32, Vec4
-from pandac.PandaModules import TexturePool
-from pandac.PandaModules import NodePath, Filename, LoaderOptions, ActorNode
-from direct.showbase.Loader import PandaLoader
+from pandac.PandaModules import Point3, Quat, BitMask32, Vec4, Material
+from pandac.PandaModules import NodePath, Filename, ActorNode
+from direct.showbase.Loader import Loader
 from direct.directtools.DirectGeometry import LineNodePath
 
 from UserDict import DictMixin
@@ -42,41 +41,36 @@ class EntityType:
     PLAYER = 0x5 # player object
 
     
-class ResourceLoader(object):
+class ResourceLoader(Loader):
     """ 
     The ResourceLoader loads and cache resources from disk or network. 
     A Resource can be a 3D model, a texture, a sound, an URL etc...
     """
-    def __init__(self):
-        self.loader = PandaLoader()
     
-    def loadTexture(self, path):
-        return TexturePool.loadTexture(path)
+    def __init__(self):
+        Loader.__init__(self, None)
         
-    def loadModel(self, path, scale=1, pos=None, **kwargs):
-        """ SYNCHRONOUSLY load a model from disk """
-        options = LoaderOptions()
-        if kwargs.has_key("noCache"):
-            noCache = kwargs["noCache"]
-            if noCache:
-                options.setFlags(options.getFlags() | LoaderOptions.LFNoCache)
-            else:
-                options.setFlags(options.getFlags() & ~LoaderOptions.LFNoCache)
-        node = self.loader.loadSync(Filename(path), options)
-        if node != None:
-            model = NodePath(node)
-        else:
-            raise ModelNotFoundException()
+    def loadModel(self, path, scale=1, pos=None, loaderOptions = None, 
+                  noCache = None,allowInstance = False, callback = None, 
+                  extraArgs = []):
         
-        model.setScale(scale)
+        model = Loader.loadModel(self, path, loaderOptions, noCache, 
+                                 allowInstance, callback, extraArgs)
         
-        if pos is not None:
-            model.setPos(pos)
-        
+        if model is not None:
+            model.setScale(scale)
+            
+            if pos is not None:
+                model.setPos(pos)
+            
         return model
     
-    def loadModelAndReparent(self, path, parentNode, scale=1, pos=None, noCache=False):
-        np = self.loadModel(path, scale, pos, noCache=noCache)
+    def loadModelAndReparent(self, path, parentNode, scale=1, pos=None, 
+                     loaderOptions = None, noCache = None,
+                     allowInstance = False, callback = None, extraArgs = []):
+        
+        np = self.loadModel(path, scale, pos, loaderOptions, noCache, 
+                            allowInstance, callback, extraArgs)
         np.reparentTo(parentNode)
         
         return np
@@ -219,11 +213,16 @@ class GameEntityManager(object):
     parameters using the other classes of the framework. For instance the 
     geometry is calculated by the Physics engine.
     """
+    
+    cache_size = 20
+    
     def __init__(self):
         # assure there is only one instance of this class
         singleton(self)
         
         self._resourceLoader = ResourceLoader()
+        
+        self._cache = {}
 
     
     def createEntityFromNodepath(self, nodepath, params):
@@ -291,13 +290,27 @@ class GameEntityManager(object):
         return ge
                 
     
-    def createEntity(self, params):
+    def getEntity(self, params):
         """ 
         Create a new entity given the input data and the additional keyword
         arguments passed as parameters. Data must conform to the schema in
         the objects module.
         """
-        logger.debug("Creating a new game entity")
+
+        # returns immediately if the entity is in the cache
+        name = params["prettyName"]
+        if name in self._cache:
+            logger.debug("Cache hit for %s" % name)
+            
+            ge = self._cache[name] 
+            if ge.render.nodepath.isEmpty():
+                logger.debug("Cache invalid for %s, recreating object" % name)
+            else:
+                return self._cache[name]
+        else:
+            logger.debug("Cache miss for %s" % name)
+            
+        logger.debug("Creating game entity %s" % name)
         
         # The empty dictionary is VERY important as otherwise it will be
         # cached with all the previous values !
@@ -340,17 +353,6 @@ class GameEntityManager(object):
                     # TODO
                     #nodepath.setQuat(Quat(rot[0],rot[1],rot[2],rot[3]))
             
-            
-            # NOTE: attaching the node to the parent node is delegated to the 
-            # scene as there may not be enough informations here (gettin entity 
-            # from UID) to succesfully bind the entity to its parent.         
-            
-            # reparent node if parentNode is set
-            #if ge.render.has_key("parentNode") \
-            #                    and ge.render.parentNode is not None: 
-            #    if type(ge.render.parentNode) is type: # a nodepath 
-            #        nodepath.reparentTo(ge.render.parentNode)
-            
             if ge.render.has_key("texture"):
                 tex = self._resourceLoader.loadTexture(ge.render.texture)
                 nodepath.setTexture(tex)
@@ -360,6 +362,14 @@ class GameEntityManager(object):
                 # needs conversion from tuple to Vec4
                 c = ge.render.color
                 nodepath.setColor(Vec4(c[0], c[1], c[2], c[3]))
+        
+            # got material )
+            if ge.render.has_key("material"):
+                m = Material()
+                m.setShininess(ge.render.material.shininess)
+                m.setSpecular(ge.render.material.specular)
+                
+                nodepath.setMaterial(m,1)
                 
             # add tags
             if ge.render.has_key("tags"):
@@ -393,7 +403,14 @@ class GameEntityManager(object):
             logger.warning("Data was not valid, cannot create game object")
             if logger.isEnabledFor(DEBUG):
                 logger.debug("Data was: %s", data)
-                
+
+        logger.debug("Caching entity: %s" % params["prettyName"])
+        if len(self._cache) == self.cache_size:
+            first = self._cache.keys()[0]
+            logger.debug("Cache full, popping %s" % first)
+            self._cache.pop(first)
+        self._cache[params["prettyName"]] = ge
+        
         return ge
             
     def generateUID(self):
