@@ -43,8 +43,9 @@ class AbstractApplication(object):
         - create the display device
         - load the game data
         """
-        self._subscribeToEvents()
-        self._createLogicAndView()
+        
+        #self._subscribeToEvents()
+        #self._createLogicAndView()
 
     def _subscribeToEvents(self):
         raise NotImplementedError()
@@ -63,16 +64,6 @@ class AbstractApplication(object):
     
     def destroy(self):
         raise NotImplementedError()
-    
-
-# use Panda FSM
-class ApplicationState(object):
-    """ 
-    Manage the application state
-    """
-    
-    def transitionTo(self, fromState, toState, effect):
-        pass
 
 
 class AbstractView(object):

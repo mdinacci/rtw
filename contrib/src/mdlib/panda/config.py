@@ -62,15 +62,15 @@ def setStrValueForKey(key, value, persist=True):
     _set({key:value})
     if persist:
         # TODO read this value from Config.prc
-        _store("../res/options.prc", {key:value})
+        _store("../res/conf/options.prc", {key:value})
 
 
 def setMultipleStrValuesForKey(options):
     _set(options)
-    _store("../res/options.prc", options)
+    _store("../res/conf/options.prc", options)
 
 
 def setIntValueForKey(key, value, persist=True):
     ci(key).setValue(key, value)
     if persist:
-        _store("../res/options.prc", {key:value})
+        _store("../res/conf/options.prc", {key:value})

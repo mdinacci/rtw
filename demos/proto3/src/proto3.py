@@ -116,7 +116,7 @@ class GameLogic(AbstractLogic):
         expfog.setColor(*colour)
         expfog.setExpDensity(0.001)
         self.track.nodepath.setFog(expfog)
-        base.setBackgroundColor(*colour)
+        #base.setBackgroundColor(*colour)
     
         self.controlInverted = False
     

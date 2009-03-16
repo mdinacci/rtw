@@ -1,16 +1,18 @@
-name=Marco
+name Marco
 champ_mode
-tid=Yo kid
-completed=0
-best_time=01:22.7
-attempts=3
-tid=Hey mama 
-completed=1
-best_time=01:22.7
-attempts=3
+tid Yo kid
+best_time 567
+attempts 3
+ranking -1
+bid dhakdhkasdhasjk
+tid Hey mama 
+best_time 331
+attempts 3
+bid dhakdhkasdhasjk
 tb_mode
-tid=Hello world
-completed=1
-best_time=01:24.7
-attempts=2
+tid Hello world
+best_time 444
+attempts 2
+bid dhakdhkasdhasjk
 
+For tb mode store three times

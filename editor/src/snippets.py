@@ -1,3 +1,4 @@
+os.getenv('SystemDrive') # on windows
 """
         rbc = RigidBodyCombiner("rbc")
         rbcnp = NodePath(rbc)

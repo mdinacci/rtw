@@ -1,3 +1,8 @@
+I can read the track using the Multifile API, no need to mount it with 
+the VFS. 
+
+There is a file that list the track names and IDs
+
 ===============================================================================
 1. TRACK ORGANIZATION
 ===============================================================================
@@ -53,7 +58,7 @@ Track
  
 
 ===============================================================================
-2. TRACK GENERATION
+2. TRACK GENERATION (OBSOLETE)
 ===============================================================================
 
 1. From the track-editor the algorithm to generate the surface interpolate 4
@@ -75,4 +80,25 @@ A hole can be in the middle of the row or at the borders.
 Holes are implemented by removing polygons in a row once the tessellation and 
 "groupification" step have terminated.
 
+===============================================================================
+4. TRACK FILES
+===============================================================================
+
+A track consists of a password protected Multifile containing:
+
+- track.bam
+- track.prc
+
+The first file is the model file, the second is a file containing informations
+about the track, like in the example below:
+
+tid <MD5 of current date in seconds + name>
+name WhaddaWhadda 
+order 4
+gold 600
+silver 550
+bronze 500
+
+The order is the index in the arcade mode, so 4 is the 5th track
+The times are in tenths of seconds
 

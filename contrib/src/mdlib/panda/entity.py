@@ -11,9 +11,9 @@ logger = ConsoleLogger("entity", DEBUG)
 from mdlib.panda.input import SafeDirectObject
 from mdlib.panda.data import GOM, GameEntity, EntityType, \
         KeyValueObject, transformToKeyValue
-from mdlib.panda import event
+from mdlib.panda import event, utils
+from mdlib.panda import config as cfg
 from mdlib.types import Types
-from mdlib.panda import utils
 
 from direct.interval.LerpInterval import LerpFuncNS, LerpPosInterval, LerpScaleInterval
 from direct.interval.IntervalGlobal import Sequence
@@ -134,6 +134,7 @@ class Track(GameEntity):
         self.trackCopy.reparentTo(render)
         
         # flatten all tiles but keep the segment intact
+        self.trackCopy.setAntialias(AntialiasAttrib.MLine)
         self.trackCopy.flattenStrong()
         self.trackCopy.show()
         #self.trackCopy.setAntialias(AntialiasAttrib.MLine)
@@ -353,7 +354,7 @@ player_params = {
                      "entityType": EntityType.NONE,
                      }
                  }       
-                
+
 shark_ball_params = {
                    "prettyName": "Shark",
                    "python":
