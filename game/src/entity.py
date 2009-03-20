@@ -22,7 +22,7 @@ from direct.interval.MetaInterval import Parallel
 from direct.showbase.PythonUtil import Functor
 
 from pandac.PandaModules import NodePath, Point3, OdeGeom, Quat, Material, Vec4
-from pandac.PandaModules import AntialiasAttrib
+from pandac.PandaModules import AntialiasAttrib, Vec3
 
 
 class EntityUpdaterDelegate(object): 
@@ -128,7 +128,8 @@ class Track(GameEntity):
         # XXX
         # flattening is fundamental, I don't know why but otherwise the 
         # track is not scaled, so it looks much bigger :O
-        self.render.nodepath.flattenMedium()
+        #self.render.nodepath.flattenMedium()
+        self.render.nodepath.setScale(.4)
 
         # create a copy of the track that will be shown to the player
         # only the tiles are copied
@@ -140,6 +141,8 @@ class Track(GameEntity):
         
         # flatten all tiles but keep the segment intact
         self.trackCopy.flattenStrong()
+        self.trackCopy.setShaderAuto()
+        self.trackCopy.setScale(.4)
         self.trackCopy.show()
         
         # this will be used for checkpoints
@@ -158,6 +161,10 @@ class Track(GameEntity):
     def setCurrentTile(self, tile):
         segment = tile.getParent().getParent()
         name = segment.getName()
+        if "@" not in name:
+            print "name before: ", name
+            name = segment.getParent().getName()
+            print "name after: ", name
         self.currentSegmentNum = int(name[name.index("@")+1:])
         
         if segment.getTag("endpoint") == "1":
@@ -176,14 +183,17 @@ class Ball(GameEntity):
     FALLING_SPEED = 250
     FALLING_Z = 5
     
+    
     def __init__(self, uid, data):
         super(Ball, self).__init__(uid, data)
         
-        self.frozen = False
         self.specialItem = None
         
         # ball's height during jump
         self.jumpZ = 0
+        
+        self._isJumping = False
+        self._isFrozen = False
         
         jumpUp = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
                     blendType="easeOut",duration=.2, 
@@ -191,7 +201,11 @@ class Ball(GameEntity):
         jumpDown = LerpFuncNS(Functor(self.__setattr__,"jumpZ"), 
                       blendType="easeIn",duration=.2, 
                       fromData=self.physics.jumpHeight, toData=0)
-        self.jumpingSequence = Sequence(jumpUp, jumpDown, name="jumping")
+
+        self.jumpingSequence = Sequence(Func(self.__setattr__,"_isJumping",True), 
+                                        jumpUp, jumpDown, 
+                                        Func(self.__setattr__,"_isJumping",False), 
+                                        name="jumping")
         
         self.originalMaxSpeed = self.physics.maxSpeed
     
@@ -213,7 +227,7 @@ class Ball(GameEntity):
         self.nodepath.setH(currentH + self.physics.steeringFactor)
     
     def isJumping(self):
-        return self.jumpZ > 0.1
+        return self._isJumping
     
     def neutral(self):
         self.physics.maxSpeed= self.originalMaxSpeed
@@ -237,10 +251,9 @@ class Ball(GameEntity):
         Sequence(Parallel(scaleDown, slowDown), Wait(3), 
                  Parallel(scaleUp, fastenUp)).start()
 
-    
     def sprint(self):
         return
-        if not self.isJumping():
+        if not self._isJumping:
             self.physics.maxSpeed = 40
             self.physics.speed *= 2
             if self.physics.speed == 0:
@@ -249,19 +262,20 @@ class Ball(GameEntity):
                 self.physics.speed = self.physics.maxSpeed
     
     def slowDown(self):
-        if not self.isJumping():
-            self.physics.maxSpeed = 10
+        if not self._isJumping:
+            self.physics.maxSpeed = 0
             self.physics.speed /= 2
             if self.physics.speed < self.physics.maxSpeed:
                 self.physics.speed = self.physics.maxSpeed
 
     def freeze(self):
-        if self.frozen == False:
-            if not self.isJumping():
-                self.frozen = True
+        if not self._isFrozen:
+            if not self._isJumping:
                 self.physics.speed = 0
                 delay = Wait(2)
-                Sequence(delay, Func(self.__setattr__, "frozen", False)).start()
+                Sequence(Func(self.__setattr__,"_isFrozen",True), 
+                         delay, 
+                         Func(self.__setattr__, "_isFrozen", False)).start()
         else:
             self.speed = 0
     
@@ -271,7 +285,7 @@ class Ball(GameEntity):
                  Func(self.nodepath.show)).start()
     
     def jump(self):
-        if not self.isJumping():
+        if self.isJumping() is False:
             self.jumpingSequence.start()
     
     def getLost(self):
@@ -287,7 +301,7 @@ class Ball(GameEntity):
        # TODO send event
     
     def accelerate(self):
-        if not self.frozen:
+        if not self._isFrozen:
             if self.physics.speed < self.physics.maxSpeed:
                 self.physics.speed += .2
             else:
@@ -302,7 +316,18 @@ class Ball(GameEntity):
             self.physics.speed -= .5
             
 
-
+class Trophy(GameEntity):
+    
+    def spin(self): 
+        self.nodepath.hprInterval(10, Point3(360,0,0)).loop()
+        
+    def adapt(self, parent, pos, scale, show=True):
+        self.nodepath.reparentTo(parent)
+        self.nodepath.setPos(pos)
+        self.nodepath.setScale(scale)
+        
+        if show:
+            self.nodepath.show()
     
 # Property schema: defines the existing properties and their type
 property_schema = {
@@ -366,12 +391,24 @@ gold_cup_params = {
                      "z": 2.0,
                      "rotation": (1,0,0,0)
                  },
+                 "python": 
+                 {
+                    "clazz":Trophy
+                  },
               "render": 
                 {
+                 "lights": [
+                            {"type":"ambient", "name":"lightObj",
+                             "color":Vec4(.4, .4, .35, 1)},
+                            {"type":"directional", "name":"lightObj",
+                             "color":Vec4( 0.9, 0.8, 0.9, 1),
+                             "direction":Vec3( 3, 24, 2.5 )},
+                            ],
                  "material":
                  {
-                  "specular": Vec4(1,1,1,1),
-                  "shininess": 96
+                  "specular": Vec4(1,1,1,0),
+                  "shininess": 96,
+                  "emission": Vec4(0.1,0.2,0.2,0)
                   },
                  "color": (0.91, 0.82, 0.22,0),
                  #"texture": "gold.jpg",
@@ -390,8 +427,19 @@ silver_cup_params = {
                      "z": 2.0,
                      "rotation": (1,0,0,0)
                  },
+                 "python": 
+                 {
+                    "clazz":Trophy
+                  },
               "render": 
                 {
+                 "lights": [
+                            {"type":"ambient", "name":"lightObj",
+                             "color":Vec4(.4, .4, .35, 1)},
+                            {"type":"directional", "name":"lightObj",
+                             "color":Vec4( 0.9, 0.8, 0.9, 1),
+                             "direction":Vec3( 0, 8, -2.5 )},
+                            ],
                  "material":
                  {
                   "specular": Vec4(1,1,1,1),
@@ -414,8 +462,19 @@ bronze_cup_params = {
                      "z": 2.0,
                      "rotation": (1,0,0,0)
                  },
+                 "python": 
+                 {
+                    "clazz":Trophy
+                  },
               "render": 
                 {
+                 "lights": [
+                            {"type":"ambient", "name":"lightObj",
+                             "color":Vec4(.4, .4, .35, 1)},
+                            {"type":"directional", "name":"lightObj",
+                             "color":Vec4( 0.9, 0.8, 0.9, 1),
+                             "direction":Vec3( 0, 8, -2.5 )},
+                            ],
                  "material":
                  {
                   "specular": Vec4(1,1,1,1),
