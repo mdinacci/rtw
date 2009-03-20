@@ -9,12 +9,14 @@ Copyright © 2008-2009
 from pandac.PandaModules import *
 loadPrcFile("../res/Config.prc")
 
-from pandac.PandaModules import Point3, NodePath, CullFaceAttrib
+from pandac.PandaModules import Point3, NodePath, TransparencyAttrib, \
+        CullFaceAttrib, CardMaker, ModelNode
 from mdlib.panda.data import ResourceLoader
 
 __all__ = ["convert"]
 
 rl = ResourceLoader()
+cm = CardMaker("cm") 
 direction = 1
 
 TILE_TYPES = ("A","J","S", "F")
@@ -69,22 +71,35 @@ def posForType(currentPos, prevType, type):
     # straight-straigt
     if prevType == 0 and type == 0:
         newPos += Point3(0, 30*direction, 0)
+        
     # straight-curve right
     elif prevType == 0 and type == 1:
         newPos += Point3(0, 30*direction, 0)
+    # curve right-straight
+    elif prevType == 1 and type == 0:
+        newPos += Point3(34.1, 4.16, 0)
+        
     # curve right-curve left
     elif prevType == 1 and type == 2:
         newPos += Point3(55.1, 0, 0)
         direction = -1
+        
     # curve left-straight
     elif prevType == 2 and type == 0:
         newPos += Point3(5.85, 0, 0)
+    # straight-curve left
+    elif prevType == 0 and type == 2:
+        newPos += Point3(39.65, -45.2, 0)
+        direction = -1
+    
     # straight-curve right down
     elif prevType == 0 and type == 3:
         newPos += Point3(-27.4,27.55*direction,0)
+    
     # curve right down-curve left down
     elif prevType == 3 and type == 4:
         newPos += Point3(41.68,0,0)
+    
     elif prevType == 4 and type == 0:
         direction = 1
         newPos += Point3(-75.7,27.5,0)
@@ -101,14 +116,48 @@ def posForType(currentPos, prevType, type):
             newPos += Point3(15*direction,30*direction,0)
         elif direction == -1:
             newPos += Point3(0,30*direction,0)
-
+    
     return currentPos + newPos
 
 
+def applyModel(tileType, tileNode, parent):
+    if tileType == "N":
+        pass
+    else:
+        plane = parent.attachNewNode(cm.generate())
+        """
+        plane = NodePath(ModelNode(""))
+        plane.reparentTo(parent)
+        np = plane.attachNewNode(cm.generate())
+        """
+        
+        plane.setP(-90)
+        plane.setPos(tileNode, -2.5, -2.5, .6)
+        #plane.setPos(-2.5,-2.5,1)
+        plane.setScale(5.2)
+        plane.setTransparency(TransparencyAttrib.MAlpha)
+
+        applyTexture(tileType, plane)
+        
+        plane.setTag("type", tileType)
+        plane.setName(tileType)
+    
 def applyColor(tileType, tileNode):
     
     if tileType == "N":
-        tileNode.setColor(0,0,0)
+        tileNode.setColor(1,1,1)
+    if tileType == "A":
+        tileNode.setColor(0,1,0)
+    elif tileType == "J":
+        tileNode.setColor(0,0,1)
+    elif tileType == "S":
+        tileNode.setColor(1,0,0)
+    elif tileType == "F":
+        tileNode.setColor(1,1,0.5)
+    else:
+        return
+    if tileType == "N":
+        tileNode.setColor(1,1,1)
     if tileType == "A":
         tileNode.setColor(0,1,0)
     elif tileType == "J":
@@ -127,13 +176,13 @@ def applyTexture(tileType, tileNode):
     if tileType == "N":
         tex = rl.loadTexture("neutral.jpg")
     elif tileType == "A":
-        tex = rl.loadTexture("accelerate.jpg")
+        tex = rl.loadTexture("accelerate.png")
     elif tileType == "J":
-        tex = rl.loadTexture("jump.jpg")
+        tex = rl.loadTexture("jump.png")
     elif tileType == "S":
         tex = rl.loadTexture("slow.jpg")
     elif tileType == "F":
-        tex = rl.loadTexture("freeze.png")
+        tex = rl.loadTexture("freeze.jpg")
     else:
         return
     
@@ -143,7 +192,10 @@ def applyTexture(tileType, tileNode):
     
     tex.setMagfilter(Texture.FTLinear)
     tex.setMinfilter(Texture.FTLinearMipmapLinear)
-    
+    tex.setWrapU(Texture.WMClamp)
+    tex.setWrapV(Texture.WMClamp)
+    #tex.setBorderColor(VBase4(0.0, 0.0, 0, 1))
+
     ts = TextureStage('ts')
     ts.setMode(TextureStage.MModulate)
     
@@ -196,7 +248,11 @@ def convert(track, outputFile):
         segmentName = "%s@%d" % (np.getName(), i)
         np.setName(segmentName)
         
-        #applyTexture("N", np)
+        if segment.has_key("checkpoint"):
+            np.setTag("checkpoint", "1")
+        
+        applyTexture("N", np)
+        #applyColor("N", np)
         
         tiles = segment["tiles"]
         geomTiles = np.findAllMatches("**/tile*").asList()
@@ -207,8 +263,9 @@ def convert(track, outputFile):
             if tileType == "H":
                 tileNode.removeNode()
             elif tileType in TILE_TYPES:
+                applyModel(tileType, tileNode, itemsRoot)
                 #applyTexture(tileType, tileNode)
-                applyColor(tileType, tileNode)
+                #applyColor(tileType, tileNode)
             elif tileType in ITEM_TYPES:
                 applyEffect(tileType, tileNode, itemsRoot)
         
@@ -218,7 +275,7 @@ def convert(track, outputFile):
     np.setTag("endpoint", "1")
     
     itemsRoot.flattenStrong()
-        
+
     trackNode.writeBamFile(outputFile)
     
     
@@ -227,10 +284,15 @@ if __name__ == '__main__':
     
     path.append("/home/mdinacci/Work/MD/rtw/track-editor/res/maps")
     
-    map = "map_simple"
+    map = "test_1"
     output = "/home/mdinacci/Work/MD/rtw/track-editor/res/models/track.bam"
     
     convert(map, output)
+    
+    from subprocess import Popen
+    
+    cmd = "pview %s" % output
+    Popen(cmd.split())
     
     print "Finished."
 
