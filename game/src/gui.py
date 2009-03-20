@@ -8,8 +8,6 @@ Copyright © 2008-2009
 from mdlib.panda import config as cfg
 from mdlib.panda.input import InputManager, InputWatcher
 from mdlib.panda.data import GOM
-from mdlib.panda.entity import photon_ball_params, shark_ball_params, \
-        avg_joe_ball_params, turtle_king_ball_params 
 
 from direct.gui.DirectGui import *
 from direct.gui.OnscreenImage import OnscreenImage
@@ -20,7 +18,7 @@ from pandac.PandaModules import TransparencyAttrib, Material
 from local import *
 import event, utils, entity
 import pprofile as profile
-from data import GameMode
+from data import GameMode, TrackResult
 from state import GS
 
 
@@ -205,19 +203,24 @@ class MainScreen(Screen):
             self.screenMgr.setNextScreen("track-selection")
             self.screenMgr.displayScreen("new-profile")
             
-        """
-        lastProfile = cfg.strValueForKey("last_profile")
-        if profile.hasProfile(lastProfile):
-            self.screenMgr.displayScreen("track-selection")
-        else:
-            self.screenMgr.setNextScreen("track-selection")
-            self.screenMgr.displayScreen("new-profile")
-        """
-        
     def timeModePressed(self):
         messenger.send(event.GAME_MODE_SELECT, [GameMode.TB_MODE])
         self.screenMgr.displayScreen("ball-selection")
 
+
+class RaceResultScreen(Screen):
+    
+    name = "race-result"
+    
+    def __init__(self, screenMgr):
+        super(RaceResultScreen, self).__init__()
+
+        self.screenMgr = screenMgr
+        
+        result = GS.lastTrackResult
+        
+        
+        
 
 class TrackResultFrame(DirectFrame):
     
@@ -229,23 +232,11 @@ class TrackResultFrame(DirectFrame):
         if trackResult.trophy is not None:
             cup = GOM.getEntity(trackResult.trophy)
             cup.nodepath.reparentTo(render)
-            cup.nodepath.hprInterval(10, Point3(360,0,0)).loop()
-            from pandac.PandaModules import AntialiasAttrib
-            cup.nodepath.setAntialias(AntialiasAttrib.MMultisample)
+            cup.spin()
             
-            from pandac.PandaModules import *
-            lAttrib = LightAttrib.makeAllOff()
-            ambientLight = AmbientLight( "ambientLight" )
-            ambientLight.setColor( Vec4(.4, .4, .35, 1) )
-            lAttrib = lAttrib.addLight( ambientLight )
-            directionalLight = DirectionalLight( "directionalLight" )
-            directionalLight.setDirection( Vec3( 0, 8, -2.5 ) )
-            directionalLight.setColor( Vec4( 0.9, 0.8, 0.9, 1 ) )
-            lAttrib = lAttrib.addLight( directionalLight )
-            cup.nodepath.attachNewNode( directionalLight.upcastToPandaNode() )
-            cup.nodepath.attachNewNode( ambientLight.upcastToPandaNode() )
-            cup.nodepath.node().setAttrib( lAttrib )
+            self._cup = cup
         else:
+            # TODO put something else
             pass
         
         bestTimeLabel = DirectLabel(text="Best time", scale=.1, 
@@ -280,6 +271,13 @@ class TrackResultFrame(DirectFrame):
     def _selectPressed(self, track):
         messenger.send(event.TRACK_SELECTED, [track])
         self.screenMgr.displayScreen("ball-selection")
+        
+    def destroy(self):
+        DirectFrame.destroy(self)
+        
+        if hasattr(self, "_cup"):
+            self._cup.nodepath.removeNode()
+            del self._cup
     
     
 class TrackSelectionScreen(Screen):
@@ -330,15 +328,23 @@ class TrackSelectionScreen(Screen):
         
     def _trackPressed(self, track):
         result = GS.profile.getTrackResult(track.tid, GS.mode)
-        info = GS.getTrackInfo(track.tid)
-        result.trophy = None
-        if result.bestTime <= info.bronze:
-            result.trophy = entity.bronze_cup_params
-        if result.bestTime <= info.silver:
-            result.trophy = entity.silver_cup_params
-        if result.bestTime <= info.gold:
-            result.trophy = entity.gold_cup_params
-        
+        if result is None:
+            result = TrackResult()
+            result.trophy = None
+            result.bestTime = "0"
+            result.bid = "-"
+            result.tid = track.tid
+        else:
+            info = GS.getTrackInfo(track.tid)
+            result.trophy = None
+            
+            if result.bestTime <= info.bronze:
+                result.trophy = entity.bronze_cup_params
+            if result.bestTime <= info.silver:
+                result.trophy = entity.silver_cup_params
+            if result.bestTime <= info.gold:
+                result.trophy = entity.gold_cup_params
+            
         self._showTrackResult(result)
         
     def _showTrackResult(self, result):
@@ -597,7 +603,7 @@ class ProfileMenuScreen(Screen):
             self.screenMgr.displayScreen("new-profile")
         else:
             # select profile
-            pass
+            GS.setProfile(button["text"])
     
 
 class PauseMenuScreen(Screen):  
@@ -783,10 +789,10 @@ class BallSelectionScreen(Screen):
         
         self.screenMgr = screenMgr
 
-        self._ball0 = GOM.getEntity(photon_ball_params)
-        self._ball1 = GOM.getEntity(shark_ball_params)
-        self._ball2 = GOM.getEntity(avg_joe_ball_params)
-        self._ball3 = GOM.getEntity(turtle_king_ball_params)
+        self._ball0 = GOM.getEntity(entity.photon_ball_params)
+        self._ball1 = GOM.getEntity(entity.shark_ball_params)
+        self._ball2 = GOM.getEntity(entity.avg_joe_ball_params)
+        self._ball3 = GOM.getEntity(entity.turtle_king_ball_params)
         self._balls = [self._ball0, self._ball1, self._ball2, self._ball3]
         
         startPos = Point3(-.75,0,.6)
@@ -820,14 +826,18 @@ class BallSelectionScreen(Screen):
                      command=self._selectPressed, relief=None, pos = (0.9,0,-.9),
                      rolloverSound=None, clickSound=None,text=_t("select"))
         
-        backButton = DirectButton(geom = (maps.find('**/test'),
-                     maps.find('**/test'),maps.find('**/test'),
-                     maps.find('**/test')),scale=.1,borderWidth=(0,0),
-                     command=self._backPressed, relief=None, pos = (-0.9,0,-.9),
-                     rolloverSound=None, clickSound=None,text=_t("back"))
+        # HACK we can't go back to the track result screen as we've already
+        # set the next track, so display the back button only if lastTrackResult
+        # is None  
+        if GS.lastTrackResult is None:
+            backButton = DirectButton(geom = (maps.find('**/test'),
+                         maps.find('**/test'),maps.find('**/test'),
+                         maps.find('**/test')),scale=.1,borderWidth=(0,0),
+                         command=self._backPressed, relief=None, pos = (-0.9,0,-.9),
+                         rolloverSound=None, clickSound=None,text=_t("back"))
+            backButton.reparentTo(self.frame)
         
         selectButton.reparentTo(self.frame)
-        backButton.reparentTo(self.frame)
         leftButton.reparentTo(self.frame)
         rightButton.reparentTo(self.frame)
         
@@ -911,15 +921,91 @@ class BallSelectionScreen(Screen):
         messenger.send(event.GAME_START)
         
     def _backPressed(self):
-        self.screenMgr.displayScreen("main")
+        self.screenMgr.displayPreviousScreen()
+            
         
     def destroy(self):
         super(BallSelectionScreen, self).destroy()
         for ball in self._balls:
-            if ball is not self._selectedBall:
-                ball.nodepath.removeNode()
-                del ball
+            ball.nodepath.removeNode()
+            del ball
 
+
+class NextTrackScreen(Screen):
+    
+    name = "next-track"
+    
+    def __init__(self, screenMgr):
+        super(NextTrackScreen, self).__init__()
+        
+        self.screenMgr = screenMgr
+        
+        maps = loader.loadModel('gui/options_menu.egg')
+        nextTrackButton = DirectButton(geom = (maps.find('**/test'),
+                 maps.find('**/test'),maps.find('**/test'),
+                 maps.find('**/test')),scale=.1,borderWidth=(0,0),
+                 command=self._nextTrackPressed,
+                 relief=None, pos = (-0.8,0,0.4),
+                 rolloverSound=None, clickSound=None,text="Next Track")
+        changeBallButton = DirectButton(geom = (maps.find('**/test'),
+                 maps.find('**/test'),maps.find('**/test'),
+                 maps.find('**/test')),scale=.1,borderWidth=(0,0),
+                 command=self._changeBallPressed,
+                 relief=None, pos = (-0.8,0,0.2),
+                 rolloverSound=None, clickSound=None,text="Change Ball")
+        mainMenuButton = DirectButton(geom = (maps.find('**/test'),
+                 maps.find('**/test'),maps.find('**/test'),
+                 maps.find('**/test')),scale=.1,borderWidth=(0,0),
+                 command=self._backToMainPressed,
+                 relief=None, pos = (-.8,0,0),
+                 rolloverSound=None, clickSound=None,text="Main Menu")
+        
+        nextTrackButton.reparentTo(self.frame)
+        changeBallButton.reparentTo(self.frame)
+        mainMenuButton.reparentTo(self.frame)
+        
+         # show cup if necessary
+        result = GS.lastTrackResult
+        if result.trophy is not None:
+            cup = GOM.getEntity(result.trophy)
+            cup.nodepath.reparentTo(render)
+            base.camera.setPos(0,0,0)
+            base.camera.setHpr(0,0,0)
+            cup.spin()
+            self._cup = cup
+            
+        # show best record if necessary
+        if result.bestTime == GS.profile.getBestTimeForTrackAndMode(result.tid, 
+                                                                   GS.mode):
+            self._record = OnscreenText(text = "New record !", pos = (0.6,-0.6), 
+                        scale = 0.1,fg=(1,0.5,0.5,1),align=TextNode.ACenter)
+            self._record.show()
+        
+        #    print "new record: %s" % result.bestTime
+            
+    def _nextTrackPressed(self):
+        info = GS.getNextTrackInfo()
+        GS.selectedTrack = info.tid
+        messenger.send(event.TRACK_SELECTED, [info.tid])
+        messenger.send(event.GAME_START)
+    
+    def _changeBallPressed(self):
+        info = GS.getNextTrackInfo()
+        GS.selectedTrack = info.tid
+        self.screenMgr.displayScreen("ball-selection")
+    
+    def _backToMainPressed(self):
+        self.screenMgr.displayScreen("main")
+        
+    def destroy(self):
+        super(NextTrackScreen, self).destroy()
+        
+        if hasattr(self, "_cup"):
+            self._cup.nodepath.removeNode()
+            del self._cup
+        
+        if hasattr(self, "_record"):
+            self._record.destroy()
 
 class ScreenManager(object):
     def __init__(self):
@@ -951,10 +1037,12 @@ class ScreenManager(object):
         elif name == "ball-selection":
             self._currentScreen = BallSelectionScreen(self)
         elif name == "track-selection":
-            
-            #tracks = GS.profile.getTracksForMode(GS.mode)
             tracks = GS.getTrackDefinitions()
             self._currentScreen = TrackSelectionScreen(self, tracks)
+        elif name == "race-result":
+            self._currentScreen = RaceResultScreen(self)
+        elif name == "next-track":
+            self._currentScreen = NextTrackScreen(self)
         
         return self._currentScreen
     
