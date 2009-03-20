@@ -1,0 +1,11 @@
+name=yo
+champ_mode
+tid=38f4c6ad6fd20076022fa43c4d176dad
+best_time=56
+attempts=57
+bid=Shark
+tid=df575674f70761eefd93a3c8fbe74af5
+best_time=96
+attempts=3
+bid=Shark
+tb_mode
