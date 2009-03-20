@@ -12,6 +12,7 @@ from mdlib.panda.physics import POM
 
 from pandac.PandaModules import Point3, Quat, BitMask32, Vec4, Material
 from pandac.PandaModules import NodePath, Filename, ActorNode
+from pandac.PandaModules import LightAttrib, AmbientLight, DirectionalLight
 from direct.showbase.Loader import Loader
 from direct.directtools.DirectGeometry import LineNodePath
 
@@ -290,26 +291,30 @@ class GameEntityManager(object):
         return ge
                 
     
-    def getEntity(self, params):
+    def getEntity(self, params, cache=True):
         """ 
         Create a new entity given the input data and the additional keyword
         arguments passed as parameters. Data must conform to the schema in
         the objects module.
         """
-
-        # returns immediately if the entity is in the cache
+        
         name = params["prettyName"]
-        if name in self._cache:
-            logger.debug("Cache hit for %s" % name)
-            
-            ge = self._cache[name] 
-            if ge.render.nodepath.isEmpty():
-                logger.debug("Cache invalid for %s, recreating object" % name)
+        
+        if cache:
+            # returns immediately if the entity is in the cache
+            if name in self._cache:
+                logger.debug("Cache hit for %s" % name)
+                
+                ge = self._cache[name] 
+                if ge.render.nodepath.isEmpty():
+                    logger.debug("Cache invalid for %s, recreating object" % name)
+                else:
+                    return self._cache[name]
             else:
-                return self._cache[name]
+                logger.debug("Cache miss for %s" % name)
         else:
-            logger.debug("Cache miss for %s" % name)
-            
+            logger.debug("Skipping cache control")
+                
         logger.debug("Creating game entity %s" % name)
         
         # The empty dictionary is VERY important as otherwise it will be
@@ -363,14 +368,31 @@ class GameEntityManager(object):
                 c = ge.render.color
                 nodepath.setColor(Vec4(c[0], c[1], c[2], c[3]))
         
-            # got material )
+            # got material ?
             if ge.render.has_key("material"):
                 m = Material()
                 m.setShininess(ge.render.material.shininess)
                 m.setSpecular(ge.render.material.specular)
-                
+                if ge.render.material.has_key("emission"):
+                    m.setEmission(ge.render.material.emission)
                 nodepath.setMaterial(m,1)
-                
+            
+            # got lights ?
+            if ge.render.has_key("lights"):
+                lAttrib = LightAttrib.makeAllOff()
+                for light in ge.render.lights:
+                    lightObj = None
+                    if light["type"] is "ambient":
+                        lightObj = AmbientLight(light["name"])
+                    elif light["type"] is "directional":
+                        lightObj = DirectionalLight(light["name"])
+                        lightObj.setDirection(light["direction"])
+                        
+                    lightObj.setColor(light["color"])
+                    lAttrib = lAttrib.addLight(lightObj)
+                    nodepath.attachNewNode(lightObj.upcastToPandaNode())
+                nodepath.node().setAttrib(lAttrib)
+                    
             # add tags
             if ge.render.has_key("tags"):
                 for tagName, tagValue in ge.render.tags.items():
@@ -403,13 +425,16 @@ class GameEntityManager(object):
             logger.warning("Data was not valid, cannot create game object")
             if logger.isEnabledFor(DEBUG):
                 logger.debug("Data was: %s", data)
-
-        logger.debug("Caching entity: %s" % params["prettyName"])
-        if len(self._cache) == self.cache_size:
-            first = self._cache.keys()[0]
-            logger.debug("Cache full, popping %s" % first)
-            self._cache.pop(first)
-        self._cache[params["prettyName"]] = ge
+        
+        if cache:
+            logger.debug("Caching entity: %s" % params["prettyName"])
+            if len(self._cache) == self.cache_size:
+                first = self._cache.keys()[0]
+                logger.debug("Cache full, popping %s" % first)
+                self._cache.pop(first)
+            self._cache[params["prettyName"]] = ge
+        else:
+            logger.debug("Not caching entity %s" % params["prettyName"])
         
         return ge
             
