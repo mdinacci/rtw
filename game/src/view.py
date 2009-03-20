@@ -10,7 +10,8 @@ from direct.interval.FunctionInterval import Func, Wait
 from direct.interval.MetaInterval import Sequence
 
 from pandac.PandaModules import DirectionalLight, AmbientLight, NodePath, Fog
-from pandac.PandaModules import Vec4, Camera, WindowProperties
+from pandac.PandaModules import Vec4, Camera, WindowProperties, LightNode
+from pandac.PandaModules import Shader, Point3, PandaNode
 
 
 from mdlib.panda.core import AbstractScene
@@ -28,6 +29,68 @@ class GameScene(object):
         self._setupLightsAndFog()
     
     def show(self):
+        if 0:
+            MYDIR="."
+            
+            # This shader's job is to render the model with discrete lighting
+            # levels.  The lighting calculations built into the shader assume
+            # a single nonattenuating point light.
+    
+            tempnode = NodePath(PandaNode("temp node"))
+            tempnode.setShader(Shader.load(MYDIR+"/lightingGen.sha"))
+            base.cam.node().setInitialState(tempnode.getState())
+            
+            # This is the object that represents the single "light", as far
+            # the shader is concerned.  It's not a real Panda3D LightNode, but
+            # the shader doesn't care about that.
+    
+            light = render.attachNewNode("light")
+            #light.setPos(30,-50,0)
+            light.setPos(5,-5,0)
+                    
+            # this call puts the light's nodepath into the render state.
+            # this enables the shader to access this light by name.
+    
+            render.setShaderInput("light", light)
+    
+            # The "normals buffer" will contain a picture of the model colorized
+            # so that the color of the model is a representation of the model's
+            # normal at that point.
+    
+            normalsBuffer=base.win.makeTextureBuffer("normalsBuffer", 0, 0)
+            normalsBuffer.setClearColor(Vec4(0.5,0.5,0.5,1))
+            self.normalsBuffer=normalsBuffer
+            normalsCamera=base.makeCamera(normalsBuffer, lens=base.cam.node().getLens())
+            normalsCamera.node().setScene(render)
+            tempnode = NodePath(PandaNode("temp node"))
+            tempnode.setShader(Shader.load(MYDIR+"/normalGen.sha"))
+            normalsCamera.node().setInitialState(tempnode.getState())
+    
+            #what we actually do to put edges on screen is apply them as a texture to 
+            #a transparent screen-fitted card
+    
+            drawnScene=normalsBuffer.getTextureCard()
+            drawnScene.setTransparency(1)
+            drawnScene.setColor(1,1,1,0)
+            drawnScene.reparentTo(render2d)
+            self.drawnScene = drawnScene
+    
+            # this shader accepts, as input, the picture from the normals buffer.
+            # it compares each adjacent pixel, looking for discontinuities.
+            # wherever a discontinuity exists, it emits black ink.
+                    
+            self.separation = 0.0005
+            self.cutoff = 0.05
+            inkGen=Shader.load(MYDIR+"/inkGen.sha")
+            drawnScene.setShader(inkGen)
+            drawnScene.setShaderInput("separation", Vec4(self.separation,0,self.separation,0));
+            drawnScene.setShaderInput("cutoff", Vec4(self.cutoff,self.cutoff,self.cutoff,self.cutoff));
+        else:
+            from direct.filter.CommonFilters import CommonFilters
+            #self.filters = CommonFilters(base.win, base.cam)
+            #filterok = self.filters.setBloom(blend=(0,0,0,1), desat=-0.5, intensity=3.0, size="small")
+                
+        
         self._rootNode.show()
         
     def hide(self):
@@ -41,17 +104,19 @@ class GameScene(object):
         alight = AmbientLight('alight')
         dlnp = self._rootNode.attachNewNode(dlight)
         alnp = self._rootNode.attachNewNode(alight)
-        dlight.setColor(Vec4(0.6, 0.6, 0.9, 1))
+        dlight.setColor(Vec4(0.7, 0.7, 0.6, 1))
         alight.setColor(Vec4(0.2, 0.2, 0.2, 1))
         dlnp.setHpr(0, -60, 0)
         self._rootNode.setLight(dlnp)
         self._rootNode.setLight(alnp)
         
+        """
         colour = (0.2,0.2,0.2)
         expfog = Fog("fog")
         expfog.setColor(*colour)
         expfog.setExpDensity(0.001)
         self._rootNode.setFog(expfog)
+        """
         
 
 class GameView(object):
@@ -154,6 +219,11 @@ class RaceTimer(object):
     def start(self):
         taskMgr.doMethodLater(0.1, self.update, "timer-task")
     
+    def resetAndStart(self):
+        self.time = "0:0.0"
+        self.elapsedTime = 0
+        self.start()
+        
     def stop(self):
         taskMgr.remove("timer-task")
     
@@ -178,5 +248,7 @@ class RaceTimer(object):
             seconds = "0"
             
         self.time = "%d:%s.%s" % (minutes, seconds, tens)
+        
+        self.render()
         
         return task.again

@@ -35,22 +35,47 @@ class GameSession(object):
         self._state = GameState()
         self._gameMode = GameMode.NO_MODE
     
+        self.lastTrackResult = None
+    
         self._listener = DirectObject()
         self._listener.accept(event.GAME_MODE_SELECT, self.setGameMode)
+        self._listener.accept(event.TRACK_SELECTED, self._setSelectedTrack)
+        self._listener.accept(event.BALL_SELECTED, self._setSelectedBall)
         
     def hasValidProfile(self):    
         return self._profile is not None
-        
+    
     def setGameMode(self, gameMode):
         self._gameMode = gameMode
-
-    def getGameMode(self):
-        return self._gameMode
+    
+    def getNextTrackInfo(self):
+        idx = 0
+        for i, track in enumerate(self._tracks):
+            if track.tid == self.selectedTrack:
+                idx = i+1
+                break
         
+        if idx < len(self._tracks):
+            return self.getTrackInfo(self._tracks[idx].tid)
+        else:
+            logger.error("Next track doesn't exists !")
+    
     def getTrackInfo(self, tid):
+        logger.debug("Retrieving track info for track: %s" % tid)
         for track in self._tracks:
             if track.tid == tid:
                 return track
+    
+    def setProfile(self, profileName):
+        prof = None
+        if profile.hasProfile(profileName):
+            self._profile = profile.loadByName(profileName)
+            cfg.setStrValueForKey("last_profile", profileName)
+        else:
+            logger.error("Something really wrong, the selected profile doesn't\
+            exists, this means probably that the file has been removed after\
+            clicking on the profile button. We don't do anything, when the user\
+            go back to the profile menu the deleted profile will not be there")
     
     def loadLastProfile(self):
         lastProfile = cfg.strValueForKey("last_profile")
@@ -80,6 +105,9 @@ class GameSession(object):
             else:
                 key = kv(line)
                 val = gv(line)
+                # very hackish..
+                if key in ("gold", "silver", "bronze"):
+                    val = int(val)
                 setattr(trackInfo, key, val)
         
         tracks.append(trackInfo)
@@ -90,6 +118,11 @@ class GameSession(object):
     def getTrackDefinitions(self):
         return self._tracks
     
+    def _setSelectedTrack(self, track):
+        self.selectedTrack = track
+        
+    def _setSelectedBall(self, ball):
+        self.selectedBall = ball
     
     mode = property(fget = lambda self: self._gameMode)
     state = property(fget = lambda self: self._state)
@@ -143,6 +176,7 @@ class GameState(FSM.FSM):
         pass
     
     def exitPlay(self):
+        # preload next track if champ mode
         pass
 
 

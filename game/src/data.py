@@ -17,7 +17,7 @@ class TrackResult:
     bid = -1
     
     def __repr__(self):
-        return "ID: %s\nBest time: %s\nAttempts: %d\nBall: %d\n" % \
+        return "ID: %s\nBest time: %s\nAttempts: %d\nBall: %s\n" % \
         (self.tid, self.bestTime, self.attempts, self.bid)
 
 class TrackInfo:

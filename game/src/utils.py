@@ -15,4 +15,12 @@ def tenthsToStrTime(time):
         seconds = "0"
         
     return "%d:%s.%s" % (minutes, seconds, tens)
+
+def strTimeToTenths(time):  
+    minutes = int(time[:time.index(":")])
+    seconds = int(time[time.index(":")+1:time.index(".")])
+    tenths = int(time[-1])
     
+    totalTenths = tenths + seconds * 10 + minutes * 60 * 10
+    
+    return totalTenths

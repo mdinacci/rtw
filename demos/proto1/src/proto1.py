@@ -67,20 +67,20 @@ class World(AbstractScene):
         self.mainLoop = taskMgr.add(self.updateTask, "update")
         self.mainLoop.last = 0
         
-        self.track = GOM.createEntity(new_track_params)
+        self.track = GOM.getEntity(new_track_params)
         self.addEntity(self.track)
         utils.showTrimeshLines(self.track.physics.geom, render, thickness=1)
         self.track.nodepath.setColor(VBase4(0,0,0,0))
         self.track.nodepath.setCollideMask(BitMask32(1))
         
-        self.ball = GOM.createEntity(ball_params)
+        self.ball = GOM.getEntity(ball_params)
         self.ball.nodepath.showTightBounds()
         collSphere = self.ball.nodepath.find("**/ball")
         collSphere.node().setIntoCollideMask(BitMask32(2))
         collSphere.node().setFromCollideMask(BitMask32.allOff())
         self.addEntity(self.ball)
         
-        self.player = GOM.createEntity(player_params)
+        self.player = GOM.getEntity(player_params)
         self.player.nodepath.setPos(self.ball.nodepath.getPos())
         self.player.nodepath.setQuat(self.track.nodepath,Quat(1,0,0,0))
         self.player.forward = Vec3(0,1,0)

@@ -8,12 +8,12 @@ Filename: remove_rgba.py
 """
 
 
-def removeRGBA(input, output):
+def removeLine(input, output, needle):
     f = open(input)
     f2 = open(output, "w")
 
     for line in f:
-        if "RGBA" in line:
+        if needle in line:
             continue
 
         f2.write(line)
@@ -24,5 +24,5 @@ def removeRGBA(input, output):
 
 if __name__ == '__main__':
     import sys
-    removeRGBA(sys.argv[1], sys.argv[2])
+    removeLine(sys.argv[1], sys.argv[2], sys.argv[3])
 

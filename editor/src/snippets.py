@@ -1,3 +1,9 @@
+# FSAA 
+from pandac.PandaModules import loadPrcFileData
+loadPrcFileData('', 'multisamples 16')
+render.setAntialias(AntialiasAttrib.MAuto)
+
+
 os.getenv('SystemDrive') # on windows
 """
         rbc = RigidBodyCombiner("rbc")

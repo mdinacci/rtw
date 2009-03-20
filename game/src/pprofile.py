@@ -39,8 +39,32 @@ class PlayerProfile(object):
                 
         return trackRes
     
+    def getBestTimeForTrackAndMode(self, tid, mode):
+        for track in self.tracks[mode]:
+            if track.tid == tid:
+                bestTime = int(track.bestTime)
+        
+        return bestTime
+    
     def getTracksForMode(self, mode):
         return self.tracks[mode]
+    
+    def update(self, result, mode):
+        tid = result.tid
+        
+        oldResult = self.getTrackResult(tid, mode)
+        needsUpdate = False
+        if oldResult is None:
+            result.attempts = 1
+        else:
+            result.attempts = oldResult.attempts + 1
+        if oldResult is not None:
+            # always write the best time in the file
+            if result.bestTime < oldResult.bestTime:
+                oldResult.bestTime = result.bestTime
+        
+        save(self, "../res/%s.profile" % self.name)
+    
 
 def hasProfile(profile):
     result = False
@@ -118,7 +142,8 @@ def load(filename):
         elif "champ_mode" in line:
             mode = GameMode.CHAMP_MODE
         elif "tb_mode" in line:
-            pp.tracks[mode].append(currentTrack)
+            if currentTrack is not None:
+                pp.tracks[mode].append(currentTrack)
             currentTrack = None
             mode = GameMode.TB_MODE
         elif "tid" in line:
@@ -127,18 +152,19 @@ def load(filename):
             currentTrack = TrackResult()
             currentTrack.tid = gv(line)
         elif "best_time" in line:
-            currentTrack.bestTime = gv(line)
+            currentTrack.bestTime = int(gv(line))
         elif "attempts" in line:
             currentTrack.attempts = int(gv(line))
-        elif "ball" in line:
-            bid.attempts = int(gv(line))
+        elif "bid" in line:
+            currentTrack.bid = gv(line)
     
-    pp.tracks[mode].append(currentTrack)
+    if currentTrack is not None:
+        pp.tracks[mode].append(currentTrack)
     pp.cache(lines)
     
     return pp
 
-    
+
 def save(profile, filename):
     logger.info("Saving profile to %s", filename)
     
@@ -146,7 +172,7 @@ def save(profile, filename):
         f.write("tid=%s\n" % track.tid)
         f.write("best_time=%s\n" % track.bestTime)
         f.write("attempts=%d\n" % track.attempts)
-        f.write("bid=%d\n" % track.bid)
+        f.write("bid=%s\n" % track.bid)
     
     f = open(filename, "w")
     
