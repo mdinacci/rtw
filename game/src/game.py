@@ -24,21 +24,23 @@ from direct.showbase.DirectObject import DirectObject
 import direct.directbase.DirectStart
 from pandac.PandaModules import WindowProperties, VirtualFileSystem, Filename
 from pandac.PandaModules import ClockObject
-from pandac.PandaModules import BitMask32, AntialiasAttrib, Quat, Vec3
+from pandac.PandaModules import BitMask32, AntialiasAttrib, Quat, Vec3, Point3
 from pandac.PandaModules import CollisionHandlerQueue, CollisionTraverser
 
 from direct.interval.MetaInterval import Sequence
 from direct.interval.FunctionInterval import Wait, Func
+from direct.showbase.PythonUtil import Functor
       
 from gui import ScreenManager
 from view import GameView
-from entity import *
+from data import TrackResult, GameMode
 from state import GS, GameState
+import utils
 
-import event
+import pprofile as profile
+import event, entity
 
 import sys, time
-
 
 class Game(object):
     
@@ -55,9 +57,40 @@ class Game(object):
         self._tileType = "neutral"
         self._lastTileType = "neutral"
         
+        self._track = None
+        self._ball = None
+        
         self._controlInverted = False
+    
+        
+    @eventCallback
+    def endTrack(self):
+        self._ball.slowDown()
+        self._view.hud.timer.stop() 
+        trackTime = self._view.hud.timer.time
+        
+        info = GS.getTrackInfo(GS.selectedTrack)
+        
+        result = TrackResult()
+        result.bestTime = utils.strTimeToTenths(trackTime)
+        result.bid = GS.selectedBall
+        result.tid = info.tid
+        
+        result.trophy = None
+        if result.bestTime <= info.bronze:
+            result.trophy = entity.bronze_cup_params
+        if result.bestTime <= info.silver:
+            result.trophy = entity.silver_cup_params
+        if result.bestTime <= info.gold:
+            result.trophy = entity.gold_cup_params
+            
+        GS.lastTrackResult = result
+        GS.profile.update(result, GS.mode)
         
     def start(self):
+        self._loadTrack(GS.selectedTrack)
+        self._loadBall(GS.selectedBall)
+        
         self._setupCollisionDetection()
         
         # HACK necessary to get the track's copy in the scenegraph
@@ -71,42 +104,9 @@ class Game(object):
         
         self._view.show()
         
-        self._view.hud.timer.start()
+        self._view.hud.timer.resetAndStart()
         
         
-    def setTrack(self, tid):
-        # TODO remove first existing track from scene
-        logger.info("Using track %s" % tid)
-        
-        vfs = VirtualFileSystem.getGlobalPtr()
-        vfs.mount(Filename("../res/tracks/%s.track"% tid) ,".", 
-                  VirtualFileSystem.MFReadOnly)
-        
-        self._track = GOM.getEntity(new_track_params)
-        self._track.unfold()
-        
-        # TODO this should be done in data
-        self._track.nodepath.setCollideMask(BitMask32(1))
-        
-        
-    def setBall(self, ballName):
-        # TODO remove first existing ball and player from scene
-        logger.info("Using ball %s" % ballName)
-        
-        params = ballsMap[ballName]
-        self._ball = GOM.getEntity(params)
-        self._ball.nodepath.setPos(Point3(params["position"]["x"],
-                                          params["position"]["y"],
-                                          params["position"]["z"]))
-        collSphere = self._ball.nodepath.find("**/ball")
-        collSphere.node().setIntoCollideMask(BitMask32(2))
-        collSphere.node().setFromCollideMask(BitMask32.allOff())
-        self._player = GOM.getEntity(player_params)
-        self._player.nodepath.setPos(self._ball.nodepath.getPos())
-        self._player.nodepath.setQuat(self._track.nodepath,Quat(1,0,0,0))
-        self._ball.forward = Vec3(0,1,0)
-        
-    
     def update(self, task):
         # steer
         
@@ -143,21 +143,21 @@ class Game(object):
             self._keyMap["jump"] = False
         
         # special actions
-        
-        if self._tileType == "neutral":
+        t = self._tileType
+        if t == "neutral" or t == "N":
             self._ball.neutral()
-        elif self._tileType == "jump":
-            if self._lastTileType != "jump":
-                self._ball.jump()
-        elif self._tileType == "accelerate":
+        elif t == "jump" or t == "J":
+            self._ball.jump()
+        elif t == "accelerate" or t == "A":
             self._ball.sprint()
-        elif self._tileType == "slow":
+        elif t == "slow" or t == "S":
             self._ball.slowDown()
-        elif self._tileType == "freeze":
-            if self._lastTileType != "freeze":
+        elif t == "freeze" or t == "F":
+            if not self._lastTileType == "F" and not self._lastTileType == "freeze":
                 self._ball.freeze()
         else:
             print "unknown type: " , self._tileType
+            self._ball.neutral()
         
         self._lastTileType = self._tileType
         
@@ -176,16 +176,18 @@ class Game(object):
                 self._view.hud.timer.removeTime(30)
                 self._view.hud.timer.flash()
             elif item == "?":
-                delay = Wait(3)
-                f = Func(self.__setattr__,"controlInverted", True)
-                f1 = Func(self.__setattr__,"controlInverted", False)
+                delay = Wait(1)
+                f = Func(self.__setattr__,"_controlInverted", True)
+                f1 = Func(self.__setattr__,"_controlInverted", False)
                 Sequence(f, delay, f1).start()
                 
             self._ball.specialItem = None
         
         if self._ball.physics.speed < 0:
             self._ball.physics.speed = 0
-            
+        
+        self._tileType = "neutral"
+        
         return task.cont
     
     def simulationStep(self, task):
@@ -229,16 +231,11 @@ class Game(object):
                         rootNode.removeNode()
                     else:    
                         # tell the _track which segment the _ball is on
-                        self._track.setCurrentTile(np)
-                        
-                        # find out the tile type from the texture
-                        textures = np.findAllTextures()
-                        if textures.getNumTextures() > 1:
-                            self._tileType = textures.getTexture(1).getName()
-                        else:
-                            self._tileType = textures.getTexture(0).getName()
-                        #self._tileType = np.findAllTextures().getTexture(0).getName()
-                    
+                        #self._track.setCurrentTile(np)
+                        #
+                        if np.hasTag("type"):
+                            self._tileType = np.getTag("type")
+                            
                     self._ball.rayGroundZ = z
                     
                     ballIsCollidingWithGround = True
@@ -306,6 +303,44 @@ class Game(object):
         
         return task.cont
     
+    def _loadTrack(self, tid):
+        # TODO remove first existing track from scene
+        
+        logger.info("Using track %s" % tid)
+        
+        vfs = VirtualFileSystem.getGlobalPtr()
+        vfs.mount(Filename("../res/tracks/%s.track"% tid) ,".", 
+                  VirtualFileSystem.MFReadOnly)
+        
+        if self._track is not None:
+            self._track.nodepath.removeNode()
+        self._track = GOM.getEntity(entity.new_track_params, False)
+        self._track.unfold()
+        
+        # TODO this should be done in data
+        self._track.nodepath.setCollideMask(BitMask32(1))
+
+    def _loadBall(self, ballName):
+        # TODO remove first existing ball and player from scene
+        
+        logger.info("Using ball %s" % ballName)
+        
+        if self._ball is not None:
+            self._ball.nodepath.removeNode()
+        
+        params = entity.ballsMap[ballName]
+        self._ball = GOM.getEntity(params, False)
+        self._ball.nodepath.setPos(Point3(params["position"]["x"],
+                                          params["position"]["y"],
+                                          params["position"]["z"]))
+        collSphere = self._ball.nodepath.find("**/ball")
+        collSphere.node().setIntoCollideMask(BitMask32(2))
+        collSphere.node().setFromCollideMask(BitMask32.allOff())
+        self._player = GOM.getEntity(entity.player_params)
+        self._player.nodepath.setPos(self._ball.nodepath.getPos())
+        self._player.nodepath.setQuat(self._track.nodepath,Quat(1,0,0,0))
+        self._ball.forward = Vec3(0,1,0)
+        
     def _setKey(self, key, value):
         self._keyMap[key] = value
         
@@ -364,8 +399,7 @@ class Game(object):
         
     def _subscribeToEvents(self):
         self._listener = DirectObject()
-        self._listener.accept(event.BALL_SELECTED, self.setBall)
-        self._listener.accept(event.TRACK_SELECTED, self.setTrack)
+        #self._listener.accept(event.END_TRACK, self.endTrack)
         
 
 class GameApplication(object):
@@ -410,7 +444,7 @@ class GameApplication(object):
         sys.exit(0)
     
     @eventCallback
-    def startGame(self):
+    def startRace(self):
         logger.info("Starting game")
         
         self._screenMgr.destroyCurrent()
@@ -424,17 +458,33 @@ class GameApplication(object):
     @eventCallback
     def exitGameRequest(self):    
         self._screenMgr.displayScreen("exit")
-   
+    
+    def endRace(self):
+        self._stopProcesses()
+        
+        delay = Wait(1.0)
+        Sequence(Func(self._game.endTrack), delay, 
+                             Func(self._screenMgr.displayScreen, "next-track"), 
+                             Func(self._view.hud.hide),
+                             Func(self._view.scene.hide), 
+                             Func(self._view.showCursor)).start()
+    
     def _createGameAndView(self):
-        view = GameView()
-        view.hide()
-        self._game = Game(view)
+        self._view = GameView()
+        self._view.hide()
+        self._game = Game(self._view)
    
     def _startProcesses(self):
         taskMgr.add(self._game.inputMgr.update, "update-input")
         taskMgr.add(self._game.collisionStep, "collision-step")
         taskMgr.add(self._game.simulationStep, "world-simulation")
         taskMgr.add(self._game.update, "update-objects")
+        
+    def _stopProcesses(self):
+        taskMgr.remove("update-input")
+        taskMgr.remove("collision-step")
+        taskMgr.remove("world-simulation")
+        taskMgr.remove("update-objects")
         
     def _quitInDespair(msg, status):
         print msg
@@ -443,7 +493,20 @@ class GameApplication(object):
     def _subscribeToEvents(self):
         self._listener.accept(event.GAME_EXIT_REQUEST, self.exitGameRequest)
         self._listener.accept(event.GAME_DESTROY, self.shutdown)
-        self._listener.accept(event.GAME_START, self.startGame)
+        self._listener.accept(event.GAME_START, self.startRace)
+        self._listener.accept(event.END_TRACK, self.endRace)
+        self._listener.accept("l", self.__wireframe)
+        
+    a = 0
+    def __wireframe(self):
+        if self.a ==0:
+            base.wireframeOn()
+            self.a == 1 
+            self._game._track.nodepath.hide()
+        else:
+            base.wireframeOff()
+            self.a == 0
+            self._game._track.nodepath.show()
     
     def _createWindow(self):
         self._wp = WindowProperties().getDefault()
