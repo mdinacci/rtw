@@ -9,6 +9,7 @@ A segment has a type, which can be one of the following:
 - 4: a straight left curve, pointing up
 - 5: a 22° curve, pointing right
 - 6: a 22° curve, pointing left
+- 7: a straight segment, rotated 90 degrees
 - etc... I need plenty of types for elevation...
 
 Finally, the tiles type is encoded in a list and separated by a character "-"

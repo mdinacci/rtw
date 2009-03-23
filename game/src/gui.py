@@ -63,7 +63,7 @@ class TrackList(DirectFrame):
         self._cb = buttonCallback
         
         self._trackList = trackList
-        self._numPages = len(trackList) / self.TRACKS_PER_PAGE
+        self._numPages = 1 + len(trackList) / self.TRACKS_PER_PAGE 
         self._currentPage = 0
         self._page = None
         
@@ -196,17 +196,18 @@ class MainScreen(Screen):
     
     def champModePressed(self):
         messenger.send(event.GAME_MODE_SELECT, [GameMode.CHAMP_MODE])
-        
+        self._goToTrackSelection()
+            
+    def timeModePressed(self):
+        messenger.send(event.GAME_MODE_SELECT, [GameMode.TB_MODE])
+        self._goToTrackSelection()
+            
+    def _goToTrackSelection(self):
         if GS.hasValidProfile():
             self.screenMgr.displayScreen("track-selection")
         else:
             self.screenMgr.setNextScreen("track-selection")
             self.screenMgr.displayScreen("new-profile")
-            
-    def timeModePressed(self):
-        messenger.send(event.GAME_MODE_SELECT, [GameMode.TB_MODE])
-        self.screenMgr.displayScreen("ball-selection")
-
 
 class RaceResultScreen(Screen):
     
@@ -218,8 +219,6 @@ class RaceResultScreen(Screen):
         self.screenMgr = screenMgr
         
         result = GS.lastTrackResult
-        
-        
         
 
 class TrackResultFrame(DirectFrame):
