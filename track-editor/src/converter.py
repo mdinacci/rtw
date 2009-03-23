@@ -17,10 +17,15 @@ __all__ = ["convert"]
 
 rl = ResourceLoader()
 cm = CardMaker("cm") 
-direction = 1
+directionX = 0
+directionY = 1
 
 TILE_TYPES = ("A","J","S", "F")
 ITEM_TYPES = ("M","I","+","-", "?")
+
+GLOBAL_SCALE = 5
+STRAIGHT_SEGMENT_WIDTH = 10  * GLOBAL_SCALE
+CURVE_SEGMENT_WIDTH = 15 *  GLOBAL_SCALE
 
 def applyEffect(tileType, tileNode, parent):
     newPos = tileNode.getPos(parent)
@@ -49,6 +54,7 @@ def applyEffect(tileType, tileNode, parent):
 def modelPathForType(type):
     path = ""
     if type == 0:
+        #path = "s.egg"
         path = "straight.egg"
     elif type == 1:
         path = "curve-right.egg"
@@ -63,47 +69,60 @@ def modelPathForType(type):
     
     return path
     
-
 def posForType(currentPos, prevType, type):
-    global direction
+    global directionX, directionY
     
     newPos = Point3(0,0,0)
     # straight-straigt
     if prevType == 0 and type == 0:
-        newPos += Point3(0, 30*direction, 0)
+        newPos += Point3(STRAIGHT_SEGMENT_WIDTH*directionX, 
+                         STRAIGHT_SEGMENT_WIDTH * directionY, 
+                         0)
         
     # straight-curve right
     elif prevType == 0 and type == 1:
-        newPos += Point3(0, 30*direction, 0)
+        newPos += Point3(0, STRAIGHT_SEGMENT_WIDTH * directionY, 0)
+    
     # curve right-straight
     elif prevType == 1 and type == 0:
-        newPos += Point3(34.1, 4.16, 0)
+        newPos += Point3(CURVE_SEGMENT_WIDTH, CURVE_SEGMENT_WIDTH/2.0, 0)
         
     # curve right-curve left
     elif prevType == 1 and type == 2:
-        newPos += Point3(55.1, 0, 0)
-        direction = -1
+        newPos += Point3(CURVE_SEGMENT_WIDTH, 0, 0)
+        directionY = -1  
         
     # curve left-straight
     elif prevType == 2 and type == 0:
-        newPos += Point3(5.85, 0, 0)
+        newPos += Point3(CURVE_SEGMENT_WIDTH/3.0, STRAIGHT_SEGMENT_WIDTH*directionY, 0)
+        
     # straight-curve left
     elif prevType == 0 and type == 2:
-        newPos += Point3(39.65, -45.2, 0)
-        direction = -1
+        newPos += Point3(0, STRAIGHT_SEGMENT_WIDTH*directionY,0)
+        directionY = -1
     
-    # straight-curve right down
+    # straight-curve left down
     elif prevType == 0 and type == 3:
-        newPos += Point3(-27.4,27.55*direction,0)
+        newPos += Point3(0, CURVE_SEGMENT_WIDTH*directionY,0)
+        directionX = -1
+        
+    # straight-curve right down
+    elif prevType == 0 and type == 4:
+        newPos += Point3(0, CURVE_SEGMENT_WIDTH*directionY,0)
     
     # curve right down-curve left down
     elif prevType == 3 and type == 4:
-        newPos += Point3(41.68,0,0)
+        newPos += Point3(directionX*(CURVE_SEGMENT_WIDTH+25),0,0)
     
     elif prevType == 4 and type == 0:
-        direction = 1
-        newPos += Point3(-75.7,27.5,0)
+        directionY = 1
+        newPos += Point3(0, CURVE_SEGMENT_WIDTH*directionY, 0)
+        
+    elif prevType == 3 and type == 0:
+        newPos += Point3(CURVE_SEGMENT_WIDTH*directionX,0, 0)
+        directionY = 0
     
+    """
     # straight-chicane right
     elif prevType == 0 and type == 7:
         if direction == 1:
@@ -116,6 +135,7 @@ def posForType(currentPos, prevType, type):
             newPos += Point3(15*direction,30*direction,0)
         elif direction == -1:
             newPos += Point3(0,30*direction,0)
+    """
     
     return currentPos + newPos
 
@@ -125,15 +145,9 @@ def applyModel(tileType, tileNode, parent):
         pass
     else:
         plane = parent.attachNewNode(cm.generate())
-        """
-        plane = NodePath(ModelNode(""))
-        plane.reparentTo(parent)
-        np = plane.attachNewNode(cm.generate())
-        """
         
         plane.setP(-90)
-        plane.setPos(tileNode, -2.5, -2.5, .6)
-        #plane.setPos(-2.5,-2.5,1)
+        plane.setPos(tileNode, -2.5, -2.5, .8)
         plane.setScale(5.2)
         plane.setTransparency(TransparencyAttrib.MAlpha)
 
@@ -236,7 +250,6 @@ def convert(track, outputFile):
     
     track = __import__(track).track
     
-    scale = 1
     prevType = None
     pos = Point3(0,0,0)
     
@@ -244,7 +257,7 @@ def convert(track, outputFile):
         type = segment["type"]
         path = modelPathForType(type)
         pos = posForType(pos, prevType, type) 
-        np = rl.loadModelAndReparent(path, tilesRoot, scale, pos, noCache=True)
+        np = rl.loadModelAndReparent(path, tilesRoot, GLOBAL_SCALE, pos, noCache=True)
         segmentName = "%s@%d" % (np.getName(), i)
         np.setName(segmentName)
         
@@ -256,10 +269,13 @@ def convert(track, outputFile):
         
         tiles = segment["tiles"]
         geomTiles = np.findAllMatches("**/tile*").asList()
-        geomTiles.sort(cmp = cmpTiles)
+        #geomTiles.sort(cmp = cmpTiles)
         
         tilesTuple = zip(tiles, geomTiles)
         for tileType, tileNode in tilesTuple:
+            
+            tileNode.hide()
+            
             if tileType == "H":
                 tileNode.removeNode()
             elif tileType in TILE_TYPES:
@@ -268,6 +284,7 @@ def convert(track, outputFile):
                 #applyColor(tileType, tileNode)
             elif tileType in ITEM_TYPES:
                 applyEffect(tileType, tileNode, itemsRoot)
+                
         
         prevType = type
     
