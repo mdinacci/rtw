@@ -27,6 +27,10 @@ GLOBAL_SCALE = 5
 STRAIGHT_SEGMENT_WIDTH = 10  * GLOBAL_SCALE
 CURVE_SEGMENT_WIDTH = 15 *  GLOBAL_SCALE
 
+class InvalidTrackLayoutException(Exception):
+    pass
+
+
 def applyEffect(tileType, tileNode, parent):
     newPos = tileNode.getPos(parent)
     newPos.setZ(newPos.getZ()+1.3)
@@ -81,24 +85,13 @@ def posForType(currentPos, prevType, type):
         
     # straight-curve right
     elif prevType == 0 and type == 1:
-        newPos += Point3(0, STRAIGHT_SEGMENT_WIDTH * directionY, 0)
+        newPos += Point3(STRAIGHT_SEGMENT_WIDTH * directionX, 
+                         STRAIGHT_SEGMENT_WIDTH * directionY, 0)
     
-    # curve right-straight
-    elif prevType == 1 and type == 0:
-        newPos += Point3(CURVE_SEGMENT_WIDTH, CURVE_SEGMENT_WIDTH/2.0, 0)
-        
-    # curve right-curve left
-    elif prevType == 1 and type == 2:
-        newPos += Point3(CURVE_SEGMENT_WIDTH, 0, 0)
-        directionY = -1  
-        
-    # curve left-straight
-    elif prevType == 2 and type == 0:
-        newPos += Point3(CURVE_SEGMENT_WIDTH/3.0, STRAIGHT_SEGMENT_WIDTH*directionY, 0)
-        
     # straight-curve left
     elif prevType == 0 and type == 2:
-        newPos += Point3(0, STRAIGHT_SEGMENT_WIDTH*directionY,0)
+        newPos += Point3(STRAIGHT_SEGMENT_WIDTH * directionX, 
+                         STRAIGHT_SEGMENT_WIDTH*directionY,0)
         directionY = -1
     
     # straight-curve left down
@@ -110,12 +103,34 @@ def posForType(currentPos, prevType, type):
     elif prevType == 0 and type == 4:
         newPos += Point3(0, CURVE_SEGMENT_WIDTH*directionY,0)
     
+    # curve right-straight
+    elif prevType == 1 and type == 0:
+        newPos += Point3(CURVE_SEGMENT_WIDTH, CURVE_SEGMENT_WIDTH/2.0, 0)
+    
+    elif prevType == 1 and type == 1:
+        raise InvalidTrackLayoutException("0 followed by 1")
+    
+    # curve right-curve left
+    elif prevType == 1 and type == 2:
+        newPos += Point3(CURVE_SEGMENT_WIDTH, 0, 0)
+        directionY = -1  
+        
+    elif prevType == 1 and type == 3:
+        pass
+    
+    elif prevType == 1 and type == 4:
+        raise InvalidTrackLayoutException("0 followed by 1")
+    
+        
+    # curve left-straight
+    elif prevType == 2 and type == 0:
+        newPos += Point3(CURVE_SEGMENT_WIDTH/3.0, STRAIGHT_SEGMENT_WIDTH*directionY, 0)
+        
     # curve right down-curve left down
     elif prevType == 3 and type == 4:
         newPos += Point3(directionX*(CURVE_SEGMENT_WIDTH+25),0,0)
     
     elif prevType == 4 and type == 0:
-        directionY = 1
         newPos += Point3(0, CURVE_SEGMENT_WIDTH*directionY, 0)
         
     elif prevType == 3 and type == 0:
