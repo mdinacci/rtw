@@ -1,7 +1,6 @@
 from __future__ import division
 
-from pandac.PandaModules import *
-import sys,os
+from pandac.PandaModules import VBase4, NodePath, LineSegs, PandaNode
 
 # Three Axis Coordinate Plane Grid Class (ThreeAxisGrid)
 # Mathew Lloyd AKA 'Forklift', August 2008
@@ -85,9 +84,9 @@ class ThreeAxisGrid:
       self.subdivColor = VBase4(.35, .35, .35, 1)
       
       #Line thicknesses (in pixels)
-      self.axisThickness = 1
+      self.axisThickness = 2
       self.gridThickness = 1
-      self.subdivThickness = 1
+      self.subdivThickness = .5
 
       #Axis, grid, and subdiv lines must be seperate LineSeg
       #objects in order to allow different thicknesses.
@@ -147,17 +146,17 @@ class ThreeAxisGrid:
             #Draw y lines across x axis starting from center moving out
             #XY Plane
                for x in self.myfrange(0, self.XSize, self.gridStep):
-                  self.gridLines.moveTo(x, -(self.YSize), 0)
-                  self.gridLines.drawTo(x, self.YSize, 0)
-                  self.gridLines.moveTo(-x, -(self.YSize), 0)
-                  self.gridLines.drawTo(-x, self.YSize, 0)
+                  self.gridLines.moveTo(x, -(self.YSize), 0.06)
+                  self.gridLines.drawTo(x, self.YSize, 0.06)
+                  self.gridLines.moveTo(-x, -(self.YSize), 0.06)
+                  self.gridLines.drawTo(-x, self.YSize, 0.06)
                   
                if(self.endCapLinesShow != 0):
                   #Draw endcap lines
-                  self.gridLines.moveTo(self.XSize, -(self.YSize), 0)
-                  self.gridLines.drawTo(self.XSize, self.YSize, 0)
-                  self.gridLines.moveTo(-(self.XSize), -(self.YSize), 0)
-                  self.gridLines.drawTo(-(self.XSize), self.YSize, 0)
+                  self.gridLines.moveTo(self.XSize, -(self.YSize), 0.06)
+                  self.gridLines.drawTo(self.XSize, self.YSize, 0.06)
+                  self.gridLines.moveTo(-(self.XSize), -(self.YSize), 0.06)
+                  self.gridLines.drawTo(-(self.XSize), self.YSize, 0.06)
             
             if((self.ZSize != 0) and (self.XZPlaneShow != 0)):
             #Draw z lines across x axis starting from center moving out
