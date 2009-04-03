@@ -56,7 +56,7 @@ class ResourceLoader(Loader):
                   extraArgs = []):
         
         model = Loader.loadModel(self, path, loaderOptions, noCache, 
-                                 allowInstance, callback, extraArgs)
+                                 allowInstance)
         
         if model is not None:
             model.setScale(scale)
