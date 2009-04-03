@@ -57,9 +57,6 @@ class InputScheme(object):
         self._enabled = True
         self._commands = {}
     
-    def __repr__(self):
-        return self._name
-    
     def getCommands(self):
         return self._commands  
     
@@ -146,12 +143,9 @@ class InputManager(SafeDirectObject):
     def getCurrentScheme(self):
         return self._currentScheme
     
-    def update(self, Task = None):
+    def update(self, task = None):
         """ 
         Check pressed keys and send corresponding events. 
-        XXX The problem with this approach is that events are sent only 
-        on button down, not on button up. For the moment this is not
-        a problem but it can become troublesome in the future
         """
         commands = self._currentScheme.getCommands().values() + \
             self._schemes[BASE_SCHEME].getCommands().values()
