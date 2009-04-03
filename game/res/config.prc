@@ -30,10 +30,12 @@ default-directnotify-level warning
 model-path    $THIS_PRC_DIR
 model-path    $THIS_PRC_DIR/scene.mf
 model-path    $THIS_PRC_DIR/gui
+model-path    $THIS_PRC_DIR/fonts
 sound-path    $THIS_PRC_DIR
+texture-path  $THIS_PRC_DIR
 texture-path  $THIS_PRC_DIR/scene.mf
 texture-path  $THIS_PRC_DIR/gui
-texture-path  $THIS_PRC_DIR
+texture-path  $THIS_PRC_DIR/fonts
 track-def-path $THIS_PRC_DIR/tracks/tracks.bin
 
 # DEBUG
@@ -52,9 +54,9 @@ audio-cache-limit 15
 audio-play-mp3 f
 
 # CACHE, available only in 1.6
-# model-cache-dir $THIS_PRC_DIR/cache
-# model-cache-textures #t
-# model-cache-compressed-textures 1
+model-cache-dir $THIS_PRC_DIR/cache
+model-cache-textures #t
+model-cache-compressed-textures 1
 
 # LANGUAGE
 lang fr_FR
@@ -65,4 +67,6 @@ text-encoding utf8
 #icon-filename
 #lock-to-one-cpu f
 
+# default font
+text-default-font astronbo.ttf
  
