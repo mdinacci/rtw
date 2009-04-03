@@ -9,10 +9,11 @@ from direct.gui.OnscreenText import OnscreenText
 from direct.interval.FunctionInterval import Func, Wait
 from direct.interval.MetaInterval import Sequence
 
-from pandac.PandaModules import DirectionalLight, AmbientLight, NodePath, Fog
-from pandac.PandaModules import Vec4, Camera, WindowProperties, LightNode
-from pandac.PandaModules import Shader, Point3, PandaNode
+from pandac.PandaModules import DirectionalLight, AmbientLight, NodePath, Fog,\
+PointLight, Vec4, Camera, WindowProperties, LightNode, Shader, Point3, \
+PandaNode, LightRampAttrib, Vec3, Vec4
 
+from direct.filter.CommonFilters import CommonFilters
 
 from mdlib.panda.core import AbstractScene
 
@@ -29,69 +30,28 @@ class GameScene(object):
         self._setupLightsAndFog()
     
     def show(self):
-        if 0:
-            MYDIR="."
-            
-            # This shader's job is to render the model with discrete lighting
-            # levels.  The lighting calculations built into the shader assume
-            # a single nonattenuating point light.
-    
+        if 1:
             tempnode = NodePath(PandaNode("temp node"))
-            tempnode.setShader(Shader.load(MYDIR+"/lightingGen.sha"))
+            tempnode.setAttrib(LightRampAttrib.makeSingleThreshold(0.5, 0.4))
+            tempnode.setShaderAuto()
             base.cam.node().setInitialState(tempnode.getState())
+    
+            self.filters = CommonFilters(base.win, base.cam)
+            self.separation = 0.5 # Pixels
+            filterok = self.filters.setCartoonInk(separation=self.separation)
             
-            # This is the object that represents the single "light", as far
-            # the shader is concerned.  It's not a real Panda3D LightNode, but
-            # the shader doesn't care about that.
-    
-            light = render.attachNewNode("light")
-            #light.setPos(30,-50,0)
-            light.setPos(5,-5,0)
-                    
-            # this call puts the light's nodepath into the render state.
-            # this enables the shader to access this light by name.
-    
-            render.setShaderInput("light", light)
-    
-            # The "normals buffer" will contain a picture of the model colorized
-            # so that the color of the model is a representation of the model's
-            # normal at that point.
-    
-            normalsBuffer=base.win.makeTextureBuffer("normalsBuffer", 0, 0)
-            normalsBuffer.setClearColor(Vec4(0.5,0.5,0.5,1))
-            self.normalsBuffer=normalsBuffer
-            normalsCamera=base.makeCamera(normalsBuffer, lens=base.cam.node().getLens())
-            normalsCamera.node().setScene(render)
-            tempnode = NodePath(PandaNode("temp node"))
-            tempnode.setShader(Shader.load(MYDIR+"/normalGen.sha"))
-            normalsCamera.node().setInitialState(tempnode.getState())
-    
-            #what we actually do to put edges on screen is apply them as a texture to 
-            #a transparent screen-fitted card
-    
-            drawnScene=normalsBuffer.getTextureCard()
-            drawnScene.setTransparency(1)
-            drawnScene.setColor(1,1,1,0)
-            drawnScene.reparentTo(render2d)
-            self.drawnScene = drawnScene
-    
-            # this shader accepts, as input, the picture from the normals buffer.
-            # it compares each adjacent pixel, looking for discontinuities.
-            # wherever a discontinuity exists, it emits black ink.
-                    
-            self.separation = 0.0005
-            self.cutoff = 0.05
-            inkGen=Shader.load(MYDIR+"/inkGen.sha")
-            drawnScene.setShader(inkGen)
-            drawnScene.setShaderInput("separation", Vec4(self.separation,0,self.separation,0));
-            drawnScene.setShaderInput("cutoff", Vec4(self.cutoff,self.cutoff,self.cutoff,self.cutoff));
-        else:
-            from direct.filter.CommonFilters import CommonFilters
-            #self.filters = CommonFilters(base.win, base.cam)
-            #filterok = self.filters.setBloom(blend=(0,0,0,1), desat=-0.5, intensity=3.0, size="small")
-                
-        
+            plightnode = PointLight("point light")
+            plightnode.setAttenuation(Vec3(1,0,0))
+            plight = render.attachNewNode(plightnode)
+            plight.setPos(30,-50,0)
+            alightnode = AmbientLight("ambient light")
+            alightnode.setColor(Vec4(0.8,0.8,0.8,1))
+            alight = render.attachNewNode(alightnode)
+            render.setLight(alight)
+            render.setLight(plight)
         self._rootNode.show()
+        self._rootNode.setShaderAuto()
+        
         
     def hide(self):
         self._rootNode.hide()
@@ -107,8 +67,8 @@ class GameScene(object):
         dlight.setColor(Vec4(0.7, 0.7, 0.6, 1))
         alight.setColor(Vec4(0.2, 0.2, 0.2, 1))
         dlnp.setHpr(0, -60, 0)
-        self._rootNode.setLight(dlnp)
-        self._rootNode.setLight(alnp)
+        #self._rootNode.setLight(dlnp)
+        #self._rootNode.setLight(alnp)
         
         """
         colour = (0.2,0.2,0.2)
@@ -148,7 +108,7 @@ class GameView(object):
 
 class Camera(object):
     ZOOM = 30
-    TARGET_DISTANCE = 13
+    TARGET_DISTANCE = 18
     
     def __init__(self):
         base.disableMouse()
@@ -176,11 +136,11 @@ class Camera(object):
                            self.target.forward * self.TARGET_DISTANCE)
 
         z = self.target.jumpZ
-        base.camera.setZ(self.target.nodepath.getZ() -z + 3)
+        base.camera.setZ(self.target.nodepath.getZ() -z + 5)
         pos = self.target.nodepath.getPos()
         pos.setZ(pos.getZ() -z)
         base.camera.lookAt(pos)
-        base.camera.setZ(self.target.nodepath.getZ() -z + 5)    
+        base.camera.setZ(self.target.nodepath.getZ() -z + 8)    
 
 
 class HUD(object):

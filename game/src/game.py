@@ -361,6 +361,7 @@ class Game(object):
                                    self._setKey, ["backward",True])
         self.inputMgr.bindCallback(cfg.strValueForKey("options_jump"), 
                                    self._setKey, ["jump",True])
+        self.inputMgr.bindCallback("p", base.oobe)
         
         key = cfg.strValueForKey("options_steer_left") + "-up"
         self.inputMgr.bindCallback(key, self._setKey, ["left",False])

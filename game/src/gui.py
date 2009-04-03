@@ -20,6 +20,7 @@ import event, utils, entity
 import pprofile as profile
 from data import GameMode, TrackResult
 from state import GS
+from editor import TrackEditor
 
 
 def getOKCancelButtons(okCb, backCb):
@@ -57,10 +58,11 @@ class TrackList(DirectFrame):
     
     TRACKS_PER_PAGE = 8
     
-    def __init__(self, trackList, buttonCallback):
+    def __init__(self, trackList, buttonCallback, screenMgr):
         DirectFrame.__init__(self)
         
         self._cb = buttonCallback
+        self.screenMgr = screenMgr
         
         self._trackList = trackList
         self._numPages = 1 + len(trackList) / self.TRACKS_PER_PAGE 
@@ -119,6 +121,10 @@ class Screen(object):
     
     def __init__(self):
         self.frame = DirectFrame()
+        self.frame["image"] = "bg.jpg"
+        self.frame["image_scale"] = (2,1,1)
+        
+        
     
     def destroy(self):
         self.frame.destroy()
@@ -139,55 +145,66 @@ class MainScreen(Screen):
         
         self.screenMgr = screenMgr
         
-        maps = loader.loadModel('gui/options_menu.egg')
-        champButton = DirectButton(geom = (maps.find('**/test'),
-                         maps.find('**/test'),maps.find('**/test'),
-                         maps.find('**/test')),scale=.2,borderWidth=(0,0),
-                         relief=None, pos = (.8,0,.7),
+        maps = loader.loadModel('gui/main_screen.egg')
+        champButton = DirectButton( geom = (maps.find('**/normal'),
+                         maps.find('**/normal'),maps.find('**/over'),
+                         maps.find('**/normal')),scale=.13,borderWidth=(0,0),
+                         relief=None, pos = (1.15,0,.7),
                          rolloverSound=None, clickSound=None,
-                         command=self.champModePressed, text="Champ Mode")
-        battleButton = DirectButton(geom = (maps.find('**/test'),
-                         maps.find('**/test'),maps.find('**/test'),
-                         maps.find('**/test')),scale=.2,borderWidth=(0,0),
-                         relief=None, pos = (.8,0,.3),
+                         text_align=TextNode.ARight, 
+                         command=self.champModePressed, text="Arcade Mode")
+        battleButton = DirectButton(geom = (maps.find('**/normal'),
+                         maps.find('**/normal'),maps.find('**/over'),
+                         maps.find('**/normal')),scale=.13,borderWidth=(0,0),
+                         relief=None, pos = (1.15,0,.3),
+                         text_align=TextNode.ARight, 
                          rolloverSound=None, clickSound=None,
                          command=self.timeModePressed, text="Time Battle")
-        trackDesButton = DirectButton(geom = (maps.find('**/test'),
-                         maps.find('**/test'),maps.find('**/test'),
-                         maps.find('**/test')),scale=.2,borderWidth=(0,0),
-                         relief=None, pos = (.8,0,-.1),
+        trackDesButton = DirectButton(geom = (maps.find('**/normal'),
+                         maps.find('**/normal'),maps.find('**/over'),
+                         maps.find('**/normal')),scale=.13,borderWidth=(0,0),
+                         relief=None, pos = (1.15,0,-.1),
+                         text_align=TextNode.ARight, 
                          rolloverSound=None, clickSound=None,
-                         command=self.timeModePressed, text="Track Designer")
-        optionsButton = DirectButton(geom = (maps.find('**/test'),
-                         maps.find('**/test'),maps.find('**/test'),
-                         maps.find('**/test')),scale=.2,borderWidth=(0,0),
+                         command=self.trackDesPressed, text="Track Designer")
+        
+        optionsButton = DirectButton(geom = (maps.find('**/normal'),
+                         maps.find('**/normal'),maps.find('**/over'),
+                         maps.find('**/normal')),scale=.15,borderWidth=(0,0),
                          relief=None, pos = (-.95,0,-.8),
                          rolloverSound=None, clickSound=None,
                          command=self.optionPressed,text="Options")
-        profileButton = DirectButton(geom = (maps.find('**/test'),
-                         maps.find('**/test'),maps.find('**/test'),
-                         maps.find('**/test')),scale=.2,borderWidth=(0,0),
+        profileButton = DirectButton(geom = (maps.find('**/normal'),
+                         maps.find('**/normal'),maps.find('**/over'),
+                         maps.find('**/normal')),scale=.15,borderWidth=(0,0),
                          relief=None, pos = (0,0,-.8),
                          rolloverSound=None, clickSound=None,
                          command=self.profilePressed, text="Profile")
-        exitButton = DirectButton(geom = (maps.find('**/test'),
-                         maps.find('**/test'),maps.find('**/test'),
-                         maps.find('**/test')),scale=.2,borderWidth=(0,0),
+        exitButton = DirectButton(geom = (maps.find('**/normal'),maps.find('**/normal'),
+                         maps.find('**/over'), maps.find('**/normal')),
+                         text_align=TextNode.ARight, scale=.15,borderWidth=(0,0),
                          relief=None, pos = (0.95,0,-.8),
                          rolloverSound=None, clickSound=None,
                          command=self.exitPressed, text="Exit")
         
+        bottomFrame = DirectFrame(frameSize=(1,1,1,1), frameColor=(1,0,0,0))
+        bottomFrame.reparentTo(self.frame)
+        
         champButton.reparentTo(self.frame)
         battleButton.reparentTo(self.frame)
         trackDesButton.reparentTo(self.frame)
-        optionsButton.reparentTo(self.frame)
-        profileButton.reparentTo(self.frame)
-        exitButton.reparentTo(self.frame)
+        optionsButton.reparentTo(bottomFrame)
+        profileButton.reparentTo(bottomFrame)
+        exitButton.reparentTo(bottomFrame)
         
         
     def exitPressed(self):
         messenger.send(event.GAME_EXIT_REQUEST)
         
+    def trackDesPressed(self):
+        self.screenMgr.destroyCurrent()
+        te = TrackEditor()
+    
     def optionPressed(self):
         self.screenMgr.displayScreen("options")
     
@@ -208,6 +225,7 @@ class MainScreen(Screen):
         else:
             self.screenMgr.setNextScreen("track-selection")
             self.screenMgr.displayScreen("new-profile")
+
 
 class RaceResultScreen(Screen):
     
@@ -238,16 +256,13 @@ class TrackResultFrame(DirectFrame):
             # TODO put something else
             pass
         
-        bestTimeLabel = DirectLabel(text="Best time", scale=.1, 
-                                 pos=(0.2,0,-0.1),
+        bestTimeLabel = DirectLabel(text="Best time", scale=.1, pos=(0.2,0,-0.1),
                                  text_align=TextNode.ALeft, relief=None)
-        ballLabel = DirectLabel(text="Ball", scale=.1, 
-                                 pos=(0.2,0,-0.25),
+        ballLabel = DirectLabel(text="Ball", scale=.1, pos=(0.2,0,-0.25),
                                  text_align=TextNode.ALeft, relief=None)
         
         time = utils.tenthsToStrTime(int(trackResult.bestTime))
-        resultTime = DirectLabel(text=time, scale=.1, 
-                                 pos=(0.7,0,-0.1),
+        resultTime = DirectLabel(text=time, scale=.1, pos=(0.7,0,-0.1),
                                  text_align=TextNode.ALeft, relief=None)
         resultBall = DirectLabel(text=str(trackResult.bid), scale=.1, 
                                  pos=(0.7,0,-0.25),
@@ -300,7 +315,7 @@ class TrackSelectionScreen(Screen):
                      command=self._backPressed, relief=None, pos = (0.9,0,-.9),
                      rolloverSound=None, clickSound=None,text=_t("back"))
         
-        self._trackList = TrackList(tracks, self._trackPressed)
+        self._trackList = TrackList(tracks, self._trackPressed, self.screenMgr)
         
         prevButton = DirectButton(geom = (maps.find('**/test'),
                      maps.find('**/test'),maps.find('**/test'),
