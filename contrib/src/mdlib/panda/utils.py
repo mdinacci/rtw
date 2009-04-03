@@ -49,12 +49,17 @@ def showTrimeshLines(geom, parentNode, thickness=3.0,
         lines.create()
 
 
-def showGeometryLines(entity, parentNode, thickness=3.0, colorVec=Vec4(1,0,0,1)):
+def showGeometryLines(entity, parentNode, thickness=3.0, 
+                      colorVec=Vec4(1,0,0,1), zOffset=0.0):
     """ Displays lines around the bounding box of a physic object """
     
     p1 = Point3(0,0,0)
     p2 = Point3(0,0,0)
-    entity.physics.geom.getAABB(p1,p2)
+    p1,p2 = entity.getTightBounds()
+    
+    p1.setZ(p1.getZ() + zOffset)
+    p2.setZ(p2.getZ() + zOffset)
+    
     lines = LineNodePath(parent = parentNode, thickness = thickness, 
                          colorVec = colorVec)
     
@@ -85,3 +90,7 @@ def showGeometryLines(entity, parentNode, thickness=3.0, colorVec=Vec4(1,0,0,1))
     lines.drawLines(l3)
     
     lines.create()
+    
+    return lines
+
+
