@@ -202,8 +202,8 @@ class MainScreen(Screen):
         messenger.send(event.GAME_EXIT_REQUEST)
         
     def trackDesPressed(self):
-        self.screenMgr.destroyCurrent()
-        te = TrackEditor()
+        #self.screenMgr.destroyCurrent()
+        self.screenMgr.displayScreen("track-designer")
     
     def optionPressed(self):
         self.screenMgr.displayScreen("options")
@@ -1057,6 +1057,8 @@ class ScreenManager(object):
             self._currentScreen = RaceResultScreen(self)
         elif name == "next-track":
             self._currentScreen = NextTrackScreen(self)
+        elif name == "track-designer":
+            self._currentScreen = TrackEditor(self)
         
         return self._currentScreen
     
