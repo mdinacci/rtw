@@ -18,14 +18,16 @@ cfg.loadFile("../res/conf/high.prc")
 from mdlib.native import SystemManager
 from mdlib.panda import eventCallback
 from mdlib.panda.data import GOM
-from mdlib.panda.input import InputManager
+from mdlib.panda.input import InputManager, SafeDirectObject
+from mdlib.patterns import singleton
 
 from direct.showbase.DirectObject import DirectObject
 import direct.directbase.DirectStart
 from pandac.PandaModules import WindowProperties, VirtualFileSystem, Filename
-from pandac.PandaModules import ClockObject
+from pandac.PandaModules import ClockObject, RigidBodyCombiner, NodePath
 from pandac.PandaModules import BitMask32, AntialiasAttrib, Quat, Vec3, Point3
-from pandac.PandaModules import CollisionHandlerQueue, CollisionTraverser
+from pandac.PandaModules import CollisionHandlerQueue, CollisionTraverser, \
+CollisionHandlerEvent, CollisionNode, CollisionSphere
 
 from direct.interval.MetaInterval import Sequence
 from direct.interval.FunctionInterval import Wait, Func
@@ -42,6 +44,12 @@ import event, entity
 
 import sys, time
 
+
+class CheckpointDelegate(object):
+    latestCp = None
+    startPos = None
+    
+    
 class Game(object):
     
     DUMMY_VALUE = -999
@@ -49,63 +57,39 @@ class Game(object):
     def __init__(self, view):
         self._view = view
         
-        self._subscribeToEvents()
         self._setupInput()
+        self._subscribeToEvents()
+        
+        self._cpDelegate = CheckpointDelegate()
         
         self._camGroundZ = self.DUMMY_VALUE
         self._lastTile = ""
         self._tileType = "neutral"
         self._lastTileType = "neutral"
+        self._currentSegment = None
         
         self._track = None
         self._ball = None
         
         self._controlInverted = False
+        
+        self._gameIsAlive = True
     
-        
-    @eventCallback
-    def endTrack(self):
-        self._ball.slowDown()
-        self._view.hud.timer.stop() 
-        trackTime = self._view.hud.timer.time
-        
-        info = GS.getTrackInfo(GS.selectedTrack)
-        
-        result = TrackResult()
-        result.bestTime = utils.strTimeToTenths(trackTime)
-        result.bid = GS.selectedBall
-        result.tid = info.tid
-        
-        result.trophy = None
-        if result.bestTime <= info.bronze:
-            result.trophy = entity.bronze_cup_params
-        if result.bestTime <= info.silver:
-            result.trophy = entity.silver_cup_params
-        if result.bestTime <= info.gold:
-            result.trophy = entity.gold_cup_params
-            
-        GS.lastTrackResult = result
-        GS.profile.update(result, GS.mode)
-        
     def start(self):
         self._loadTrack(GS.selectedTrack)
         self._loadBall(GS.selectedBall)
         
         self._setupCollisionDetection()
         
-        # HACK necessary to get the track's copy in the scenegraph
-        self._track.reparentTo(self._view.scene._rootNode)
-        
         self._view.scene.addEntity(self._track)
         self._view.scene.addEntity(self._ball)
         self._view.scene.addEntity(self._player)
-        self._view.cam.followTarget(self._ball)
+        self._view.cam.followTarget(self._player)
         self._view.showCursor(False)
         
         self._view.show()
         
         self._view.hud.timer.resetAndStart()
-        
         
     def update(self, task):
         # steer
@@ -196,6 +180,10 @@ class Game(object):
         return task.cont
     
     def collisionStep(self, task):
+        if not self._gameIsAlive:
+            print "no coll step "
+            return task.cont
+        
         dt = globalClock.getDt()
         
         self._camGroundZ = self.DUMMY_VALUE
@@ -209,73 +197,35 @@ class Game(object):
         # TODO must optimise this, no need to check the whole track,
         # but only the current segment
         self._picker.traverse(self._track.nodepath)
+        #self._picker.traverse(self._currentSegment)
+
         if self._collQueue.getNumEntries() > 0:
             self._collQueue.sortEntries()
             
-            firstGroundContact = self.DUMMY_VALUE
-            firstTile = None
             for i in range(self._collQueue.getNumEntries()):
                 entry = self._collQueue.getEntry(i)
                 z = entry.getSurfacePoint(render).getZ()
-                # check camera collision. There can be more than one
-                if entry.getFromNodePath() == self._cameraCollNodeNp:
-                    if z > firstGroundContact:
-                        firstGroundContact = z
-                        firstTile = entry.getIntoNodePath()
+                
                 # check _ball's ray collision with ground
-                elif entry.getFromNodePath() == self._ballCollNodeNp:
+                if entry.getFromNodePath() == self._ballCollNodeNp:
                     np = entry.getIntoNodePath()
-                    rootNode = np.getParent().getParent().getParent()
-                    if rootNode.hasTag("effect"):
-                        self._ball.setSpecialItem(rootNode.getTag("effect"))
-                        rootNode.removeNode()
-                    else:    
-                        # tell the _track which segment the _ball is on
-                        #self._track.setCurrentTile(np)
-                        #
-                        if np.hasTag("type"):
-                            self._tileType = np.getTag("type")
-                            
+                    if np.getName() == "cp":
+                        pass
+                    
                     self._ball.rayGroundZ = z
                     
                     ballIsCollidingWithGround = True
                     if entry != self._lastTile:
                         self._lastTile = entry
                         
-            self._camGroundZ = firstGroundContact
-        
         if ballIsCollidingWithGround == False:
-            if self._ball.isJumping():
-                print "no _ball-ground contact but jumping"
-            else:
-                print "no _ball-ground contact, losing"
-                self._ball.getLost()
-                self._view.gameIsAlive = False
+            if not self._ball.isJumping():
+                print "no ball-ground contact, losing"
                 
-                return task.done # automatically stop the task
-        
-        # check for rays colliding with the _ball
-        self._picker.traverse(self._ball.nodepath)
-        if self._collQueue.getNumEntries() > 0:
-            self._collQueue.sortEntries()
-            if self._collQueue.getNumEntries() == 1:
-                entry = self._collQueue.getEntry(0)
-                if entry.getFromNodePath() == self._cameraCollNodeNp:
-                    self.camBallZ = entry.getSurfacePoint(render).getZ()
-            else:
-                raise AssertionError("must always be 1")
-            
-        #if self._camGroundZ > self.camBallZ:
-                # ground collision happened before _ball collision, this means
-                # that the _ball is descending a slope
-                # Get the row colliding with the cam's ray, get two rows after, 
-                # set all of them transparent
-                # TODO store the rows in a list, as I have to set the transparency
-                # back to 0 after the _ball has passed 
-                #pass
-                #row = firstTile.getParent()
-                #row.setSa(0.8)
-                #row.setTransparency(TransparencyAttrib.MAlpha)
+                self._playBallFallingSequence()
+                
+                return task.cont
+                #return task.done # automatically stop the task
         
         # HACK
         forward = self._view.scene._rootNode.getRelativeVector(
@@ -286,10 +236,9 @@ class Game(object):
         speedVec = forward * dt * self._ball.physics.speed
         self._ball.forward = forward
         self._ball.physics.speedVec = speedVec
-
+        
         self._player.nodepath.setPos(self._player.nodepath.getPos() + speedVec)
-        self._player.nodepath.setZ(self._ball.rayGroundZ + 
-                                  self._ball.jumpZ + \
+        self._player.nodepath.setZ(self._ball.rayGroundZ + self._ball.jumpZ + \
                                   self._ball.physics.radius)
         
         # rotate the _ball
@@ -303,6 +252,69 @@ class Game(object):
         
         return task.cont
     
+    @eventCallback
+    def endTrack(self):
+        self._ball.slowDown()
+        self._view.hud.timer.stop() 
+        trackTime = self._view.hud.timer.time
+        
+        info = GS.getTrackInfo(GS.selectedTrack)
+        
+        result = TrackResult()
+        result.bestTime = utils.strTimeToTenths(trackTime)
+        result.bid = GS.selectedBall
+        result.tid = info.tid
+        
+        result.trophy = None
+        if result.bestTime <= info.bronze:
+            result.trophy = entity.bronze_cup_params
+        if result.bestTime <= info.silver:
+            result.trophy = entity.silver_cup_params
+        if result.bestTime <= info.gold:
+            result.trophy = entity.gold_cup_params
+            
+        GS.lastTrackResult = result
+        GS.profile.update(result, GS.mode)
+        
+    @eventCallback
+    def _onBallIntoCheckpoint(self, entry):
+        logger.info("Checkpoint crossed")
+        
+        cp = entry.getIntoNodePath()
+        self._cpDelegate.latestCp = cp
+        
+    @eventCallback
+    def _onBallIntoSpecialTile(self, tile ,entry):
+        logger.info("Ball on special tile")
+        self._tileType = tile
+        
+    @eventCallback
+    def _onBallIntoSpecialItem(self, item ,entry):
+        logger.info("Ball on special item")
+        self._ball.setSpecialitem(item)
+        # TODO remove also node, get it from entry
+    
+    def _onBallIntoSegment(self, entry):
+        logger.info("Rolling on segment")
+        self._currentSegment.setCollideMask(BitMask32.allOff())
+        self._currentSegment = entry.getIntoNodePath()
+        self._currentSegment.setCollideMask(BitMask32(1))
+    
+    def _playBallFallingSequence(self):
+        # play falling sequence and restart from latest 
+        # checkpoint (or start point)
+        sp = self._cpDelegate.startPos
+        startPos = Point3(sp[0], sp[1], sp[2])
+        if self._cpDelegate.latestCp is not None:
+            startPos = self._cpDelegate.latestCp.getPos()
+                
+        seq = Sequence(Func(self.__setattr__,"_gameIsAlive",False), 
+                       Func(self._ball.getLost, startPos),
+                       Func(self.__setattr__,"_gameIsAlive",True),
+                       Func(self._player.nodepath.setPos, 
+                        self._ball.nodepath.getPos()))
+        seq.start()
+    
     def _loadTrack(self, tid):
         # TODO remove first existing track from scene
         
@@ -315,10 +327,22 @@ class Game(object):
         if self._track is not None:
             self._track.nodepath.removeNode()
         self._track = GOM.getEntity(entity.new_track_params, False)
-        self._track.unfold()
         
         # TODO this should be done in data
-        self._track.nodepath.setCollideMask(BitMask32(1))
+        #self._track.nodepath.getChild(0).getChild(0).setCollideMask(BitMask32(1))
+        
+        self._currentSegment = self._track.nodepath.find("**/=start-point")
+        self._currentSegment.setCollideMask(BitMask32(1))
+        
+        #self._track.nodepath.ls()
+        
+        """
+        rbc = RigidBodyCombiner("rbc")
+        rbcnp = NodePath(rbc)
+        rbcnp.reparentTo(render)
+        self._track.nodepath.reparentTo(rbcnp)
+        rbc.collect()
+        """
 
     def _loadBall(self, ballName):
         # TODO remove first existing ball and player from scene
@@ -330,12 +354,16 @@ class Game(object):
         
         params = entity.ballsMap[ballName]
         self._ball = GOM.getEntity(params, False)
-        self._ball.nodepath.setPos(Point3(params["position"]["x"],
-                                          params["position"]["y"],
-                                          params["position"]["z"]))
-        collSphere = self._ball.nodepath.find("**/ball")
-        collSphere.node().setIntoCollideMask(BitMask32(2))
-        collSphere.node().setFromCollideMask(BitMask32.allOff())
+        
+        # place the ball at the beginning of the track
+        t = self._track.nodepath.find("**/=start-point")
+
+        pos = map(lambda x: float(x), t.getTag("start-point").split(","))
+        # HACK 5 is half segment, unless the segment is a curve :/
+        self._ball.nodepath.setPos(render,pos[0], pos[1]-5, pos[2])
+        
+        self._cpDelegate.startPos = pos
+        
         self._player = GOM.getEntity(entity.player_params)
         self._player.nodepath.setPos(self._ball.nodepath.getPos())
         self._player.nodepath.setQuat(self._track.nodepath,Quat(1,0,0,0))
@@ -363,6 +391,8 @@ class Game(object):
                                    self._setKey, ["jump",True])
         self.inputMgr.bindCallback("p", base.oobe)
         
+        self.inputMgr.bindCallback("escape", GS.state.request, [GameState.PAUSE])
+        
         key = cfg.strValueForKey("options_steer_left") + "-up"
         self.inputMgr.bindCallback(key, self._setKey, ["left",False])
         key = cfg.strValueForKey("options_steer_right") + "-up"
@@ -381,26 +411,30 @@ class Game(object):
                                               0,0,10, # origin
                                               0,0,-1, # direction
                                               BitMask32(1),BitMask32.allOff())
+        # orient it perpendicular to the track
         self._ballCollNodeNp.setQuat(self._track.nodepath, Quat(1,0,0,0))
         self._ballCollNodeNp.show()
         
-        # camera-ball collision setup
-        bmFrom = BitMask32(1); bmFrom.setBit(1)
-        self._cameraCollNodeNp = self._view.cam.attachCollisionRay("camera-ball",
-                                               0,0,0,
-                                               0,1,0,
-                                               bmFrom,BitMask32.allOff())
-        self._cameraCollNodeNp.setQuat(self._view.cam.getQuat() + Quat(.1,0,0,0))
-        self._cameraCollNodeNp.show()
-        
         self._picker = CollisionTraverser()
-        self._picker.setRespectPrevTransform(True)
         self._picker.addCollider(self._ballCollNodeNp, self._collQueue)
-        self._picker.addCollider(self._cameraCollNodeNp, self._collQueue)
+        #self._picker.setRespectPrevTransform(True)
         
+        self._collHandler = CollisionHandlerEvent()
+        self._collHandler.addInPattern(event.BALL_INTO)
+        
+        collNode = self._ball.nodepath.find("**/ball")
+        self._picker.addCollider(collNode, self._collHandler)
+    
     def _subscribeToEvents(self):
-        self._listener = DirectObject()
-        #self._listener.accept(event.END_TRACK, self.endTrack)
+        do = DirectObject()
+        do.accept("ball-into-segment", self._onBallIntoSegment)
+        do.accept(event.BALL_INTO_CHECKPOINT, self._onBallIntoCheckpoint)
+        do.accept(event.BALL_INTO_SLOW, self._onBallIntoSpecialTile, ["slow"])
+        do.accept(event.BALL_INTO_ACCELERATE, self._onBallIntoSpecialTile, 
+                  ["accelerate"])
+        do.accept(event.BALL_INTO_JUMP, self._onBallIntoSpecialTile, ["jump"])
+        
+        self._listener = do
         
 
 class GameApplication(object):
@@ -409,7 +443,10 @@ class GameApplication(object):
     stepSize = 1/60.0
 
     def __init__(self):
+        singleton(self)
         super(GameApplication, self).__init__()
+        
+        GS.setApplication(self)
         
         self._listener = DirectObject()
         
@@ -436,8 +473,6 @@ class GameApplication(object):
         self._screenMgr = ScreenManager()
         self._screenMgr.displayScreen("main")
         
-        self._createGameAndView()
-        
         taskMgr.run()
     
     @eventCallback
@@ -447,46 +482,37 @@ class GameApplication(object):
     @eventCallback
     def startRace(self):
         logger.info("Starting game")
-        
         self._screenMgr.destroyCurrent()
         
         GS.state.request(GameState.PLAY)
-        
-        self._game.start()
-        
-        self._startProcesses()
     
     @eventCallback
     def exitGameRequest(self):    
         self._screenMgr.displayScreen("exit")
     
+    @eventCallback
     def endRace(self):
-        self._stopProcesses()
+        GS.state.request(GameState.NEXT_TRACK)
         
-        delay = Wait(1.0)
-        Sequence(Func(self._game.endTrack), delay, 
-                             Func(self._screenMgr.displayScreen, "next-track"), 
-                             Func(self._view.hud.hide),
-                             Func(self._view.scene.hide), 
-                             Func(self._view.showCursor)).start()
-    
-    def _createGameAndView(self):
-        self._view = GameView()
-        self._view.hide()
-        self._game = Game(self._view)
-   
-    def _startProcesses(self):
+    def startProcesses(self):
         taskMgr.add(self._game.inputMgr.update, "update-input")
         taskMgr.add(self._game.collisionStep, "collision-step")
-        taskMgr.add(self._game.simulationStep, "world-simulation")
         taskMgr.add(self._game.update, "update-objects")
+        # nothing to do for now
+        #taskMgr.add(self._game.simulationStep, "world-simulation")
         
-    def _stopProcesses(self):
+    def stopProcesses(self):
         taskMgr.remove("update-input")
         taskMgr.remove("collision-step")
         taskMgr.remove("world-simulation")
         taskMgr.remove("update-objects")
-        
+    
+    def createGameAndView(self):
+        # TODO first destroy (or reset) previous game and view if they exists
+        self._view = GameView()
+        self._view.hide()
+        self._game = Game(self._view)
+   
     def _quitInDespair(msg, status):
         print msg
         sys.exit(status)
@@ -495,7 +521,10 @@ class GameApplication(object):
         self._listener.accept(event.GAME_EXIT_REQUEST, self.exitGameRequest)
         self._listener.accept(event.GAME_DESTROY, self.shutdown)
         self._listener.accept(event.GAME_START, self.startRace)
+        self._listener.accept(event.RESTART_TRACK, self.startRace)
         self._listener.accept(event.END_TRACK, self.endRace)
+        self._listener.accept(event.UNPAUSE_GAME, GS.state.request, 
+                              [GameState.NEUTRAL])
         self._listener.accept("l", self.__wireframe)
         
     a = 0
@@ -517,13 +546,11 @@ class GameApplication(object):
             w,h = cfg.strValueForKey("options_resolution").split("x")
             self._wp.setSize(int(w),int(h))
     
-    
     def _loadResources(self):
         vfs = VirtualFileSystem.getGlobalPtr()
         return vfs.mount(Filename("../res/scene.mf"),".",
                      VirtualFileSystem.MFReadOnly)
             
-        
     def _checkRequirements(self):
         logger.debug("Checking system requirements")
         sm = SystemManager()
@@ -534,6 +561,9 @@ class GameApplication(object):
         
         return enoughRam and enoughDS 
         
+    game = property(fget = lambda self: self._game)
+    view = property(fget = lambda self: self._view)
+    screen = property(fget = lambda self: self._screenMgr)
 
 
 if __name__ == '__main__':
