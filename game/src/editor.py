@@ -19,8 +19,7 @@ from mdlib.panda import utils
 from pandac.PandaModules import CardMaker, Plane, Point3, Vec3, Vec4, NodePath,\
 PlaneNode, BitMask32, Filename, TextNode, Multifile, RenderModeAttrib, \
 TransparencyAttrib, LightAttrib, DirectionalLight, AmbientLight,\
-VirtualFileSystem, AntialiasAttrib
-
+VirtualFileSystem, AntialiasAttrib, CollisionNode, CollisionSphere
 from grid import ThreeAxisGrid
 from utils import strTimeToTenths
 #from local import *
@@ -28,11 +27,18 @@ from utils import strTimeToTenths
 import os, shutil
 from md5 import md5
 
+from time import time
+
 GROUND_Z = -3
+START_POS = Point3(0, -37.5, -3)
+TRACK_SCALE = 2.5
 
 #font = loader.loadFont("cmss12")
 
-def gridPosForPoint(point, offset=2.5):
+def randomString():
+    return "%s" % time()
+
+def gridPosForPoint(point, offset=1.25):
     x = point.getX()
     y = point.getY()
     
@@ -58,6 +64,7 @@ class Segment:
     DIAGONAL = "diagonal.egg"
     CHECKPOINT = "cp.egg"
 
+
 class Item:
     ACCELERATE = "accelerate.egg"
     DECELERATE = "decelerate.egg"
@@ -70,10 +77,13 @@ class Item:
 
 
 class SegmentEditor(object):
+    
+    """ Edit a single segment by deleting tiles, adding bonuses etc... """
+    
     def __init__(self, backCallback):
         self._backCallback = backCallback
-        
-        self._mouseNode = render.attachNewNode("mouseNode")
+        self._rootNode = render.attachNewNode("root-node")
+        self._mouseNode = self._rootNode.attachNewNode("mouseNode")
        
         self._hasSelection = False # are we dragging an item ?
         self._segment = None
@@ -91,10 +101,14 @@ class SegmentEditor(object):
         self._segment.setPos(self._segmentPrevPos)
         self._segment.setHpr(self._segmentPrevHpr)
         self._segment.setScale(1)
+        
+        return self._segment
            
     def destroy(self):
         self._frame.destroy()
         self._stopTasks()
+        self._rootNode.removeNode()
+        self.pickerNP.removeNode()
     
     def hide(self):
         self._frame.hide()
@@ -113,6 +127,8 @@ class SegmentEditor(object):
         self._faceCameraPosition(segment)
         
         self._segment = segment
+        self._segmentCopy = self._segment.copyTo(NodePath("segment"))
+        self._segmentCopy.hide()
         self._frame.show()
     
     def _faceCameraPosition(self, obj, distance=41):
@@ -306,8 +322,13 @@ class SegmentEditor(object):
         self._hasSelection = True
     
     def _resetPressed(self):
-        logger.debug("Resetting tile")
-        pass
+        logger.debug("Resetting segment")
+        
+        parent = self._segment.getParent()
+        self._segment.removeNode()
+        self._segment = self._segmentCopy
+        self._segment.reparentTo(parent)
+        self._segment.show()
         
     def _deleteTile(self):
         if self._tile is not None:
@@ -330,6 +351,9 @@ class SegmentEditor(object):
 
     
 class ExportFrame(object):
+    
+    """ Export widget """
+    
     def __init__(self, exportCB, cancelCB):
         self._exportCallback = exportCB
         self._cancelCallback = cancelCB
@@ -352,6 +376,9 @@ class ExportFrame(object):
     
     def getTrackName(self):
         return self._nameEntry.get()
+    
+    def getMaximumTime(self):
+        return self._getTime(self._times[3])
     
     def getGoldTime(self):
         return self._getTime(self._times[0])
@@ -387,6 +414,9 @@ class ExportFrame(object):
         bronzeLabel = DirectLabel(text="Bronze: ", scale=.05, pos=(-.45,0, -0.1),
                                       relief=None, text_align=TextNode.ALeft)
         
+        limitLabel = DirectLabel(text="Limit: ", scale=.05, pos=(-.45,0, -0.25),
+                                      relief=None, text_align=TextNode.ALeft)
+        
         nameEntry = DirectEntry(text="", initialText="",
                              pos = (-.25, 0 , .35), cursorKeys=1, numLines = 1,
                              width=12,scale=.05, rolloverSound=None, 
@@ -394,7 +424,7 @@ class ExportFrame(object):
         
         zOffset = 0.2
         self._times = []
-        for i in range(3):
+        for i in range(4):
             
             aLabelMin = DirectLabel(text="Minutes: ",scale=.05, 
                                     pos=(-.25, 0, 0+zOffset),
@@ -429,12 +459,12 @@ class ExportFrame(object):
                      maps.find('**/test'),maps.find('**/test'),
                      maps.find('**/test')),scale=.07,borderWidth=(0,0),
                      command=self._exportCallback, relief=None, text="Export",
-                     rolloverSound=None, clickSound=None,pos = (0.3,0,-.30))
+                     rolloverSound=None, clickSound=None,pos = (0.3,0,-.40))
     
         cancelButton = DirectButton(geom = (maps.find('**/test'),
                      maps.find('**/test'),maps.find('**/test'),
                      maps.find('**/test')),scale=.07,borderWidth=(0,0),
-                     command=self._cancelCallback, relief=None, pos = (0.5,0,-.30),
+                     command=self._cancelCallback, relief=None, pos = (0.5,0,-.40),
                      rolloverSound=None, clickSound=None,text="Cancel")
         
         nameEntry.reparentTo(frame)
@@ -444,6 +474,7 @@ class ExportFrame(object):
         goldLabel.reparentTo(frame)
         silverLabel.reparentTo(frame)
         bronzeLabel.reparentTo(frame)
+        limitLabel.reparentTo(frame)
         okButton.reparentTo(frame)
         cancelButton.reparentTo(frame)
         
@@ -452,21 +483,20 @@ class ExportFrame(object):
         
 
 class TrackEditor(object):
-    def __init__(self):
+    
+    """ Create the track """
+    
+    name = "track-designer"
+    
+    def __init__(self, screenMgr):
+        self._screenMgr = screenMgr
+        
         vfs = VirtualFileSystem.getGlobalPtr()
         vfs.mount("../res/editor/track-editor.bin", ".", VirtualFileSystem.MFReadOnly)
         
         self._trackExporter = ExportFrame(self._exportTrack, self._cancelExport)
         self._segmentEditor = SegmentEditor(self._editSegmentFinished)
         
-        self._setupInput()
-        
-        self._setupCamera()
-        self._setupLights()
-        self._setupGUI()
-        self._setupGround()
-        self._setupCollision()
-       
         self._lastPosition = Point3(0,0,0)
         
         # segment dragged by selecting with left button and moving the mouse
@@ -475,31 +505,54 @@ class TrackEditor(object):
         # the segment hovered by the mouse cursor
         self._hoveredSegment = None
         
+        # current exported segment
+        self._exportedSegment = None
+        
         self._hasSelection = False
         self._isHovering = False
         self._hasRightSelectedSegment = False
         
+        self._rootNode = render.attachNewNode("rootNode")
         # invisible node that follows the mouse. The current segment is attached
         # to this node
-        self._mouseNode = render.attachNewNode("mouseNode")
+        self._mouseNode = self._rootNode.attachNewNode("mouseNode")
         self._mouseNode.setScale(0.5)
         self._mouseNode.setPos(0,0,0)
-       
-        self._trackNode = render.attachNewNode("trackNode")
+        
+        self._trackNode = self._rootNode.attachNewNode("trackNode")
         self._trackNode.setScale(0.5)
         self._trackNode.setPos(0,0,0)
+        self._trackNode.setAntialias(AntialiasAttrib.MLine)
         
+        self._cpsNode = self._rootNode.attachNewNode("checkpoints")
+        self._cpsNode.setScale(0.5)
+        self._cpsNode.setPos(0,0,0)
+        self._cpsNode.setAntialias(AntialiasAttrib.MLine)
+        #bonus = NodePath("bonus")
+        #special = NodePath("special")
+        #other = NodePath("track")
+        
+        self._setupInput()
+        self._setupCamera()
+        self._setupLights()
+        self._setupGUI()
+        self._setupGround()
+        self._setupCollision()
         self._setupTasks()
     
     def _editSegment(self):
-        self._hoveredSegment.setColor(1,1,1)
-        self._stopTasks()
-        self._gui.hide()
-        self._segmentEditor.edit(self._hoveredSegment)
+        if not self._isStartingSegment(self._hoveredSegment):
+            self._hoveredSegment.setColor(1,1,1)
+            self._stopTasks()
+            self._gui.hide()
+            self._segmentEditor.edit(self._hoveredSegment)
     
     def _editSegmentFinished(self):
         self._segmentEditor.hide()
-        self._segmentEditor.restoreSegment()
+        segment = self._segmentEditor.restoreSegment()
+        # necessary because if the segment has been reset in the segment editor,
+        # hoveredSegment holds a reference to a zombie node 
+        self._hoveredSegment = segment
         self._gui.show()
         self._setupTasks()
      
@@ -534,7 +587,7 @@ class TrackEditor(object):
                 nearVec = render.getRelativeVector(camera, 
                                                self.pickerRay.getDirection())
                 
-                pos = gridPosForPoint(utils.pointAtZ(GROUND_Z+.01, nearPoint, nearVec))
+                pos = gridPosForPoint(utils.pointAtZ(GROUND_Z, nearPoint, nearVec))
                 self._mouseNode.setPos(pos)
                     
             self.picker.traverse(self._trackNode)
@@ -564,30 +617,67 @@ class TrackEditor(object):
         self._inputMgr.bindCallback("shift-mouse1", self._onShiftMouseClick)
         self._inputMgr.bindCallback("mouse1", self._onMouseClick)
         self._inputMgr.bindCallback("mouse3", self._onRMouseClick)
-        self._inputMgr.bindCallback("mouse1-up", self._onMouseUp)
-        self._inputMgr.bindCallback("mouse1-release", self._onMouseRelease)
         self._inputMgr.bindCallback("delete", self._deleteSegment)
         
         self._inputMgr.bindCallback("e", self._editSegment)
         self._inputMgr.bindCallback("p", base.oobe)
+        self._inputMgr.bindCallback("o", self._showCollisions)
         
+        self._showingCollNodes = False
+    
+    def _showCollisions(self):
+        if self._showingCollNodes:
+            self._rootNode.find("**/copy").removeNode()
+        else:
+            t = self._trackNode.copyTo(NodePath("copy"))
+            copy = self._rootNode.attachNewNode("copy")
+            t.reparentTo(copy)
+            
+            segs = t.findAllMatches("**/segment*")
+            for seg in segs:
+                fromMask = BitMask32.allOff()
+                intoMask = BitMask32.allOff()
+                
+                center = seg.getBounds().getCenter()
+                p = seg.getPos(render)# + (seg.getBounds().getCenter()*.5)
+                np = seg.attachCollisionSphere("cs", p.getX(), p.getY(),p.getZ(),
+                                               seg.getBounds().getRadius()/2.0,
+                                               fromMask, intoMask)
+                np.show()
+                np.showBounds()
+                np.reparentTo(copy)
+                
+        self._showingCollNodes = not self._showingCollNodes
+    
     def _setupGround(self):
         # All the "magic" numbers are there to prevent z-fighting
         cm = CardMaker("cm")
         cm.setFrame(-100, 100, -100, 100)
-        self._ground = render.attachNewNode(cm.generate())
+        self._ground = self._rootNode.attachNewNode(cm.generate())
         self._ground.setPosHpr(0, 0, GROUND_Z-1.1, 0, -90.1, 0) 
         self._ground.setColor(0.4,0.6,0.8)
         grid = ThreeAxisGrid(zsize=0, gridstep=5, subdiv=2)
         gridNp = grid.create()
-        gridNp.reparentTo(render)
-        gridNp.setPos(2.5,0,GROUND_Z -.01)
+        gridNp.reparentTo(self._rootNode)
+        gridNp.setPosHpr(2.5,0,GROUND_Z -.02,0, 0.1, 0)
         gridNp.setAntialias(AntialiasAttrib.MLine)
         
         gridNp.setP(gridNp.getP()+.1)
         gridNp.flattenStrong()
        
         self._grid = gridNp
+        
+        # load the initial segment
+        segment = loader.loadModel(Segment.STRAIGHT)
+        segment.reparentTo(self._trackNode)
+        segment.setPos(self._rootNode,START_POS)
+        tiles = segment.findAllMatches("**/tile*")
+        for tile in tiles:
+            tile.node().setIntoCollideMask(BitMask32.bit(2))
+            
+        pos = "%d,%d,%d" % (segment.getX(), segment.getY(), segment.getZ())
+        segment.setTag("start-point", pos)
+        segment.setTag("id", randomString())
        
     def _setupCollision(self):
         self.picker = CollisionTraverser()
@@ -604,29 +694,27 @@ class TrackEditor(object):
         self.pickerNode.addSolid(self.pickerRay)      #Add it to the collision node
         
         self.picker.addCollider(self.pickerNP, self.pq)
-        #self.picker.showCollisions(render)
         
     def _setupCamera(self):
         base.disableMouse()
         camera.setPosHpr(0, -70, 80, 0, -60, 0)
 
     def _setupLights(self):
-        lAttrib = LightAttrib.makeAllOff()
         ambientLight = AmbientLight( "ambientLight" )
-        ambientLight.setColor( Vec4(.7, .7, .7, 1) )
-        lAttrib = lAttrib.addLight( ambientLight )
+        ambientLight.setColor( Vec4(.4, .4, .4, 1) )
         directionalLight = DirectionalLight( "directionalLight" )
-        directionalLight.setDirection( Vec3( 0, 8, -2.5 ) )
-        directionalLight.setColor( Vec4( 0.9, 0.8, 0.9, 1 ) )
-        lAttrib = lAttrib.addLight( directionalLight )
-        render.attachNewNode( directionalLight.upcastToPandaNode() )
-        render.attachNewNode( ambientLight.upcastToPandaNode() )
-        render.node().setAttrib( lAttrib )
+        directionalLight.setDirection( Vec3( 0, 0, GROUND_Z ) )
+        directionalLight.setColor( Vec4( 0.9, 0.9, 0.9, 1 ) )
+        dnp = self._rootNode.attachNewNode(directionalLight)
+        anp = self._rootNode.attachNewNode(ambientLight)
+        
+        self._trackNode.setLight(dnp)
+        self._trackNode.setLight(anp)
     
     def _setupGUI(self):
         font = loader.loadFont("cmss12")
         
-        self._gui = DirectFrame()
+        self._gui = DirectFrame(text_font=font)
         
         bottomFrame = DirectFrame(frameColor=(0.6,0,0,0.5), borderWidth=(1,1))
         
@@ -672,20 +760,41 @@ class TrackEditor(object):
         
         checkpointButton.reparentTo(bottomFrame)
         
+        backButton = DirectButton(geom = (maps.find('**/test'),
+                     maps.find('**/test'),maps.find('**/test'),
+                     maps.find('**/test')),scale=.1,borderWidth=(0,0),
+                     command=self._backPressed, relief=None, 
+                     pos = (1,0,-0.9), text_scale=0.7,
+                     rolloverSound=None, clickSound=None, text_font=font,
+                     text="Back")
+        
         exportButton = DirectButton(geom = (maps.find('**/test'),
                      maps.find('**/test'),maps.find('**/test'),
                      maps.find('**/test')),scale=.1,borderWidth=(0,0),
                      command=self._exportPressed, relief=None, 
-                     pos = (0.9,0,0.9), text_scale=0.7,
+                     pos = (0.85,0,0.9), text_scale=0.7,
                      rolloverSound=None, clickSound=None, text_font=font,
                      text="Export")
         
+        previewButton = DirectButton(geom = (maps.find('**/test'),
+                     maps.find('**/test'),maps.find('**/test'),
+                     maps.find('**/test')),scale=.1,borderWidth=(0,0),
+                     command=self._exportPressed, relief=None, 
+                     pos = (1.1,0,0.9), text_scale=0.7,
+                     rolloverSound=None, clickSound=None, text_font=font,
+                     text="Preview")
+        
+        backButton.reparentTo(self._gui)
         exportButton.reparentTo(self._gui)
+        previewButton.reparentTo(self._gui)
         bottomFrame.reparentTo(self._gui)
     
     def _stopTasks(self):
         for task in self._tasks:
             taskMgr.remove(task)
+    
+    def _backPressed(self):
+        self._screenMgr.displayPreviousScreen()
     
     def _exportPressed(self):
         self._stopTasks()
@@ -698,9 +807,9 @@ class TrackEditor(object):
         logger.debug("Creating a new %s" % segmentType)
         self._segmentDragged = loader.loadModel(segmentType)
         self._segmentDragged.reparentTo(self._mouseNode)
+        #self._segmentDragged.setTexture(loader.loadTexture("../res/editor/neutral.jpg"))
         self._segmentDragged.showTightBounds()
         
-        # Hide the tiles.
         tiles = self._segmentDragged.findAllMatches("**/tile*")
         for tile in tiles:
             tile.node().setIntoCollideMask(BitMask32.bit(2))
@@ -710,14 +819,107 @@ class TrackEditor(object):
     def _cancelExport(self):
         self._trackExporter.hide()
         self._setupTasks()
-      
+    
+    def _reorderTrack(self, current, oldParent, parent):
+        def clear(node):
+            node.clearPythonTag("seg")
+            
+        self._currentID = current.getNetTag("id")
+        
+        current.setName("segment-%d" % parent.getNumChildren())
+        current.getParent().copyTo(parent)
+                
+        collTrav = CollisionTraverser()
+        queue = CollisionHandlerQueue()
+        
+        # just in case the track is exported multiple times
+        spheres = self._rootNode.find("**/spheres")
+        if not spheres.isEmpty():
+            spheres.removeChildren()
+            
+        spheres = self._rootNode.attachNewNode("spheres")
+        
+        segs = oldParent.findAllMatches("**/segment*")
+        for seg in segs:
+            fromMask = BitMask32.allOff()
+            intoMask = BitMask32(1)
+            
+            # check if seg is equal to current, in that case set the coll node  
+            # as the "from" object.
+            if seg.getNetTag("id") == current.getNetTag("id"):
+                logger.debug("Setting collision masks for current segment %s" % seg.getNetTag("id"))
+                fromMask = intoMask
+                intoMask = BitMask32.allOff()
+            
+            center = seg.getBounds().getCenter()
+            p = seg.getPos(render)# + (seg.getBounds().getCenter()*.5)
+            np = seg.attachCollisionSphere("cs", p.getX(), p.getY(),p.getZ(),
+                                           seg.getBounds().getRadius()/2.0,
+                                           fromMask, intoMask)
+            np.setPythonTag("seg", seg)
+            np.reparentTo(spheres)
+            collTrav.addCollider(np, queue)
+        
+        nextSegment = None
+        
+        collTrav.traverse(spheres)
+        entries = queue.getNumEntries()
+        into = None
+        if entries > 0:
+            if entries > 2: 
+                # TODO alert user
+                logger.error("Two collisions with new segments detected")
+                import sys
+                sys.exit(1)
+            
+            logger.debug("%d collisions " % entries)
+            
+            for i in range(entries):
+                entry = queue.getEntry(i)
+                into = entry.getIntoNodePath()
+                
+                nextSegment = into.getPythonTag("seg")
+                logger.debug("Collision with new segment %s " % nextSegment)
+                    
+            current.getParent().removeNode()
+        
+        if nextSegment is not None:
+            self._reorderTrack(nextSegment, oldParent, parent)
+        else:
+            if entries > 0:
+                clear(into)
+        
+    
     def _exportTrack(self):
+        exportNode = NodePath("track")
+
         # I need to work on a copy otherwise after flattening the track
         # it becomes impossible to edit the tiles.
-        track = self._trackNode.copyTo(NodePath("track"))
-        track.setPos(0,0,0)
+        cps = self._cpsNode.copyTo(NodePath("checkpoints"))
+        trackCopy = self._trackNode.copyTo(NodePath("track"))
+        
+        # reorder segments
+        track = NodePath("track")
+        self._reorderTrack(trackCopy.find("**/=start-point").find("**/segment"), 
+                           trackCopy, track)
+        
+        track.setScale(TRACK_SCALE)
+        track.reparentTo(exportNode)
+        
+        cps.setScale(TRACK_SCALE)
+        cps.reparentTo(exportNode)
+        
+        exportNode.setPos(self._rootNode, 0,0,0)
+        exportNode.setColorOff()
+        
+        lastSegment = track.getChild(track.getNumChildren()-1)
+        pos = "%d,%d,%d" % (lastSegment.getX(), lastSegment.getY(), 
+                            lastSegment.getZ())
+        lastSegment.setTag("end-point", pos)
+        
         track.flattenStrong()
-        track.writeBamFile("/tmp/track.bam")
+        exportNode.writeBamFile("/tmp/track.bam")
+        exportNode.ls()
         
         # export prc file
         f = open("/tmp/track.prc", "w")
@@ -745,18 +947,23 @@ class TrackEditor(object):
         # restore tasks
         self._setupTasks()
         
+    def _isStartingSegment(self, segment):
+        return segment.hasTag("start-point")
+    
     def _deleteSegment(self):
         if self._isHovering:
-            logger.debug("Deleting segment")    
-            self._isHovering = False
-            self._hoveredSegment.removeNode()
-            self._hoveredSegment = None
+            if not self._isStartingSegment(self._hoveredSegment):
+                logger.debug("Deleting segment")    
+                self._isHovering = False
+                self._hoveredSegment.removeNode()
+                self._hoveredSegment = None
     
     def _onShiftMouseClick(self):
         if self._isHovering:
-            logger.debug("Duplicating segment")    
-            self._hoveredSegment = self._hoveredSegment.copyTo(self._trackNode)
-            self._onMouseClick()
+            if not self._isStartingSegment(self._hoveredSegment):
+                logger.debug("Duplicating segment")    
+                self._hoveredSegment = self._hoveredSegment.copyTo(self._trackNode)
+                self._onMouseClick()
     
     def _onRMouseClick(self):
         if self._isHovering:
@@ -765,14 +972,21 @@ class TrackEditor(object):
         
     def _onMouseClick(self):
         if self._hasSelection:
-            logger.debug("Placing segment")    
-            # put segment down
-            pos = self._segmentDragged.getPos(render)
-            self._segmentDragged.reparentTo(self._trackNode)
-            self._segmentDragged.setPos(render, pos)
-            self._segmentDragged.hideBounds()
-            self._hoveredSegment = self._segmentDragged
-            self._hasSelection = False
+            logger.debug("Placing segment")
+            
+            if not self._isHovering:
+                # put segment down
+                pos = self._segmentDragged.getPos(self._rootNode)
+                if self._segmentDragged.getName().startswith("cp"):
+                    self._segmentDragged.reparentTo(self._cpsNode)
+                else:
+                    self._segmentDragged.reparentTo(self._trackNode)
+                self._segmentDragged.setPos(self._rootNode, pos)
+                self._segmentDragged.hideBounds()
+                self._hoveredSegment = self._segmentDragged
+                self._hasSelection = False
+                
+                self._segmentDragged.setTag("id", randomString())
         else:
             # try to select a segment
             if self._isHovering:
@@ -787,21 +1001,17 @@ class TrackEditor(object):
                 self._isHovering = False
                 self._hasSelection = True
             
-    def _onMouseUp(self):
-        pass
-    
-    def _onMouseRelease(self):
-        pass
-        
     def destroy(self):
         self._stopTasks()
-            
-        self._trackNode.removeNode()
-        self._mouseNode.removeNode()
-        self._grid.removeNode()
+        
+        self._rootNode.clearLight()
+        self._rootNode.removeNode()
+        self.pickerNP.removeNode()
         
         self._trackExporter.destroy()
         self._segmentEditor.destroy()
+        
+        self._gui.destroy()
 
 if __name__ == '__main__':
     import direct.directbase.DirectStart
