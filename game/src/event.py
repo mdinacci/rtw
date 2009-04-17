@@ -24,3 +24,10 @@ UNPAUSE_GAME="unpause-game"
 BALL_SELECTED="ball-selected"
 TRACK_SELECTED="track-selected"
 GAME_MODE_SELECT="game-mode-select"
+
+# collision events
+BALL_INTO = "ball-into-%in"
+BALL_INTO_CHECKPOINT="ball-into-cp"
+BALL_INTO_SLOW="ball-into-slow"
+BALL_INTO_ACCELERATE="ball-into-accelerate"
+BALL_INTO_JUMP="ball-into-jump"

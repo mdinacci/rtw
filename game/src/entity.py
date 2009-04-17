@@ -110,7 +110,8 @@ class Track(GameEntity):
         self.currentSegmentNum = 0
 
     def reparentTo(self, node):
-        self.trackCopy.reparentTo(node)
+        self.nodepath.reparentTo(node)
+        #self.trackCopy.reparentTo(node)
     
     def unfold(self):
         def sortBySegmentNumber(x,y):
@@ -156,20 +157,6 @@ class Track(GameEntity):
         # hide the tiles but not the other items
         self.render.nodepath.find("**/tiles").hide()
         
-    
-    # this will be used for checkpoints
-    def setCurrentTile(self, tile):
-        segment = tile.getParent().getParent()
-        name = segment.getName()
-        if "@" not in name:
-            print "name before: ", name
-            name = segment.getParent().getName()
-            print "name after: ", name
-        self.currentSegmentNum = int(name[name.index("@")+1:])
-        
-        if segment.getTag("endpoint") == "1":
-            messenger.send(event.END_TRACK)
-    
     def serialise(self):
         attrs = super(Track, self).serialise()
         del attrs._tiles
@@ -288,7 +275,7 @@ class Ball(GameEntity):
         if self.isJumping() is False:
             self.jumpingSequence.start()
     
-    def getLost(self):
+    def getLost(self, startPos):
         # for some reasons the interval doesn't set the value to zero but
         # to something close
         targetPos = self.nodepath.getPos() + self.physics.speedVec * \
@@ -298,6 +285,7 @@ class Ball(GameEntity):
                                    pos=targetPos,
                                    blendType = 'easeIn')
         fallDown.start()
+        self.nodepath.setPos(startPos)
        # TODO send event
     
     def accelerate(self):
@@ -316,6 +304,18 @@ class Ball(GameEntity):
             self.physics.speed -= .5
             
 
+class Checkpoint(GameEntity):
+    # it can happen that the ball collides with the same checkpoint multiple 
+    # times if it's rolling slowly, as I need only the first hit I discard the
+    # others by checking if the collision time is greater than the threshold. 
+    _threshold = 0.3 # a third of a second
+    
+    def traverse(self):
+        t = globalClock.getRealTime()
+        if self._previousTime == 0 or (t - self._threshold) > self._previousTime:
+            self._previousTime = t
+        
+        
 class Trophy(GameEntity):
     
     def spin(self): 
@@ -373,6 +373,18 @@ property_schema = {
                      "tags": {}
                      }
                 }
+
+checkpoint_params = {
+                   "prettyName": "Checkpoint",
+                   "python":
+                    {
+                        "clazz" : Checkpoint
+                     },
+                     "render": 
+                    {
+                     "entityType": EntityType.NONE,
+                     }
+                 }       
 
 player_params = {
                    "prettyName": "Player",
@@ -512,9 +524,9 @@ shark_ball_params = {
                      },
                    "position":
                     {
-                     "x": 6,
-                     "y": 0,
-                     "z": 0,
+                     "x": 2,
+                     "y": -53,
+                     "z": -3.5,
                      "rotation": (1,0,0,0)
                      },
                      "render": 

@@ -228,8 +228,8 @@ class InputManager(SafeDirectObject):
         for k in keys:
             # key is of the type <special>-key
             if "-" in k:
-                first, second = k.split("-")
-                if first in ("space", "meta", "alt", "ctrl", "win"):
+                prefix = k.split("-")
+                if prefix in ("space", "meta", "alt", "ctrl", "win"):
                     k = k[k.index("-")+1:]
         
         # Turn off button down

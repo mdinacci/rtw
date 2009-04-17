@@ -39,10 +39,10 @@ texture-path  $THIS_PRC_DIR/fonts
 track-def-path $THIS_PRC_DIR/tracks/tracks.bin
 
 # DEBUG
-want-directtools  f
-want-tk           f
-want-pstats            f
-show-frame-rate-meter  t
+want-directtools  #t
+want-tk           #t
+want-pstats            #f
+show-frame-rate-meter  #t
 # trigger a core dump on first assertion
 assert-abort 1
 cap-framerate 0
@@ -54,9 +54,9 @@ audio-cache-limit 15
 audio-play-mp3 f
 
 # CACHE, available only in 1.6
-model-cache-dir $THIS_PRC_DIR/cache
-model-cache-textures #t
-model-cache-compressed-textures 1
+#model-cache-dir $THIS_PRC_DIR/cache
+#model-cache-textures #t
+#model-cache-compressed-textures 1
 
 # LANGUAGE
 lang fr_FR
