@@ -41,7 +41,10 @@ class GameSession(object):
         self._listener.accept(event.GAME_MODE_SELECT, self.setGameMode)
         self._listener.accept(event.TRACK_SELECTED, self._setSelectedTrack)
         self._listener.accept(event.BALL_SELECTED, self._setSelectedBall)
-        
+    
+    def setApplication(self, app):
+        self.app = app
+       
     def hasValidProfile(self):    
         return self._profile is not None
     
@@ -136,6 +139,8 @@ class GameState(FSM.FSM):
     INITIALISE = "Initialise"
     PLAY =  "Play"
     PAUSE = "Pause"
+    NEXT_TRACK = "NextTrack"
+    NEUTRAL = "Neutral"
     
     def __init__(self):
         FSM.FSM.__init__(self, "game-state")
@@ -169,15 +174,54 @@ class GameState(FSM.FSM):
         # TODO load custom track definitions
     
     def exitInitialise(self):
-        # invalidate cache
-        pass
+        logger.debug("Exiting Initialise state")
+        # TODO invalidate cache
     
     def enterPlay(self):
-        pass
+        logger.debug("Entering Play state")
+        GS.app.createGameAndView()
+        GS.app.game.start()
+        GS.app.startProcesses()
     
     def exitPlay(self):
+        logger.debug("Exiting Play state")
+        GS.app.stopProcesses()
+        GS.app.game.endTrack()
         # preload next track if champ mode
-        pass
-
+    
+    def enterNextTrack(self):
+        logger.debug("Entering Next Track state")
+        
+        app = GS.app
+        
+        delay = Wait(1.0)
+        Sequence(delay, Func(app.screen.displayScreen, "next-track"), 
+                     Func(app.view.hud.hide),
+                     Func(app.view.scene.hide), 
+                     Func(app.view.showCursor)).start()
+    
+    def exitNextTrack(self):
+        logger.debug("Exiting Next Track state")
+        
+    def enterPause(self):
+        logger.debug("Entering Pause state")
+        
+        GS.app.stopProcesses()
+        GS.app.view.showCursor()
+        GS.app.screen.displayScreen("pause")
+    
+    def exitPause(self):
+        logger.debug("Exiting Pause state")
+        
+        GS.app.screen.destroyCurrent()
+        GS.app.startProcesses()
+        GS.app.view.showCursor(False)
+        
+    def enterNeutral(self):
+        logger.debug("Entering Neutral state")
+        
+    def exitNeutral(self):
+        logger.debug("Exiting Neutral state")
+    
 
 GS = GameSession()
