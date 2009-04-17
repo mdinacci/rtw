@@ -30,7 +30,7 @@ class GameScene(object):
         self._setupLightsAndFog()
     
     def show(self):
-        if 1:
+        if 0:
             tempnode = NodePath(PandaNode("temp node"))
             tempnode.setAttrib(LightRampAttrib.makeSingleThreshold(0.5, 0.4))
             tempnode.setShaderAuto()
@@ -49,6 +49,11 @@ class GameScene(object):
             alight = render.attachNewNode(alightnode)
             render.setLight(alight)
             render.setLight(plight)
+            
+        alightnode = AmbientLight("ambient light")
+        alightnode.setColor(Vec4(0.8,0.8,0.8,1))
+        alight = render.attachNewNode(alightnode)
+        render.setLight(alight)
         self._rootNode.show()
         self._rootNode.setShaderAuto()
         
@@ -77,6 +82,7 @@ class GameScene(object):
         expfog.setExpDensity(0.001)
         self._rootNode.setFog(expfog)
         """
+    root = property(fget=lambda self: self._rootNode)
         
 
 class GameView(object):
@@ -108,7 +114,7 @@ class GameView(object):
 
 class Camera(object):
     ZOOM = 30
-    TARGET_DISTANCE = 18
+    TARGET_DISTANCE = 13
     
     def __init__(self):
         base.disableMouse()
@@ -120,7 +126,9 @@ class Camera(object):
     
     def followTarget(self, target):
         self.target = target
-        self.update()
+        base.camera.reparentTo(target.nodepath)
+        base.camera.setPos(0, -18, 10)
+        base.camera.lookAt(target.nodepath, Point3(0,10,0))
     
     def attachCollisionRay(self, *args):
         return base.camera.attachCollisionRay(*args)
@@ -132,15 +140,7 @@ class Camera(object):
         return base.camera.getPos()
     
     def update(self):
-        base.camera.setPos(self.target.nodepath.getPos() - \
-                           self.target.forward * self.TARGET_DISTANCE)
-
-        z = self.target.jumpZ
-        base.camera.setZ(self.target.nodepath.getZ() -z + 5)
-        pos = self.target.nodepath.getPos()
-        pos.setZ(pos.getZ() -z)
-        base.camera.lookAt(pos)
-        base.camera.setZ(self.target.nodepath.getZ() -z + 8)    
+        pass
 
 
 class HUD(object):
