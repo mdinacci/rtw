@@ -11,12 +11,13 @@ logger = ConsoleLogger("state", DEBUG)
 
 from direct.showbase.DirectObject import DirectObject
 from direct.fsm import FSM
+from direct.interval.IntervalGlobal import Sequence
+from direct.interval.FunctionInterval import Wait, Func
 
 from pandac.PandaModules import VirtualFileSystem, Filename
 
 from mdlib.panda import config as cfg
 from mdlib.panda.data import GOM
-
 import event, entity
 import pprofile as profile
 from pprofile import gv, kv
@@ -109,7 +110,7 @@ class GameSession(object):
                 key = kv(line)
                 val = gv(line)
                 # very hackish..
-                if key in ("gold", "silver", "bronze"):
+                if key in TrackInfo.ATTRIBUTES:
                     val = int(val)
                 setattr(trackInfo, key, val)
         
@@ -141,6 +142,7 @@ class GameState(FSM.FSM):
     PAUSE = "Pause"
     NEXT_TRACK = "NextTrack"
     NEUTRAL = "Neutral"
+    RESTART = "Restart"
     
     def __init__(self):
         FSM.FSM.__init__(self, "game-state")
@@ -174,23 +176,42 @@ class GameState(FSM.FSM):
         # TODO load custom track definitions
     
     def exitInitialise(self):
-        logger.debug("Exiting Initialise state")
+        logger.info("Exiting Initialise state")
         # TODO invalidate cache
     
     def enterPlay(self):
-        logger.debug("Entering Play state")
+        logger.info("Entering Play state")
         GS.app.createGameAndView()
         GS.app.game.start()
         GS.app.startProcesses()
+        GS.app.view.showCursor(False)
     
     def exitPlay(self):
-        logger.debug("Exiting Play state")
+        logger.info("Exiting Play state")
+        
         GS.app.stopProcesses()
-        GS.app.game.endTrack()
-        # preload next track if champ mode
+        
+        if self.newState == GameState.NEXT_TRACK:
+            self._endTrack()
+            
+        # TODO preload next track if champ mode
+    
+    def enterRestart(self):
+        logger.info("Entering Restart state")
+        GS.app.game.restart()
+        GS.app.startProcesses()
+        GS.app.view.showCursor(False)
+        
+    def exitRestart(self):
+        logger.info("Exiting Restart state")
+        
+        GS.app.stopProcesses()
+        
+        if self.newState == GameState.NEXT_TRACK:
+            self._endTrack()
     
     def enterNextTrack(self):
-        logger.debug("Entering Next Track state")
+        logger.info("Entering Next Track state")
         
         app = GS.app
         
@@ -201,27 +222,35 @@ class GameState(FSM.FSM):
                      Func(app.view.showCursor)).start()
     
     def exitNextTrack(self):
-        logger.debug("Exiting Next Track state")
+        logger.info("Exiting Next Track state")
         
     def enterPause(self):
-        logger.debug("Entering Pause state")
+        logger.info("Entering Pause state")
         
-        GS.app.stopProcesses()
+        GS.app.view.timer.togglePause()
         GS.app.view.showCursor()
         GS.app.screen.displayScreen("pause")
     
     def exitPause(self):
-        logger.debug("Exiting Pause state")
+        logger.info("Exiting Pause state")
         
         GS.app.screen.destroyCurrent()
-        GS.app.startProcesses()
         GS.app.view.showCursor(False)
         
+        GS.app.view.timer.togglePause()
+        
     def enterNeutral(self):
-        logger.debug("Entering Neutral state")
+        logger.info("Entering Neutral state")
+        GS.app.startProcesses()
         
     def exitNeutral(self):
-        logger.debug("Exiting Neutral state")
+        logger.info("Exiting Neutral state")
     
+    def _endTrack(self):
+        GS.app.game.endTrack()
+
+        # update the profile only if the track is finished
+        if self.newState == GameState.NEXT_TRACK:
+            GS.app.game.updateProfile()
 
 GS = GameSession()
