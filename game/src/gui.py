@@ -11,6 +11,7 @@ from mdlib.panda.data import GOM
 
 from direct.gui.DirectGui import *
 from direct.gui.OnscreenImage import OnscreenImage
+from direct.showbase.DirectObject import DirectObject
 
 from pandac.PandaModules import TextNode, Point3, Vec4 
 from pandac.PandaModules import TransparencyAttrib, Material
@@ -120,11 +121,17 @@ class Screen(object):
     name = "default"
     
     def __init__(self):
+        self._listener = DirectObject()
+        self._listener.accept("i", self.getWidgetTransformsF) 
+        
         self.frame = DirectFrame()
-        self.frame["image"] = "bg.jpg"
-        self.frame["image_scale"] = (2,1,1)
-        
-        
+        #self.frame["image"] = "bg.jpg"
+        #self.frame["image_scale"] = (2,1,1)
+    
+    def getWidgetTransformsF(self):
+       for child in aspect2d.getChildren():
+           print child, "  position = ", child.getPos() 
+           print child, "  scale = ", child.getScale() 
     
     def destroy(self):
         self.frame.destroy()
@@ -983,19 +990,24 @@ class NextTrackScreen(Screen):
         if result.trophy is not None:
             cup = GOM.getEntity(result.trophy)
             cup.nodepath.reparentTo(render)
-            base.camera.setPos(0,0,0)
-            base.camera.setHpr(0,0,0)
+            cup.nodepath.setScale(.01)
+            cup.nodepath.setZ(cup.nodepath, -1)
+            
             cup.spin()
             self._cup = cup
+            self._cup.nodepath.show()
             
         # show best record if necessary
         if result.bestTime == GS.profile.getBestTimeForTrackAndMode(result.tid, 
                                                                    GS.mode):
-            self._record = OnscreenText(text = "New record !", pos = (0.6,-0.6), 
-                        scale = 0.1,fg=(1,0.5,0.5,1),align=TextNode.ACenter)
+            self._record = OnscreenText(text = "New record !", pos = (0,-0.6), 
+                        scale = 0.15,fg=(1,0.5,0.5,1),align=TextNode.ACenter)
             self._record.show()
-        
-        #    print "new record: %s" % result.bestTime
+            
+        t = utils.tenthsToStrTime(result.bestTime)
+        self._time = OnscreenText(text = t, pos = (0.6,-0.6), 
+                    scale = 0.15,align=TextNode.ACenter)
+        self._time.show()
             
     def _nextTrackPressed(self):
         info = GS.getNextTrackInfo()
@@ -1020,6 +1032,10 @@ class NextTrackScreen(Screen):
         
         if hasattr(self, "_record"):
             self._record.destroy()
+            
+        if hasattr(self, "_time"):
+            self._time.destroy()
+        
 
 class ScreenManager(object):
     def __init__(self):

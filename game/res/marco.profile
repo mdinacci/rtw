@@ -1,11 +1,19 @@
 name=marco
 champ_mode
-tid=df575674f70761eefd93a3c8fbe74af5
-best_time=71
-attempts=79
-bid=Shark
-tid=38f4c6ad6fd20076022fa43c4d176dad
-best_time=56
-attempts=16
-bid=Shark
+tid=abab
+best_time=30
+attempts=1
+bid=Photon
+tid=dsds
+best_time=250
+attempts=1
+bid=Photon
+tid=rere
+best_time=490
+attempts=1
+bid=Average Joe
+tid=asd
+best_time=-143
+attempts=1
+bid=Average Joe
 tb_mode

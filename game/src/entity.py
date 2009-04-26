@@ -113,6 +113,10 @@ class Track(GameEntity):
         self.nodepath.reparentTo(node)
         #self.trackCopy.reparentTo(node)
     
+    def getNextSegment(self, seg): 
+        num = self.getSegmentNum(seg.find("**/segment*")) +1
+        return self.nodepath.find("**/segment_%d" % num)
+    
     def unfold(self):
         def sortBySegmentNumber(x,y):
             nameX = x.getName()
@@ -162,6 +166,9 @@ class Track(GameEntity):
         del attrs._tiles
         return attrs
 
+    def getSegmentNum(self, seg):
+        return int(seg.getName().split("_")[1])
+    
     segments = property(fget=lambda self: self._segments)
     
 
@@ -239,7 +246,6 @@ class Ball(GameEntity):
                  Parallel(scaleUp, fastenUp)).start()
 
     def sprint(self):
-        return
         if not self._isJumping:
             self.physics.maxSpeed = 40
             self.physics.speed *= 2
@@ -278,20 +284,22 @@ class Ball(GameEntity):
     def getLost(self, startPos):
         # for some reasons the interval doesn't set the value to zero but
         # to something close
-        targetPos = self.nodepath.getPos() + self.physics.speedVec * \
-                                            self.FALLING_SPEED
-        targetPos.setZ(targetPos.getZ() - self.FALLING_Z)
-        fallDown = LerpPosInterval(self.nodepath, 15.0/self.physics.speed, 
-                                   pos=targetPos,
-                                   blendType = 'easeIn')
-        fallDown.start()
-        self.nodepath.setPos(startPos)
+        if self.physics.speed > 0:
+            targetPos = self.nodepath.getPos() + self.physics.speedVec * \
+                                                self.FALLING_SPEED
+            targetPos.setZ(targetPos.getZ() - self.FALLING_Z)
+            fallDown = LerpPosInterval(self.nodepath, 15.0/self.physics.speed, 
+                                       pos=targetPos,
+                                       blendType = 'easeIn')
+            fallDown.start()
+            self.nodepath.setPos(startPos)
        # TODO send event
     
     def accelerate(self):
         if not self._isFrozen:
             if self.physics.speed < self.physics.maxSpeed:
-                self.physics.speed += .2
+                #self.physics.speed += self.props.acceleration/20 # .2
+                self.physics.speed += .4
             else:
                 self.physics.speed = self.physics.maxSpeed
     
@@ -302,7 +310,7 @@ class Ball(GameEntity):
     def brake(self):
         if self.physics.speed > 0:
             self.physics.speed -= .5
-            
+    
 
 class Checkpoint(GameEntity):
     # it can happen that the ball collides with the same checkpoint multiple 

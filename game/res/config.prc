@@ -4,8 +4,8 @@ required-space 102400
 
 # VIDEO
 load-display pandagl
-win-origin 150 50
 win-size 800 600
+win-origin 400 0
 fullscreen #f
 framebuffer-hardware #t
 framebuffer-software #f
@@ -45,7 +45,8 @@ want-pstats            #f
 show-frame-rate-meter  #t
 # trigger a core dump on first assertion
 assert-abort 1
-cap-framerate 0
+cap-framerate 1
+direct-gui-edit #t
 
 # AUDIO
 audio-library-name p3openal_audio

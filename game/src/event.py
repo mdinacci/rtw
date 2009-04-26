@@ -26,8 +26,11 @@ TRACK_SELECTED="track-selected"
 GAME_MODE_SELECT="game-mode-select"
 
 # collision events
-BALL_INTO = "ball-into-%in"
-BALL_INTO_CHECKPOINT="ball-into-cp"
-BALL_INTO_SLOW="ball-into-slow"
-BALL_INTO_ACCELERATE="ball-into-accelerate"
-BALL_INTO_JUMP="ball-into-jump"
+BALL_INTO = "ray-into-%in"
+BALL_INTO_CHECKPOINT="ray-into-cp"
+BALL_INTO_SLOW="ray-into-slow"
+BALL_INTO_ACCELERATE="ray-into-accelerate"
+BALL_INTO_JUMP="ray-into-jump"
+
+# timer
+TIME_OVER="time_over"

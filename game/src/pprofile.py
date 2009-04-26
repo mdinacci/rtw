@@ -55,7 +55,12 @@ class PlayerProfile(object):
         oldResult = self.getTrackResult(tid, mode)
         needsUpdate = False
         if oldResult is None:
-            result.attempts = 1
+            track = TrackResult()
+            track.tid = tid
+            track.bid = result.bid
+            track.bestTime = result.bestTime
+            track.attempts = 1
+            self.tracks[mode].append(track)
         else:
             result.attempts = oldResult.attempts + 1
         if oldResult is not None:

@@ -38,7 +38,20 @@ TRACK_SCALE = 2.5
 def randomString():
     return "%s" % time()
 
-def gridPosForPoint(point, offset=1.25):
+def _getOptimalPosition(self, relativeNode, targetNode):
+    segments = self._track.findAllMatches("**/segment*")
+    
+    # find closest segment
+    minDistance = 999999
+    closestSegment = None
+    for segment in segments:
+        distance = (targetNode.getPos() - segment.getPos()).length()
+        if distance < minDistance:
+            minDistance = distance
+            closestSegment = segment
+            
+
+def gridPosForPoint(point, offset=2.5):
     x = point.getX()
     y = point.getY()
     
@@ -377,7 +390,7 @@ class ExportFrame(object):
     def getTrackName(self):
         return self._nameEntry.get()
     
-    def getMaximumTime(self):
+    def getTimeLimit(self):
         return self._getTime(self._times[3])
     
     def getGoldTime(self):
@@ -438,7 +451,7 @@ class ExportFrame(object):
                        text_align=TextNode.ALeft)
             aEntrySec = DirectEntry(text="", initialText="",
                          pos = (0.25, 0 , 0+zOffset), cursorKeys=1, numLines = 1,
-                         width=1,scale=.05,rolloverSound=None, clickSound=None)
+                         width=2,scale=.05,rolloverSound=None, clickSound=None)
             aLabelTenths = DirectLabel(text="Tenths: ",scale=.05, relief=None,
                           pos=(0.35, 0, 0+zOffset),text_align=TextNode.ALeft)
             aEntryTenths = DirectEntry(text="", initialText="",
@@ -512,10 +525,12 @@ class TrackEditor(object):
         self._isHovering = False
         self._hasRightSelectedSegment = False
         
+        # root node, contains track segments, checkpoints, bonus etc...
         self._rootNode = render.attachNewNode("rootNode")
-        # invisible node that follows the mouse. The current segment is attached
-        # to this node
-        self._mouseNode = self._rootNode.attachNewNode("mouseNode")
+        
+        # invisible node that follows the mouse. 
+        # A segment is attached to this node while hovering
+        self._mouseNode = render.attachNewNode("mouseNode")
         self._mouseNode.setScale(0.5)
         self._mouseNode.setPos(0,0,0)
         
@@ -590,18 +605,23 @@ class TrackEditor(object):
                 pos = gridPosForPoint(utils.pointAtZ(GROUND_Z, nearPoint, nearVec))
                 self._mouseNode.setPos(pos)
                     
-            self.picker.traverse(self._trackNode)
+            self.picker.traverse(self._rootNode)
             if self.pq.getNumEntries() > 0:
-                self.pq.sortEntries()
-                contact = self.pq.getEntry(0).getIntoNodePath()
+                #self.pq.sortEntries()
+                    
+                entry = self.pq.getEntry(0)
+                contact = entry.getIntoNodePath()
                 
                 if self._hoveredSegment is not None:
                     self._hoveredSegment.setColor(1,1,1)
                 
                 self._hoveredSegment = contact.getParent().getParent()
+                
                 self._hoveredSegment.setColor(1,1,0)
                 self._isHovering = True
+                    
             else:
+                # no collisions, reset hovered segment
                 self._isHovering = False
                 if self._hoveredSegment is not None:
                     self._hoveredSegment.setColor(1,1,1)
@@ -626,6 +646,8 @@ class TrackEditor(object):
         self._showingCollNodes = False
     
     def _showCollisions(self):
+        logger.debug("Toggling collision nodes visibility")
+        
         if self._showingCollNodes:
             self._rootNode.find("**/copy").removeNode()
         else:
@@ -638,10 +660,14 @@ class TrackEditor(object):
                 fromMask = BitMask32.allOff()
                 intoMask = BitMask32.allOff()
                 
-                center = seg.getBounds().getCenter()
+                bounds = seg.getBounds()
+                center = bounds.getCenter()
+                scale = 2.0
+                if seg.getName() == "segment-straight":
+                    scale = 4.0
                 p = seg.getPos(render)# + (seg.getBounds().getCenter()*.5)
                 np = seg.attachCollisionSphere("cs", p.getX(), p.getY(),p.getZ(),
-                                               seg.getBounds().getRadius()/2.0,
+                                               bounds.getRadius()/scale,
                                                fromMask, intoMask)
                 np.show()
                 np.showBounds()
@@ -656,17 +682,7 @@ class TrackEditor(object):
         self._ground = self._rootNode.attachNewNode(cm.generate())
         self._ground.setPosHpr(0, 0, GROUND_Z-1.1, 0, -90.1, 0) 
         self._ground.setColor(0.4,0.6,0.8)
-        grid = ThreeAxisGrid(zsize=0, gridstep=5, subdiv=2)
-        gridNp = grid.create()
-        gridNp.reparentTo(self._rootNode)
-        gridNp.setPosHpr(2.5,0,GROUND_Z -.02,0, 0.1, 0)
-        gridNp.setAntialias(AntialiasAttrib.MLine)
-        
-        gridNp.setP(gridNp.getP()+.1)
-        gridNp.flattenStrong()
-       
-        self._grid = gridNp
-        
+
         # load the initial segment
         segment = loader.loadModel(Segment.STRAIGHT)
         segment.reparentTo(self._trackNode)
@@ -674,6 +690,11 @@ class TrackEditor(object):
         tiles = segment.findAllMatches("**/tile*")
         for tile in tiles:
             tile.node().setIntoCollideMask(BitMask32.bit(2))
+            
+        outsides = segment.findAllMatches("**/outside*")
+        for outside in outsides:
+            outside.setCollideMask(BitMask32.allOff())
+            #outside.node().setIntoCollideMask(BitMask32.bit(1))
             
         pos = "%d,%d,%d" % (segment.getX(), segment.getY(), segment.getZ())
         segment.setTag("start-point", pos)
@@ -690,8 +711,8 @@ class TrackEditor(object):
         #Everything to be picked will use bit 1. This way if we were doing other
         #collision we could separate it
         self.pickerNode.setFromCollideMask(BitMask32.bit(2))
-        self.pickerRay = CollisionRay()               #Make our ray
-        self.pickerNode.addSolid(self.pickerRay)      #Add it to the collision node
+        self.pickerRay = CollisionRay()              
+        self.pickerNode.addSolid(self.pickerRay)
         
         self.picker.addCollider(self.pickerNP, self.pq)
         
@@ -806,10 +827,13 @@ class TrackEditor(object):
             
         logger.debug("Creating a new %s" % segmentType)
         self._segmentDragged = loader.loadModel(segmentType)
+        
         self._segmentDragged.reparentTo(self._mouseNode)
         #self._segmentDragged.setTexture(loader.loadTexture("../res/editor/neutral.jpg"))
         self._segmentDragged.showTightBounds()
         
+        # setup collision mask
+        self._segmentDragged.setCollideMask(BitMask32.allOff())
         tiles = self._segmentDragged.findAllMatches("**/tile*")
         for tile in tiles:
             tile.node().setIntoCollideMask(BitMask32.bit(2))
@@ -821,12 +845,14 @@ class TrackEditor(object):
         self._setupTasks()
     
     def _reorderTrack(self, current, oldParent, parent):
+        logger.debug("Reordering segment")
+        
         def clear(node):
             node.clearPythonTag("seg")
             
         self._currentID = current.getNetTag("id")
         
-        current.setName("segment-%d" % parent.getNumChildren())
+        current.setName("segment_%d" % parent.getNumChildren())
         current.getParent().copyTo(parent)
                 
         collTrav = CollisionTraverser()
@@ -853,8 +879,11 @@ class TrackEditor(object):
             
             center = seg.getBounds().getCenter()
             p = seg.getPos(render)# + (seg.getBounds().getCenter()*.5)
+            scale = 2.0
+            if seg.getName() == "segment-straight":
+                scale = 4.0
             np = seg.attachCollisionSphere("cs", p.getX(), p.getY(),p.getZ(),
-                                           seg.getBounds().getRadius()/2.0,
+                                           seg.getBounds().getRadius()/scale,
                                            fromMask, intoMask)
             np.setPythonTag("seg", seg)
             np.reparentTo(spheres)
@@ -869,8 +898,7 @@ class TrackEditor(object):
             if entries > 2: 
                 # TODO alert user
                 logger.error("Two collisions with new segments detected")
-                import sys
-                sys.exit(1)
+                return 
             
             logger.debug("%d collisions " % entries)
             
@@ -883,14 +911,15 @@ class TrackEditor(object):
                     
             current.getParent().removeNode()
         
-        if nextSegment is not None:
+        if nextSegment is not None and not nextSegment.isEmpty():
             self._reorderTrack(nextSegment, oldParent, parent)
         else:
             if entries > 0:
                 clear(into)
         
-    
     def _exportTrack(self):
+        logger.info("Exporting track")
+        
         exportNode = NodePath("track")
 
         # I need to work on a copy otherwise after flattening the track
@@ -898,9 +927,9 @@ class TrackEditor(object):
         cps = self._cpsNode.copyTo(NodePath("checkpoints"))
         trackCopy = self._trackNode.copyTo(NodePath("track"))
         
-        # reorder segments
+        logger.debug("Reordering segments")
         track = NodePath("track")
-        self._reorderTrack(trackCopy.find("**/=start-point").find("**/segment"), 
+        self._reorderTrack(trackCopy.find("**/=start-point").find("**/segment*"), 
                            trackCopy, track)
         
         track.setScale(TRACK_SCALE)
@@ -917,20 +946,23 @@ class TrackEditor(object):
                             lastSegment.getZ())
         lastSegment.setTag("end-point", pos)
         
+        logger.debug("Flattening and writing bam file")
         track.flattenStrong()
         exportNode.writeBamFile("/tmp/track.bam")
-        exportNode.ls()
         
         # export prc file
+        logger.debug("Exporting prc file")
         f = open("/tmp/track.prc", "w")
         f.write("tid %s\n" % self._trackExporter.getTID())
         f.write("name %s\n" % self._trackExporter.getTrackName())
         f.write("gold %s\n" % self._trackExporter.getGoldTime())
         f.write("silver %s\n" % self._trackExporter.getSilverTime())
-        f.write("bronze %s\n" % self._trackExporter.getGoldTime())
+        f.write("bronze %s\n" % self._trackExporter.getBronzeTime())
+        f.write("limit %s\n" % self._trackExporter.getTimeLimit())
         f.close()
 
         # pack everything
+        logger.debug("Packing the track")
         shutil.copy("../res/editor/ts.bin", "/tmp/track.bin")
         mf = Multifile()
         mf.openReadWrite(Filename("/tmp/track.bin"))
@@ -941,6 +973,7 @@ class TrackEditor(object):
         
         self._trackExporter.hide()
         
+        logger.debug("Cleaning up")
         os.remove("/tmp/track.bam")
         os.remove("/tmp/track.prc")
         
@@ -949,6 +982,9 @@ class TrackEditor(object):
         
     def _isStartingSegment(self, segment):
         return segment.hasTag("start-point")
+    
+    def _isCheckpoint(self, node):
+        return node.getName().startswith("cp")
     
     def _deleteSegment(self):
         if self._isHovering:
@@ -972,23 +1008,34 @@ class TrackEditor(object):
         
     def _onMouseClick(self):
         if self._hasSelection:
-            logger.debug("Placing segment")
-            
-            if not self._isHovering:
-                # put segment down
+            # put segment down
+            if not self._isHovering or self._isCheckpoint(self._segmentDragged):
                 pos = self._segmentDragged.getPos(self._rootNode)
-                if self._segmentDragged.getName().startswith("cp"):
-                    self._segmentDragged.reparentTo(self._cpsNode)
+                if self._isCheckpoint(self._segmentDragged):
+                    logger.debug("Placing checkpoint")
+                    #self._segmentDragged.reparentTo(self._cpsNode)
+                    self._segmentDragged.reparentTo(self._hoveredSegment)
+                    self._segmentDragged.setPos(self._rootNode, pos)
                 else:
+                    logger.debug("Placing segment")
                     self._segmentDragged.reparentTo(self._trackNode)
-                self._segmentDragged.setPos(self._rootNode, pos)
+                    # recalculate the position in order to fit perfectly next
+                    # to the closest segment
+                    self._segmentDragged.setPos(self._rootNode, pos)
+                    """
+                    self._segmentDragged.setPos(
+                                            getOptimalPosition(self._rootNode, 
+                                                       self._trackNode, 
+                                                       self._segmentDragged))
+                    """
                 self._segmentDragged.hideBounds()
+                self._segmentDragged.setTag("id", randomString())
+                
+                
                 self._hoveredSegment = self._segmentDragged
                 self._hasSelection = False
-                
-                self._segmentDragged.setTag("id", randomString())
         else:
-            # try to select a segment
+            # select an already placed segment
             if self._isHovering:
                 logger.debug("Selecting segment")    
                 self._segmentDragged = self._hoveredSegment
@@ -1000,7 +1047,7 @@ class TrackEditor(object):
                 
                 self._isHovering = False
                 self._hasSelection = True
-            
+    
     def destroy(self):
         self._stopTasks()
         
@@ -1012,10 +1059,3 @@ class TrackEditor(object):
         self._segmentEditor.destroy()
         
         self._gui.destroy()
-
-if __name__ == '__main__':
-    import direct.directbase.DirectStart
-
-    te = TrackEditor()
-
-    run()
