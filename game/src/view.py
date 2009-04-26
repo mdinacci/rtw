@@ -5,18 +5,23 @@ Author: Marco Dinacci <dev@dinointeractive.com>
 Copyright © 2008-2009
 """
 
+# logging
+from mdlib.log import ConsoleLogger, DEBUG, INFO
+logger = ConsoleLogger("view", DEBUG)
+
 from direct.gui.OnscreenText import OnscreenText
 from direct.interval.FunctionInterval import Func, Wait
 from direct.interval.MetaInterval import Sequence
 
 from pandac.PandaModules import DirectionalLight, AmbientLight, NodePath, Fog,\
 PointLight, Vec4, Camera, WindowProperties, LightNode, Shader, Point3, \
-PandaNode, LightRampAttrib, Vec3, Vec4
+PandaNode, LightRampAttrib, Vec3, Vec4, TextNode
 
 from direct.filter.CommonFilters import CommonFilters
 
 from mdlib.panda.core import AbstractScene
 
+import event
 
 __all__ = ["GameView", "Camera", "HUD", "RaceTimer"]
 
@@ -30,33 +35,7 @@ class GameScene(object):
         self._setupLightsAndFog()
     
     def show(self):
-        if 0:
-            tempnode = NodePath(PandaNode("temp node"))
-            tempnode.setAttrib(LightRampAttrib.makeSingleThreshold(0.5, 0.4))
-            tempnode.setShaderAuto()
-            base.cam.node().setInitialState(tempnode.getState())
-    
-            self.filters = CommonFilters(base.win, base.cam)
-            self.separation = 0.5 # Pixels
-            filterok = self.filters.setCartoonInk(separation=self.separation)
-            
-            plightnode = PointLight("point light")
-            plightnode.setAttenuation(Vec3(1,0,0))
-            plight = render.attachNewNode(plightnode)
-            plight.setPos(30,-50,0)
-            alightnode = AmbientLight("ambient light")
-            alightnode.setColor(Vec4(0.8,0.8,0.8,1))
-            alight = render.attachNewNode(alightnode)
-            render.setLight(alight)
-            render.setLight(plight)
-            
-        alightnode = AmbientLight("ambient light")
-        alightnode.setColor(Vec4(0.8,0.8,0.8,1))
-        alight = render.attachNewNode(alightnode)
-        render.setLight(alight)
         self._rootNode.show()
-        self._rootNode.setShaderAuto()
-        
         
     def hide(self):
         self._rootNode.hide()
@@ -72,16 +51,15 @@ class GameScene(object):
         dlight.setColor(Vec4(0.7, 0.7, 0.6, 1))
         alight.setColor(Vec4(0.2, 0.2, 0.2, 1))
         dlnp.setHpr(0, -60, 0)
-        #self._rootNode.setLight(dlnp)
-        #self._rootNode.setLight(alnp)
+        self._rootNode.setLight(dlnp)
+        self._rootNode.setLight(alnp)
         
-        """
         colour = (0.2,0.2,0.2)
         expfog = Fog("fog")
         expfog.setColor(*colour)
         expfog.setExpDensity(0.001)
         self._rootNode.setFog(expfog)
-        """
+        
     root = property(fget=lambda self: self._rootNode)
         
 
@@ -92,15 +70,18 @@ class GameView(object):
         self._scene = GameScene()
     
     def showCursor(self, show = True):
+        logger.debug("Toggling cursor")
         props = WindowProperties()
         props.setCursorHidden(not show)
         base.win.requestProperties(props)
     
     def show(self):
+        logger.debug("Showing view")
         self._hud.show()
         self._scene.show()
     
     def hide(self):
+        logger.debug("Hiding view")
         self._hud.hide()
         self._scene.hide()
         
@@ -110,6 +91,7 @@ class GameView(object):
     cam = property(fget=lambda self: self._cam)
     scene = property(fget=lambda self: self._scene)
     hud = property(fget=lambda self: self._hud)
+    timer = property(fget=lambda self: self._hud.timer)
     
 
 class Camera(object):
@@ -145,29 +127,35 @@ class Camera(object):
 
 class HUD(object):
     def __init__(self):
-        self.timer = RaceTimer()
+        self.timer = RaceTimer(True)
     
     def show(self):
+        logger.debug("Showing HUD")
         self.timer.timerText.show()
     
     def hide(self):
+        logger.debug("Hiding HUD")
         self.timer.timerText.hide()
     
-    def startTimer(self):
-        self.timer.start()
-        
-    def stopTimer(self):
-        self.timer.stop()
-
         
 class RaceTimer(object):
-    def __init__(self):
+    def __init__(self, countdown=False):
+        self._countdown = countdown
+        self._isPaused = False
+        
         self.elapsedTime = 0
         self.time = "0:0.0"
-        self.textScale = .08
-        self.timerText = OnscreenText(text="%s" % self.time, style=1, 
-                              fg=(1,1,1,1),pos=(1.2,0.90),shadow= (1,0,0,.8), 
-                              scale = self.textScale, mayChange=True)
+        if self._countdown:
+            self.textScale = .15
+            self.timerText = OnscreenText(text="%s" % self.time, style=1, 
+                              fg=(1,1,1,1),pos=(-0.05,.85),shadow= (1,0,0,.8), 
+                              scale = self.textScale, mayChange=True, 
+                              align=TextNode.ALeft)
+        else:
+            self.textScale = .08
+            self.timerText = OnscreenText(text="%s" % self.time, style=1, 
+                                  fg=(1,1,1,1),pos=(1.2,0.90),shadow= (1,0,0,.8), 
+                                  scale = self.textScale, mayChange=True)
     
     def flash(self):
         scaleUp = Func(self.__setattr__, "textScale", 0.12)
@@ -177,15 +165,43 @@ class RaceTimer(object):
         Sequence(scaleUp, wait, scaleDown).start()
         
     def start(self):
-        taskMgr.doMethodLater(0.1, self.update, "timer-task")
+        logger.debug("Starting timer")
+        name = "timer-task"
+        func = self.update
+        if self._countdown:
+            name = "countdown-task"
+            func = self.updateCountdown
+            
+        taskMgr.doMethodLater(0.1, func, name)
     
-    def resetAndStart(self):
+    def togglePause(self):
+        logger.debug("Timer toggle pause")
+        
+        name = "timer-task"
+        func = self.update
+        if self._countdown:
+            name = "countdown-task"
+            func = self.updateCountdown
+            
+        if self._isPaused:
+            taskMgr.doMethodLater(0.1, func, name)
+            self._isPaused = False
+        else:
+            taskMgr.remove(name)
+            self._isPaused = True
+    
+    def reset(self):
         self.time = "0:0.0"
         self.elapsedTime = 0
-        self.start()
-        
+    
     def stop(self):
-        taskMgr.remove("timer-task")
+        logger.debug("Stopping timer")
+        
+        name = "timer-task"
+        if self._countdown:
+            name = "countdown-task"
+            
+        taskMgr.remove(name)
     
     def addTime(self, tenths):
         self.elapsedTime += tenths
@@ -197,8 +213,25 @@ class RaceTimer(object):
         self.timerText.setScale(self.textScale)
         self.timerText.setText(self.time)
     
+    def updateCountdown(self, task):
+        if self.elapsedTime == 0:
+            self.stop()
+            self.reset()
+            messenger.send(event.TIME_OVER)
+        else:
+            self.elapsedTime -=1
+        
+        seconds = self.elapsedTime / 10
+        tens = self.elapsedTime % 10
+            
+        self.time = "%s.%s" % (seconds, tens)
+        self.render()
+        
+        return task.again
+    
     def update(self, task):
         self.elapsedTime +=1
+            
         tens = self.elapsedTime % 10
         seconds = (self.elapsedTime / 10) % 60
         minutes = (self.elapsedTime / 10) / 60
@@ -208,7 +241,6 @@ class RaceTimer(object):
             seconds = "0"
             
         self.time = "%d:%s.%s" % (minutes, seconds, tens)
-        
         self.render()
         
         return task.again
