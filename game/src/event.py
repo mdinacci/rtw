@@ -32,5 +32,6 @@ BALL_INTO_SLOW="ray-into-slow"
 BALL_INTO_ACCELERATE="ray-into-accelerate"
 BALL_INTO_JUMP="ray-into-jump"
 
-# timer
+# timers
 TIME_OVER="time_over"
+COUNTDOWN_END="countdown_end"

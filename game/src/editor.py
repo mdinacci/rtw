@@ -35,8 +35,14 @@ TRACK_SCALE = 2.5
 
 #font = loader.loadFont("cmss12")
 
+a = -1
+
 def randomString():
-    return "%s" % time()
+    global a
+    a = a+1
+    return "%s" % a
+  
+    #return "%s" % time()
 
 def _getOptimalPosition(self, relativeNode, targetNode):
     segments = self._track.findAllMatches("**/segment*")
@@ -51,24 +57,25 @@ def _getOptimalPosition(self, relativeNode, targetNode):
             closestSegment = segment
             
 
-def gridPosForPoint(point, offset=2.5):
+def gridPosForPoint(point, offset=1.25):
     x = point.getX()
     y = point.getY()
     
     def getPoint(val):
-        a = round(val / offset)
-        b = round(val % offset)
+        b = val % offset
         
         newVal = val
         if b == 0:
             pass
-        elif b <= 2:
-            newVal = a * offset
-        else:
-            newVal = a * offset
+        elif b < offset/2:
+            newVal =  val - b
+        elif b > offset/2:
+            newVal = val + (offset -b)
+        
         return newVal
             
-    return Point3(getPoint(x), getPoint(y), point.getZ())
+    p =  Point3(getPoint(x), getPoint(y), point.getZ())
+    return p
         
 
 class Segment:
@@ -642,6 +649,7 @@ class TrackEditor(object):
         self._inputMgr.bindCallback("e", self._editSegment)
         self._inputMgr.bindCallback("p", base.oobe)
         self._inputMgr.bindCallback("o", self._showCollisions)
+        #self._inputMgr.bindCallback("o", self._exportTrack)
         
         self._showingCollNodes = False
     
@@ -851,27 +859,35 @@ class TrackEditor(object):
             node.clearPythonTag("seg")
             
         self._currentID = current.getNetTag("id")
-        
-        current.setName("segment_%d" % parent.getNumChildren())
         current.getParent().copyTo(parent)
-                
+        
+        # get the copied segment and rename it, I can't rename current because
+        # it's the original and the code won't work if the export is done twice
+        copied = parent.find("**/=id=%s" % self._currentID).find("**/segment*")
+        n = parent.getNumChildren()-1
+        copied.setName("segment_%d" % n)
+        
         collTrav = CollisionTraverser()
         queue = CollisionHandlerQueue()
+        
+        logger.debug("Preparing collision spheres")
         
         # just in case the track is exported multiple times
         spheres = self._rootNode.find("**/spheres")
         if not spheres.isEmpty():
             spheres.removeChildren()
-            
         spheres = self._rootNode.attachNewNode("spheres")
         
-        segs = oldParent.findAllMatches("**/segment*")
+        # look for "segment-" with an hyphen at the end as there are segments
+        # called like segment_2 that I don't want to reprocess
+        segs = oldParent.findAllMatches("**/segment-*")
         for seg in segs:
             fromMask = BitMask32.allOff()
             intoMask = BitMask32(1)
             
             # check if seg is equal to current, in that case set the coll node  
             # as the "from" object.
+            print seg.getNetTag("id"), "\t", current.getNetTag("id")
             if seg.getNetTag("id") == current.getNetTag("id"):
                 logger.debug("Setting collision masks for current segment %s" % seg.getNetTag("id"))
                 fromMask = intoMask
@@ -885,11 +901,14 @@ class TrackEditor(object):
             np = seg.attachCollisionSphere("cs", p.getX(), p.getY(),p.getZ(),
                                            seg.getBounds().getRadius()/scale,
                                            fromMask, intoMask)
+            np.show()
             np.setPythonTag("seg", seg)
             np.reparentTo(spheres)
             collTrav.addCollider(np, queue)
         
         nextSegment = None
+        
+        logger.debug("Collision detection handling")
         
         collTrav.traverse(spheres)
         entries = queue.getNumEntries()
@@ -898,6 +917,13 @@ class TrackEditor(object):
             if entries > 2: 
                 # TODO alert user
                 logger.error("Two collisions with new segments detected")
+                for i in range(entries):
+                    entry = queue.getEntry(i)
+                    seg = entry.getIntoNodePath().getPythonTag("seg")
+                    print "SEG: ", seg
+                    print "ID: ", seg.getNetTag("id")
+                    sys.exit(-1)
+                # TODO alert user
                 return 
             
             logger.debug("%d collisions " % entries)
@@ -979,6 +1005,7 @@ class TrackEditor(object):
         
         # restore tasks
         self._setupTasks()
+        
         
     def _isStartingSegment(self, segment):
         return segment.hasTag("start-point")

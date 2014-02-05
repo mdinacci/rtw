@@ -15,11 +15,14 @@ from direct.interval.MetaInterval import Sequence
 
 from pandac.PandaModules import DirectionalLight, AmbientLight, NodePath, Fog,\
 PointLight, Vec4, Camera, WindowProperties, LightNode, Shader, Point3, \
-PandaNode, LightRampAttrib, Vec3, Vec4, TextNode
+PandaNode, LightRampAttrib, Vec3, Vec4, TextNode, FrameBufferProperties, \
+Texture, GraphicsPipe, GraphicsOutput, VBase3
 
 from direct.filter.CommonFilters import CommonFilters
 
 from mdlib.panda.core import AbstractScene
+
+from PSSM import ParallelSplitShadowMap
 
 import event
 
@@ -33,6 +36,15 @@ class GameScene(object):
         self.hide()
         
         self._setupLightsAndFog()
+        """
+        self._pssm = ParallelSplitShadowMap.ParallelSplitShadowMap(
+                                    Vec3(0, -1, -1), 
+                                    lightsQuality = [2048, 2048, 1024], 
+                                    pssmBias = 0.8, pushBias = 0.03, 
+                                    lightColor = VBase3(0.125, 0.149, 0.160), 
+                                    lightIntensity = 0.8)
+        """
+        #self._setupShadows()
     
     def show(self):
         self._rootNode.show()
@@ -42,6 +54,38 @@ class GameScene(object):
     
     def addEntity(self, entity):
         entity.nodepath.reparentTo(self._rootNode)
+    
+    def _setupShadows(self):
+        """ Wait for next panda version, hoping that shadow generation will be 
+            automatic :/
+        """
+        winprops = WindowProperties.size(512,512)
+        props = FrameBufferProperties()
+        props.setRgbColor(1)
+        props.setAlphaBits(1)
+        props.setDepthBits(1)
+        shadowBuffer = base.graphicsEngine.makeOutput(
+                 base.pipe, "offscreen buffer", -2,
+                 props, winprops,
+                 GraphicsPipe.BFRefuseWindow,
+                 base.win.getGsg(), base.win)
+
+        if (shadowBuffer == None):
+            logger.error("No shadow support (can't create an offscreen buffer")
+            return
+
+        depthMap = Texture()
+        shadowBuffer.addRenderTexture(depthMap, GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
+        if (base.win.getGsg().getSupportsShadowFilter()):
+            depthMap.setMinfilter(Texture.FTShadow)
+            depthMap.setMagfilter(Texture.FTShadow)
+        else:
+            logger.error("No shadow support (can't create shadow filter")
+            return
+
+        # Adding a color texture is totally unnecessary, but it helps with debugging.
+        colorMap = Texture()
+        shadowBuffer.addRenderTexture(colorMap, GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
     
     def _setupLightsAndFog(self):
         dlight = DirectionalLight('dlight')
@@ -84,7 +128,10 @@ class GameView(object):
         logger.debug("Hiding view")
         self._hud.hide()
         self._scene.hide()
-        
+    
+    def destroy(self):
+        pass
+    
     def _setupScene(self):
         pass
 
@@ -136,6 +183,50 @@ class HUD(object):
     def hide(self):
         logger.debug("Hiding HUD")
         self.timer.timerText.hide()
+    
+
+class SemaphoreTimer(object):
+    
+    TASK_NAME = "semaphore_timer"
+    
+    def __init__(self, seconds):
+        self._seconds = seconds
+        self._time = "%s" % self._seconds
+        
+    def start(self):
+        textScale = .16
+        self.timerText = OnscreenText(text="%s" % self._time, style=1, 
+                          fg=(1,1,1,1),pos=(-0.05,.85),shadow= (1,0,0,.8), 
+                          scale = textScale, mayChange=True, 
+                          align=TextNode.ALeft)
+        
+        taskMgr.doMethodLater(1, self._update, self.TASK_NAME)
+    
+    def destroy(self):
+        taskMgr.remove(self.TASK_NAME)
+        self.timerText.destroy()
+    
+    def _render(self, pos=None, scale=None):
+        self.timerText.setText(self._time)
+        if pos is not None:
+            self.timerText.setPos(pos[0],pos[1])
+        if scale is not None:
+            self.timerText.setScale(scale)
+    
+    def _update(self, task):
+        if self._seconds > 1:
+            self._seconds -=1
+            
+            self._time = "%s" % self._seconds
+            self._render()
+            
+            return task.again
+        else:
+            self._time = "GO !"
+            self._render((-0.05,.55), .2)
+            messenger.send(event.COUNTDOWN_END)
+            
+            return task.done
     
         
 class RaceTimer(object):

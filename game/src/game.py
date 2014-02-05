@@ -29,12 +29,12 @@ from pandac.PandaModules import BitMask32, Quat, Vec3, Point3
 from pandac.PandaModules import CollisionHandlerQueue, CollisionTraverser, \
 CollisionHandlerEvent, CollisionNode, CollisionSphere, CollisionHandlerFloor
 
-from direct.interval.MetaInterval import Sequence
+from direct.interval.MetaInterval import Sequence, Parallel
 from direct.interval.FunctionInterval import Wait, Func
 from direct.showbase.PythonUtil import Functor
       
 from gui import ScreenManager
-from view import GameView
+from view import GameView, SemaphoreTimer
 from data import TrackResult, GameMode
 from state import GS, GameState
 import utils
@@ -80,12 +80,12 @@ class Game(object):
         self._ball = None
         
         self._controlInverted = False
-        self._gameIsAlive = True
+        self._gameIsAlive = False
         
-        base.wireframeOn()
+        #base.wireframeOn()
         
-    def start(self):
-        logger.info("Starting game")
+    def prestart(self):
+        logger.info("Prestarting game")
         self._loadTrack(GS.selectedTrack)
         self._loadBall(GS.selectedBall)
         
@@ -93,10 +93,35 @@ class Game(object):
         self._view.scene.addEntity(self._ball)
         self._view.scene.addEntity(self._ballCtrl)
         self._view.cam.followTarget(self._ballCtrl)
-        self._view.show()
-            
-        self._startTimer()
     
+        # start for a moment the game in order to correctly position the ball
+        f1 = Func(self.__setattr__, "_gameIsAlive", True)
+        f2 = Func(self.__setattr__, "_gameIsAlive", False)
+        Sequence(f1, Wait(.1), f2).start()
+        
+        # display the view but hides the HUD in order to show the countdown
+        # timer
+        self._view.show()
+        self._view.hud.hide()
+        
+        # create countdown to to start timer
+        self._countdown = SemaphoreTimer(3)
+        self._countdown.start()
+    
+    @eventCallback
+    def start(self):
+        logger.info("Starting game")
+        
+        self._view.hud.show()
+        self._startTimer()
+        
+        self._gameIsAlive = True
+        
+        f1 = Wait(2)
+        f2 = Func(self._countdown.destroy)
+        Sequence(f1,f2).start()
+        
+        
     def restart(self):
         logger.info("Restarting game")
         
@@ -125,120 +150,121 @@ class Game(object):
         logger.info("Track finished")
         
         self._view.timer.stop()
+        self._ball.slowDown()
         
         # reset the orientation of the camera otherwise 3D objects in the
         # menus will appear shifted. The camera is a child of ballCtrl.
-        self._ball.slowDown()
         self._resetBallPos()
         
     def update(self, task):
-        dt = globalClock.getDt()
-        self._updateDelta = dt
-        while self._updateDelta > self._updateStep:
-            self._updateDelta -= self._updateStep
-        
-        if self._keyMap["right"] == True:
-            if self._ball.physics.speed > 0:
-                if self._controlInverted:
-                    self._ball.turnLeft()
-                else:
-                    self._ball.turnRight()
+        if self._gameIsAlive:
+            dt = globalClock.getDt()
+            self._updateDelta = dt
+            while self._updateDelta > self._updateStep:
+                self._updateDelta -= self._updateStep
             
-        if self._keyMap["left"] == True:
-            if self._ball.physics.speed > 0:
-                if self._controlInverted:
-                    self._ball.turnRight()
-                else:
-                    self._ball.turnLeft()
-        
-        if self._keyMap["forward"] == True:
-            if self._controlInverted:
-                self._ball.brake()
-            else:
-                self._ball.accelerate()
-        else:
-            self._ball.decelerate()
-        
-        if self._keyMap["backward"] == True:
-            if self._controlInverted:
-                self._ball.accelerate()
-            else:
-                self._ball.brake()
-        
-        if self._keyMap["jump"] == True:
-            self._ball.jump()
-            self._keyMap["jump"] = False
-        
-        
-        # TODO put this in an update method in the ball class
-        root = self._ballCtrl.nodepath.getParent()
-        forward = root.getRelativeVector(self._ballCtrl.nodepath,Vec3(0,1,0)) 
-        forward.setZ(0)
-        forward.normalize()
-        
-        speedVec = forward * dt * self._ball.physics.speed
-        self._ball.physics.speedVec = speedVec
-        
-        self._ballCtrl.nodepath.setPos(self._ballCtrl.nodepath.getPos() + speedVec)
-        self._ballCtrl.nodepath.setZ(self._ballZ + self._ball.jumpZ + \
-                                  self._ball.physics.radius)
-        
-        # rotate the _ball
-        self._ball.nodepath.setP(self._ball.nodepath.getP() -1 * dt * \
-                                  self._ball.physics.speed * 
-                                  self._ball.physics.spinningFactor)
-        # set the _ball to the position of the controller node
-        self._ball.nodepath.setPos(self._ballCtrl.nodepath.getPos())
-        # rotate the controller to follow the direction of the _ball
-        self._ballCtrl.nodepath.setH(self._ball.nodepath.getH())
-        
-        # special actions
-        t = self._tileType
-        if t == "neutral" or t == "N":
-            self._ball.neutral()
-        elif t == "jump" or t == "J":
-            self._ball.jump()
-        elif t == "accelerate" or t == "A":
-            self._ball.sprint()
-        elif t == "slow" or t == "S":
-            self._ball.slowDown()
-        elif t == "freeze" or t == "F":
-            if not self._lastTileType == "F" and not self._lastTileType == "freeze":
-                self._ball.freeze()
-        else:
-            print "unknown type: " , self._tileType
-            self._ball.neutral()
-        
-        self._lastTileType = self._tileType
-        
-        # special items
-        # TODO make the special item disappear for three seconds
-        # do not remove it ! if the player falls he may restart before the item
-        # hence he may pick it up again.
-        if self._ball.hasSpecialItem():
-            item = self._ball.specialItem
-            if item == "M":
-                self._ball.minimize()
-            elif item == "I":
-                self._ball.invisibleMode()
-            elif item == "+":
-                self._view.hud.timer.addTime(30)
-                self._view.hud.timer.flash()
-            elif item == "-":
-                self._view.hud.timer.removeTime(30)
-                self._view.hud.timer.flash()
-            elif item == "?":
-                delay = Wait(1)
-                f = Func(self.__setattr__,"_controlInverted", True)
-                f1 = Func(self.__setattr__,"_controlInverted", False)
-                Sequence(f, delay, f1).start()
+            if self._keyMap["right"] == True:
+                if self._ball.physics.speed > 0:
+                    if self._controlInverted:
+                        self._ball.turnLeft()
+                    else:
+                        self._ball.turnRight()
                 
-            self._ball.specialItem = None
-        
-        if self._ball.physics.speed < 0:
-            self._ball.physics.speed = 0
-        
-        self._tileType = "neutral"
+            if self._keyMap["left"] == True:
+                if self._ball.physics.speed > 0:
+                    if self._controlInverted:
+                        self._ball.turnRight()
+                    else:
+                        self._ball.turnLeft()
+            
+            if self._keyMap["forward"] == True:
+                if self._controlInverted:
+                    self._ball.brake()
+                else:
+                    self._ball.accelerate()
+            else:
+                self._ball.decelerate()
+            
+            if self._keyMap["backward"] == True:
+                if self._controlInverted:
+                    self._ball.accelerate()
+                else:
+                    self._ball.brake()
+            
+            if self._keyMap["jump"] == True:
+                self._ball.jump()
+                self._keyMap["jump"] = False
+            
+            
+            # TODO put this in an update method in the ball class
+            root = self._ballCtrl.nodepath.getParent()
+            forward = root.getRelativeVector(self._ballCtrl.nodepath,Vec3(0,1,0)) 
+            forward.setZ(0)
+            forward.normalize()
+            
+            speedVec = forward * dt * self._ball.physics.speed
+            self._ball.physics.speedVec = speedVec
+            
+            self._ballCtrl.nodepath.setPos(self._ballCtrl.nodepath.getPos() + speedVec)
+            self._ballCtrl.nodepath.setZ(self._ballZ + self._ball.jumpZ + \
+                                      self._ball.physics.radius)
+            
+            # rotate the _ball
+            self._ball.nodepath.setP(self._ball.nodepath.getP() -1 * dt * \
+                                      self._ball.physics.speed * 
+                                      self._ball.physics.spinningFactor)
+            # set the _ball to the position of the controller node
+            self._ball.nodepath.setPos(self._ballCtrl.nodepath.getPos())
+            # rotate the controller to follow the direction of the _ball
+            self._ballCtrl.nodepath.setH(self._ball.nodepath.getH())
+            
+            # special actions
+            t = self._tileType
+            if t == "neutral" or t == "N":
+                self._ball.neutral()
+            elif t == "jump" or t == "J":
+                self._ball.jump()
+            elif t == "accelerate" or t == "A":
+                self._ball.sprint()
+            elif t == "slow" or t == "S":
+                self._ball.slowDown()
+            elif t == "freeze" or t == "F":
+                if not self._lastTileType == "F" and not self._lastTileType == "freeze":
+                    self._ball.freeze()
+            else:
+                print "unknown type: " , self._tileType
+                self._ball.neutral()
+            
+            self._lastTileType = self._tileType
+            
+            # special items
+            # TODO make the special item disappear for three seconds
+            # do not remove it ! if the player falls he may restart before the item
+            # hence he may pick it up again.
+            if self._ball.hasSpecialItem():
+                item = self._ball.specialItem
+                if item == "M":
+                    self._ball.minimize()
+                elif item == "I":
+                    self._ball.invisibleMode()
+                elif item == "+":
+                    self._view.hud.timer.addTime(30)
+                    self._view.hud.timer.flash()
+                elif item == "-":
+                    self._view.hud.timer.removeTime(30)
+                    self._view.hud.timer.flash()
+                elif item == "?":
+                    delay = Wait(1)
+                    f = Func(self.__setattr__,"_controlInverted", True)
+                    f1 = Func(self.__setattr__,"_controlInverted", False)
+                    Sequence(f, delay, f1).start()
+                    
+                self._ball.specialItem = None
+            
+            if self._ball.physics.speed < 0:
+                self._ball.physics.speed = 0
+            
+            self._tileType = "neutral"
         
         return task.cont
     
@@ -250,17 +276,19 @@ class Game(object):
         return task.cont
     
     def collisionStep(self, task):
-        # run collisions only once every self._collStep seconds (1/60)
-        self._collDelta += globalClock.getDt()
-        while self._collDelta > self._collStep:
-            self._collDelta -= self._collStep
-        
-        self._picker.traverse(self._currentSegment)
-        self._ballCollNodeNp.setQuat(self._track.nodepath,Quat(1,0,0,0))
+        if self._gameIsAlive:
+            # run collisions only once every self._collStep seconds (1/60)
+            self._collDelta += globalClock.getDt()
+            while self._collDelta > self._collStep:
+                self._collDelta -= self._collStep
+            
+            self._picker.traverse(self._currentSegment)
+            self._ballCollNodeNp.setQuat(self._track.nodepath,Quat(1,0,0,0))
         
         return task.cont
     
     def updateProfile(self):
+        # TODO shouldn't be here but in gamesession
         info = GS.getTrackInfo(GS.selectedTrack)
         
         timer = self._view.timer 
@@ -282,8 +310,8 @@ class Game(object):
         GS.profile.update(result, GS.mode)
     
     def destroy(self):
-        # Should I destroy the timer and remove the associated task ?
-        pass
+        self._listener.ignoreAll()
+        self._listener = None
         
     @eventCallback
     def _onTimeOver(self):
@@ -313,7 +341,6 @@ class Game(object):
             logger.info("Ball on special item")
             
             self._ball.setSpecialitem(item)
-        
         # TODO remove also node, get it from entry
     
     @eventCallback
@@ -332,6 +359,7 @@ class Game(object):
                     self._currentSegment = seg.getParent()
                     self._currentSegment.setCollideMask(BitMask32(1))
                     
+                    self._listener.ignore("ray-again-segment_%d" % (num-1)) 
                     self._listener.accept("ray-again-segment_%d" % num, 
                                           self._onBallAgainSegment) 
                     self._listener.accept("ray-out-segment_%d" % num,
@@ -370,11 +398,9 @@ class Game(object):
     def _setupTrackCollision(self):
         segs = self._track.nodepath.findAllMatches("**/segment*")
         
-        # set bitmaks for the first two segments
+        # set bitmasks and bind events for the first segment
         self._currentSegment = segs[0].getParent()
         self._currentSegment.setCollideMask(BitMask32(1))
-        
-        # bind events
         self._listener.accept("ray-out-segment_0" , self._onBallOutSegment)
         self._listener.accept("ray-again-segment_0" , self._onBallAgainSegment)
         
@@ -446,6 +472,8 @@ class Game(object):
         self._ballCtrl.nodepath.setPos(self._cpDelegate.startPos)
         self._ball.nodepath.setPos(self._cpDelegate.startPos)
         
+        #time.sleep(1)
+        
         # TODO the current segment must be updated too
         self._currentSegment = self._cpDelegate.segment
         self._currentSegment.setCollideMask(BitMask32(1))
@@ -454,6 +482,8 @@ class Game(object):
         # move the ball into the current_segment. Another weird behavior of this
         # collision system ...
         self._collHandler.clear()
+        
+        self._ball.physics.speed = 0
         
         """
         sp = self._cpDelegate.startPos
@@ -528,9 +558,9 @@ class Game(object):
         return node.getName().startswith("segment")
     
     def _subscribeToEvents(self):
-        # this has to be done because of a bug in DirectObject.
-        #if hasattr(self, "_listener"):
-        #    self._listener.ignoreAll()
+        # TODO put names in event file
+        # Ball events
+        #messenger.toggleVerbose()
         
         do = DirectObject()
         do.accept("ray-into-outside_right", self._playBallFallingSequence)
@@ -542,6 +572,9 @@ class Game(object):
         do.accept(event.BALL_INTO_JUMP, self._onBallIntoSpecialTile, ["jump"])
         
         do.accept(event.TIME_OVER, self._onTimeOver)
+        
+        # other events
+        do.accept(event.COUNTDOWN_END, self.start)
         
         self._listener = do
         
@@ -571,6 +604,9 @@ class GameApplication(object):
         self._listener = SafeDirectObject()
         
         if self._checkRequirements():
+            
+            # stop the collision loop, I have my own.
+            taskMgr.remove("collisionLoop")
             
             self._subscribeToEvents()
             self._createWindow()
@@ -636,6 +672,11 @@ class GameApplication(object):
     def createGameAndView(self):
         # TODO first destroy (or reset) previous game and view if they exists
         logger.debug("Creating game and view")
+        
+        if hasattr(self, "_view"):
+            self._view.destroy()
+        if hasattr(self, "_game"):
+            self._game.destroy()
         
         self._view = GameView()
         self._view.hide()

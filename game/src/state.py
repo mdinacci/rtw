@@ -182,7 +182,7 @@ class GameState(FSM.FSM):
     def enterPlay(self):
         logger.info("Entering Play state")
         GS.app.createGameAndView()
-        GS.app.game.start()
+        GS.app.game.prestart()
         GS.app.startProcesses()
         GS.app.view.showCursor(False)
     
