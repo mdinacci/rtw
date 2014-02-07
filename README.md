@@ -7,6 +7,9 @@ It's about 10K lines of Python2 code, written in a few months in 2009. Have a lo
 
 It used the [Panda3D](https://www.panda3d.org/) game engine and Qt for the desktop apps. 
 
+![Screenshot]("screenshot.png?raw=true")
+
+
 ## Contents
 
 **contrib**: contains a Python utility library I've written (mdlib) and 3rd party code.
